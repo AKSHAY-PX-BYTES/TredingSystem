@@ -1,0 +1,188 @@
+@page "/login"
+@layout LoginLayout
+@using TradingSystem.Web.Models
+@using TradingSystem.Web.Services
+@inject IAuthService AuthService
+@inject CustomAuthStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Login - Trading System</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <span class="logo-icon">📈</span>
+                <h1>Trading System</h1>
+                <p class="login-subtitle">AI-Based Strategy Predictor</p>
+            </div>
+        </div>
+
+        <div class="login-body">
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="login-error">
+                    <span class="error-icon">⚠️</span>
+                    <span>@errorMessage</span>
+                </div>
+            }
+
+            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="login-form">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label for="username">
+                        <span class="field-icon">👤</span> Username
+                    </label>
+                    <InputText id="username" @bind-Value="loginModel.Username"
+                               class="form-input" placeholder="Enter your username"
+                               disabled="@isLoading" />
+                    <ValidationMessage For="@(() => loginModel.Username)" class="validation-msg" />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <span class="field-icon">🔒</span> Password
+                    </label>
+                    <div class="password-wrapper">
+                        <input id="password" type="@(showPassword ? "text" : "password")"
+                               @bind="loginModel.Password" @bind:event="oninput"
+                               class="form-input" placeholder="Enter your password"
+                               disabled="@isLoading" />
+                        <button type="button" class="toggle-password" @onclick="TogglePassword"
+                                tabindex="-1">
+                            @(showPassword ? "🙈" : "👁️")
+                        </button>
+                    </div>
+                    <ValidationMessage For="@(() => loginModel.Password)" class="validation-msg" />
+                </div>
+
+                <button type="submit" class="login-btn" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner"></span>
+                        <span>Signing in...</span>
+                    }
+                    else
+                    {
+                        <span>🔐 Sign In</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="demo-credentials">
+                <h4>Demo Credentials</h4>
+                <div class="credential-list">
+                    <div class="credential-item" @onclick='() => FillCredentials("admin", "Admin@123")'>
+                        <span class="role-badge admin">Admin</span>
+                        <span>admin / Admin@123</span>
+                    </div>
+                    <div class="credential-item" @onclick='() => FillCredentials("trader", "Trader@123")'>
+                        <span class="role-badge trader">Trader</span>
+                        <span>trader / Trader@123</span>
+                    </div>
+                    <div class="credential-item" @onclick='() => FillCredentials("demo", "Demo@123")'>
+                        <span class="role-badge demo">Demo</span>
+                        <span>demo / Demo@123</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            <p>© 2026 Trading System • Powered by AI & ML.NET</p>
+        </div>
+    </div>
+
+    <div class="login-features">
+        <div class="feature-item">
+            <span class="feature-icon">🤖</span>
+            <h3>AI Predictions</h3>
+            <p>ML-powered stock price predictions with confidence scoring</p>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">📊</span>
+            <h3>Technical Analysis</h3>
+            <p>Real-time indicators: SMA, EMA, RSI, MACD, Bollinger Bands</p>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">📰</span>
+            <h3>Sentiment Analysis</h3>
+            <p>News-based sentiment scoring for informed trading decisions</p>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">🔄</span>
+            <h3>Backtesting</h3>
+            <p>Validate strategies against historical data with equity curves</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginRequest loginModel = new();
+    private string? errorMessage;
+    private bool isLoading;
+    private bool showPassword;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // If already authenticated, redirect to dashboard
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (isAuthenticated)
+        {
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(loginModel.Username) || string.IsNullOrWhiteSpace(loginModel.Password))
+        {
+            errorMessage = "Please enter both username and password.";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel);
+
+            if (result.Success)
+            {
+                // Notify auth state provider and navigate
+                AuthStateProvider.NotifyAuthStateChanged();
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = result.Error ?? "Login failed. Please check your credentials.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FillCredentials(string username, string password)
+    {
+        loginModel.Username = username;
+        loginModel.Password = password;
+        errorMessage = null;
+        StateHasChanged();
+    }
+
+    private void TogglePassword()
+    {
+        showPassword = !showPassword;
+    }
+}

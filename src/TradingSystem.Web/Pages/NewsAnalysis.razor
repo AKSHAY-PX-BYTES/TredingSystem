@@ -1,0 +1,240 @@
+@page "/news"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject INewsApiService NewsApi
+@inject IJSRuntime JS
+
+<PageTitle>News Analysis - AI Trading System</PageTitle>
+
+<div class="page-header">
+    <h1>📰 News Sentiment Analysis</h1>
+    <p>Analyze news headlines to determine market sentiment</p>
+</div>
+
+<!-- Input Section -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h3>✍️ Enter Headlines</h3>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Enter one headline per line</label>
+        <textarea class="form-textarea" @bind="headlinesText" rows="6"
+                  placeholder="Apple Reports Record Revenue in Q4&#10;Tesla Stock Plunges Amid Production Concerns&#10;Microsoft Azure Cloud Growth Exceeds Expectations"></textarea>
+    </div>
+    <div class="form-inline" style="justify-content: space-between;">
+        <div>
+            <button class="btn btn-primary" @onclick="AnalyzeHeadlines" disabled="@isAnalyzing">
+                @if (isAnalyzing)
+                {
+                    <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span>
+                }
+                🔍 Analyze Sentiment
+            </button>
+            <button class="btn btn-secondary" @onclick="LoadSampleHeadlines" style="margin-left:0.5rem;">
+                📋 Load Sample
+            </button>
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-muted);">
+            @headlineCount headline(s) detected
+        </span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="error-container fade-in" style="margin-bottom:1.5rem;">
+        <p>⚠️ @error</p>
+    </div>
+}
+
+@if (analysisResult != null)
+{
+    <!-- Overall Result -->
+    <div class="grid grid-3 fade-in" style="margin-bottom: 1.5rem;">
+        <div class="stat-card">
+            <div class="stat-label">Overall Sentiment</div>
+            <div class="stat-value">
+                <span class="signal-badge @GetSentimentBadgeClass(analysisResult.OverallSentiment)">
+                    @GetSentimentEmoji(analysisResult.OverallSentiment) @analysisResult.OverallSentiment
+                </span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Average Score</div>
+            <div class="stat-value @(analysisResult.AverageScore >= 0 ? "sentiment-positive" : "sentiment-negative")">
+                @analysisResult.AverageScore.ToString("N3")
+            </div>
+            <div class="stat-change neutral">Range: -1.0 to 1.0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Headlines Analyzed</div>
+            <div class="stat-value">@analysisResult.Results.Count</div>
+            <div class="stat-change neutral">@analysisResult.AnalyzedAt.ToString("HH:mm:ss")</div>
+        </div>
+    </div>
+
+    <!-- Sentiment Distribution Chart -->
+    <div class="grid grid-2 fade-in" style="margin-bottom: 1.5rem;">
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 Sentiment Distribution</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="sentimentChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>📉 Sentiment Scores</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="scoresChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Results Table -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3>📋 Detailed Results</h3>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:50%">Headline</th>
+                        <th>Sentiment</th>
+                        <th>Score</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in analysisResult.Results)
+                    {
+                        <tr>
+                            <td>@result.Headline</td>
+                            <td>
+                                <span class="signal-badge @GetSentimentBadgeClass(result.Sentiment)">
+                                    @GetSentimentEmoji(result.Sentiment) @result.Sentiment
+                                </span>
+                            </td>
+                            <td class="@(result.Score >= 0 ? "sentiment-positive" : "sentiment-negative")">
+                                @result.Score.ToString("N3")
+                            </td>
+                            <td>
+                                <div class="confidence-meter" style="margin:0;">
+                                    <div class="confidence-bar" style="height:6px;">
+                                        <div class="confidence-fill @GetConfClass(result.Confidence)"
+                                             style="width: @((result.Confidence * 100).ToString("N0"))%"></div>
+                                    </div>
+                                    <span style="font-size:0.75rem; color:var(--text-muted);">@((result.Confidence * 100).ToString("N0"))%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private string headlinesText = "";
+    private bool isAnalyzing = false;
+    private string? error;
+    private NewsAnalysisResponse? analysisResult;
+
+    private int headlineCount => string.IsNullOrWhiteSpace(headlinesText) ? 0 :
+        headlinesText.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+
+    private void LoadSampleHeadlines()
+    {
+        headlinesText = @"Apple Reports Record Revenue in Q4, Beating Analyst Expectations
+Tesla Stock Plunges Amid Production Challenges
+Microsoft Azure Cloud Growth Exceeds 30% Year-Over-Year
+NVIDIA's AI Chip Demand Drives Record Data Center Revenue
+Amazon Faces Lawsuit Over Warehouse Working Conditions
+Google Announces Breakthrough in Quantum Computing
+Meta's VR Division Reports Significant Losses
+JPMorgan Warns of Recession Risk in 2026
+Walmart Reports Strong Holiday Sales Growth
+Bitcoin Crashes Below Key Support Level";
+    }
+
+    private async Task AnalyzeHeadlines()
+    {
+        if (string.IsNullOrWhiteSpace(headlinesText))
+        {
+            error = "Please enter at least one headline.";
+            return;
+        }
+
+        isAnalyzing = true;
+        error = null;
+        StateHasChanged();
+
+        try
+        {
+            var headlines = headlinesText
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(h => h.Trim())
+                .Where(h => !string.IsNullOrWhiteSpace(h))
+                .ToList();
+
+            var request = new NewsAnalysisRequest { Headlines = headlines };
+            analysisResult = await NewsApi.AnalyzeAsync(request);
+
+            StateHasChanged();
+            await Task.Delay(100);
+            await RenderCharts();
+        }
+        catch (Exception ex)
+        {
+            error = $"Analysis failed: {ex.Message}";
+        }
+        finally
+        {
+            isAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RenderCharts()
+    {
+        if (analysisResult == null) return;
+
+        // Sentiment Distribution Doughnut
+        var positiveCount = analysisResult.Results.Count(r => r.Sentiment == "Positive");
+        var negativeCount = analysisResult.Results.Count(r => r.Sentiment == "Negative");
+        var neutralCount = analysisResult.Results.Count(r => r.Sentiment == "Neutral");
+
+        await JS.InvokeVoidAsync("chartInterop.createDoughnutChart",
+            "sentimentChart",
+            new[] { "Positive", "Negative", "Neutral" },
+            new[] { positiveCount, negativeCount, neutralCount },
+            new[] { "rgba(34, 197, 94, 0.8)", "rgba(239, 68, 68, 0.8)", "rgba(234, 179, 8, 0.8)" });
+
+        // Scores Bar Chart
+        var labels = analysisResult.Results.Select((_, i) => $"#{i + 1}").ToArray();
+        var scores = analysisResult.Results.Select(r => (double)r.Score).ToArray();
+
+        await JS.InvokeVoidAsync("chartInterop.createBarChart",
+            "scoresChart", labels, scores, "Sentiment Scores", (object?)null);
+    }
+
+    private string GetSentimentBadgeClass(string sentiment) => sentiment switch
+    {
+        "Positive" => "signal-buy",
+        "Negative" => "signal-sell",
+        _ => "signal-hold"
+    };
+
+    private string GetSentimentEmoji(string sentiment) => sentiment switch
+    {
+        "Positive" => "😊",
+        "Negative" => "😟",
+        _ => "😐"
+    };
+
+    private string GetConfClass(decimal conf) =>
+        conf > 0.7m ? "high" : conf > 0.4m ? "medium" : "low";
+}

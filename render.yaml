@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: tradingsystem-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+    healthCheckPath: /swagger

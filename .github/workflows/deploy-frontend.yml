@@ -1,0 +1,66 @@
+name: Deploy Blazor WASM to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Set API Base URL
+        run: |
+          # Replace the API URL in appsettings.json with the Render URL
+          # UPDATE THIS after deploying your API to Render!
+          API_URL="${{ vars.API_BASE_URL || 'https://tradingsystem-api.onrender.com' }}"
+          echo "Setting API URL to: $API_URL"
+          cat > src/TradingSystem.Web/wwwroot/appsettings.json << EOF
+          {
+            "ApiBaseUrl": "$API_URL"
+          }
+          EOF
+
+      - name: Publish Blazor WASM
+        run: dotnet publish src/TradingSystem.Web/TradingSystem.Web.csproj -c Release -o output
+
+      - name: Prepare for GitHub Pages
+        run: |
+          # GitHub Pages needs a .nojekyll file to serve _framework files
+          touch output/wwwroot/.nojekyll
+
+          # Copy 404.html for SPA routing (Blazor handles routes client-side)
+          cp output/wwwroot/index.html output/wwwroot/404.html
+
+          # Update base href if deploying to a repo subfolder
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          sed -i "s|<base href=\"/\"|<base href=\"/${REPO_NAME}/\"|g" output/wwwroot/index.html
+          sed -i "s|<base href=\"/\"|<base href=\"/${REPO_NAME}/\"|g" output/wwwroot/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output/wwwroot
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

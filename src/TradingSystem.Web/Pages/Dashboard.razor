@@ -1,0 +1,388 @@
+@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
+@inject IMarketApiService MarketApi
+@inject IPredictionApiService PredictionApi
+@inject INewsApiService NewsApi
+@inject ICurrencyService Currency
+@inject IJSRuntime JS
+
+<PageTitle>Explore Stocks - AI Trader</PageTitle>
+
+<!-- Search Bar Section -->
+<div class="explore-search-section">
+    <h1 class="explore-title">Explore Stocks</h1>
+    <p class="explore-subtitle">AI-powered analysis with live market data from Yahoo Finance</p>
+    <div class="explore-search-bar">
+        <span class="search-icon-lg">🔍</span>
+        <input class="explore-input" @bind="symbolInput" @bind:event="oninput"
+               @onkeydown="HandleKeyDown" placeholder="Search stocks e.g. AAPL, MSFT, RELIANCE" />
+        <button class="explore-btn" @onclick="LoadData" disabled="@isLoading">
+            @if (isLoading) { <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> }
+            else { <span>Analyze</span> }
+        </button>
+    </div>
+    <div class="explore-chips">
+        @foreach (var s in popularSymbols)
+        {
+            <button class="explore-chip @(s == currentSymbol ? "explore-chip-active" : "")"
+                    @onclick="() => SelectSymbol(s)">@s</button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="groww-error fade-in">⚠️ @error</div>
+}
+else if (quote != null)
+{
+    <!-- Stock Header Card -->
+    <div class="stock-hero fade-in">
+        <div class="stock-hero-left">
+            <div class="stock-avatar">@currentSymbol[0]</div>
+            <div>
+                <h2 class="stock-name">@quote.CompanyName</h2>
+                <span class="stock-symbol-tag">@currentSymbol</span>
+                <span class="stock-live-badge">
+                    <span class="live-dot"></span> LIVE
+                </span>
+            </div>
+        </div>
+        <div class="stock-hero-right">
+            <div class="stock-hero-price">@Currency.FormatPrice(quote.CurrentPrice)</div>
+            <div class="stock-hero-change @(quote.ChangePercent >= 0 ? "chg-up" : "chg-down")">
+                @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change)
+                (@(quote.ChangePercent >= 0 ? "+" : "")@quote.ChangePercent.ToString("N2")%)
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="groww-metrics fade-in">
+        <div class="metric-item">
+            <span class="metric-label">Open</span>
+            <span class="metric-value">@Currency.FormatPrice(quote.PreviousClose)</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Day High</span>
+            <span class="metric-value val-up">@Currency.FormatPrice(quote.DayHigh)</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Day Low</span>
+            <span class="metric-value val-down">@Currency.FormatPrice(quote.DayLow)</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Volume</span>
+            <span class="metric-value">@FormatVolume(quote.Volume)</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-label">Prev Close</span>
+            <span class="metric-value">@Currency.FormatPrice(quote.PreviousClose)</span>
+        </div>
+        @if (strategy != null)
+        {
+            <div class="metric-divider"></div>
+            <div class="metric-item">
+                <span class="metric-label">AI Signal</span>
+                <span class="metric-signal @GetSignalClass(strategy.Signal)">@strategy.Signal</span>
+            </div>
+        }
+    </div>
+
+    <!-- Chart + Strategy -->
+    <div class="groww-grid-2 fade-in">
+        <div class="groww-card">
+            <div class="groww-card-header">
+                <h3>Performance</h3>
+                <span class="card-tag">30 Days</span>
+            </div>
+            <div class="chart-container tall">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="groww-card">
+            <div class="groww-card-header">
+                <h3>AI Strategy</h3>
+                @if (strategy != null)
+                {
+                    <span class="signal-pill @GetSignalClass(strategy.Signal)">@strategy.Signal</span>
+                }
+            </div>
+            @if (strategy != null)
+            {
+                <div class="strategy-body">
+                    <div class="confidence-section">
+                        <div class="confidence-row">
+                            <span>Confidence</span>
+                            <span class="confidence-pct">@((strategy.Confidence * 100).ToString("N0"))%</span>
+                        </div>
+                        <div class="groww-progress">
+                            <div class="groww-progress-fill @GetConfidenceClass(strategy.Confidence)"
+                                 style="width: @((strategy.Confidence * 100).ToString("N0"))%"></div>
+                        </div>
+                    </div>
+                    <p class="strategy-explanation">@strategy.Explanation</p>
+                    @if (strategy.TargetPrice.HasValue && strategy.StopLoss.HasValue)
+                    {
+                        <div class="target-row">
+                            <div class="target-item">
+                                <span class="target-label">Target</span>
+                                <span class="target-val target-up">@Currency.FormatPrice(strategy.TargetPrice.Value)</span>
+                            </div>
+                            <div class="target-item">
+                                <span class="target-label">Stop Loss</span>
+                                <span class="target-val target-down">@Currency.FormatPrice(strategy.StopLoss.Value)</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="loading-container"><div class="loading-spinner"></div><span>Analyzing...</span></div>
+            }
+        </div>
+    </div>
+
+    <!-- Indicators + Analysis -->
+    <div class="groww-grid-2 fade-in">
+        <div class="groww-card">
+            <div class="groww-card-header"><h3>Technical Indicators</h3></div>
+            @if (strategy?.Indicators != null)
+            {
+                var ind = strategy.Indicators;
+                <div class="indicator-grid">
+                    <div class="ind-row">
+                        <span class="ind-name">RSI (14)</span>
+                        <span class="ind-val">@ind.RSI.ToString("N1")</span>
+                        <span class="ind-signal @(ind.RSI < 30 ? "ind-bullish" : ind.RSI > 70 ? "ind-bearish" : "ind-neutral")">
+                            @(ind.RSI < 30 ? "Oversold" : ind.RSI > 70 ? "Overbought" : "Neutral")
+                        </span>
+                    </div>
+                    <div class="ind-row">
+                        <span class="ind-name">SMA 20</span>
+                        <span class="ind-val">@Currency.FormatPrice(ind.SMA20)</span>
+                        <span class="ind-signal @(ind.CurrentPrice > ind.SMA20 ? "ind-bullish" : "ind-bearish")">
+                            @(ind.CurrentPrice > ind.SMA20 ? "Above ▲" : "Below ▼")
+                        </span>
+                    </div>
+                    <div class="ind-row">
+                        <span class="ind-name">SMA 50</span>
+                        <span class="ind-val">@Currency.FormatPrice(ind.SMA50)</span>
+                        <span class="ind-signal @(ind.CurrentPrice > ind.SMA50 ? "ind-bullish" : "ind-bearish")">
+                            @(ind.CurrentPrice > ind.SMA50 ? "Above ▲" : "Below ▼")
+                        </span>
+                    </div>
+                    <div class="ind-row">
+                        <span class="ind-name">MACD</span>
+                        <span class="ind-val">@ind.MACD.ToString("N2")</span>
+                        <span class="ind-signal @(ind.MACD > 0 ? "ind-bullish" : "ind-bearish")">
+                            @(ind.MACD > 0 ? "Bullish ▲" : "Bearish ▼")
+                        </span>
+                    </div>
+                    <div class="ind-row">
+                        <span class="ind-name">Trend</span>
+                        <span class="ind-val">@ind.Trend</span>
+                        <span class="ind-signal @GetTrendClass(ind.Trend)">@ind.Trend</span>
+                    </div>
+                    <div class="ind-row">
+                        <span class="ind-name">Bollinger</span>
+                        <span class="ind-val">@Currency.FormatPrice(ind.BollingerLower) - @Currency.FormatPrice(ind.BollingerUpper)</span>
+                        <span class="ind-signal ind-neutral">Band</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="groww-card">
+            <div class="groww-card-header"><h3>Analysis Breakdown</h3></div>
+            @if (strategy?.Reasons != null && strategy.Reasons.Any())
+            {
+                <div class="reasons-list">
+                    @foreach (var reason in strategy.Reasons)
+                    {
+                        <div class="reason-item">
+                            <span class="reason-dot @GetReasonDotClass(reason)"></span>
+                            <span>@reason</span>
+                        </div>
+                    }
+                </div>
+            }
+            @if (strategy?.Prediction?.FeatureImportance != null)
+            {
+                <div class="feature-section">
+                    <h4 class="feature-title">Feature Importance</h4>
+                    @foreach (var feature in strategy.Prediction.FeatureImportance)
+                    {
+                        var absVal = Math.Abs(feature.Value);
+                        var isPositive = feature.Value >= 0;
+                        <div class="feature-bar">
+                            <span class="feature-name">@feature.Key.Replace("_", " ")</span>
+                            <div class="feature-track">
+                                <div class="feature-value"
+                                     style="width: @((absVal * 100).ToString("N0"))%; background: @(isPositive ? "var(--groww-green)" : "var(--groww-red)");">
+                                </div>
+                            </div>
+                            <span class="feature-score">@feature.Value.ToString("N3")</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- News -->
+    <div class="groww-card fade-in" style="margin-bottom: 2rem;">
+        <div class="groww-card-header">
+            <h3>Latest News — @currentSymbol</h3>
+            <span class="signal-pill @GetSentimentBadgeClass(strategy?.SentimentSummary)">
+                @(strategy?.SentimentSummary ?? "...")
+            </span>
+        </div>
+        @if (news != null && news.Any())
+        {
+            <div class="news-list">
+                @foreach (var item in news)
+                {
+                    <div class="news-row">
+                        <div class="news-content">
+                            <span class="news-headline">@item.Headline</span>
+                            <span class="news-meta">@item.Source • @item.PublishedAt.ToString("MMM dd, HH:mm")</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private string symbolInput = "AAPL";
+    private string currentSymbol = "";
+    private bool isLoading = false;
+    private string? error;
+
+    private StockQuote? quote;
+    private StrategyResult? strategy;
+    private List<NewsItem>? news;
+
+    private readonly string[] popularSymbols = { "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "RELIANCE", "TCS" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Currency.OnCurrencyChanged += OnCurrencyChanged;
+        await LoadData();
+    }
+
+    private void OnCurrencyChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LoadData();
+    }
+
+    private async Task SelectSymbol(string symbol)
+    {
+        symbolInput = symbol;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrWhiteSpace(symbolInput)) return;
+        isLoading = true;
+        error = null;
+        currentSymbol = symbolInput.ToUpper();
+        StateHasChanged();
+
+        try
+        {
+            var quoteTask = MarketApi.GetQuoteAsync(currentSymbol);
+            var strategyTask = PredictionApi.GetStrategyAsync(currentSymbol);
+            var newsTask = NewsApi.GetNewsAsync(currentSymbol);
+            await Task.WhenAll(quoteTask, strategyTask, newsTask);
+
+            quote = await quoteTask;
+            strategy = await strategyTask;
+            news = await newsTask;
+            StateHasChanged();
+
+            await Task.Delay(100);
+            await RenderPriceChart();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RenderPriceChart()
+    {
+        if (quote?.HistoricalData == null || !quote.HistoricalData.Any()) return;
+        var labels = quote.HistoricalData.Select(d => d.Date.ToString("MMM dd")).ToArray();
+        var closePrices = quote.HistoricalData.Select(d => (double)d.Close).ToArray();
+        var isUp = closePrices.Last() >= closePrices.First();
+        var color = isUp ? "rgb(0, 208, 156)" : "rgb(235, 77, 75)";
+
+        var datasets = new[]
+        {
+            new { label = "Close Price", data = closePrices, color = color, fill = true, pointRadius = 1 }
+        };
+
+        await JS.InvokeVoidAsync("chartInterop.createLineChart", "priceChart", labels, datasets, $"{currentSymbol} Price");
+    }
+
+    private string FormatVolume(long volume)
+    {
+        if (volume >= 1_000_000_000) return $"{volume / 1_000_000_000.0:N1}B";
+        if (volume >= 1_000_000) return $"{volume / 1_000_000.0:N1}M";
+        if (volume >= 1_000) return $"{volume / 1_000.0:N1}K";
+        return volume.ToString();
+    }
+
+    private string GetSignalClass(string signal) => signal switch
+    {
+        "BUY" => "signal-buy", "SELL" => "signal-sell", _ => "signal-hold"
+    };
+
+    private string GetConfidenceClass(decimal confidence) =>
+        confidence > 0.7m ? "high" : confidence > 0.4m ? "medium" : "low";
+
+    private string GetTrendClass(string trend) => trend switch
+    {
+        "Bullish" => "ind-bullish", "Bearish" => "ind-bearish", _ => "ind-neutral"
+    };
+
+    private string GetSentimentBadgeClass(string? sentiment) => sentiment switch
+    {
+        "Positive" => "signal-buy", "Negative" => "signal-sell", _ => "signal-hold"
+    };
+
+    private string GetReasonDotClass(string reason)
+    {
+        if (reason.Contains("bullish", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("above", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("positive", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("oversold", StringComparison.OrdinalIgnoreCase))
+            return "dot-green";
+        if (reason.Contains("bearish", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("below", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("negative", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("overbought", StringComparison.OrdinalIgnoreCase))
+            return "dot-red";
+        return "dot-yellow";
+    }
+
+    public void Dispose() => Currency.OnCurrencyChanged -= OnCurrencyChanged;
+}

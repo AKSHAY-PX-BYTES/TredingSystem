@@ -1,0 +1,101 @@
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject ICurrencyService CurrencyService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="groww-app">
+    <!-- Top Navbar -->
+    <header class="groww-navbar">
+        <div class="navbar-inner">
+            <div class="navbar-left">
+                <NavLink class="navbar-brand" href="" Match="NavLinkMatch.All">
+                    <span class="brand-icon">📈</span>
+                    <span class="brand-text">AI Trader</span>
+                </NavLink>
+                <nav class="navbar-links">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                        Explore
+                    </NavLink>
+                    <NavLink class="nav-link" href="markets">
+                        Markets
+                    </NavLink>
+                    <NavLink class="nav-link" href="news">
+                        News
+                    </NavLink>
+                    <NavLink class="nav-link" href="backtest">
+                        Backtest
+                    </NavLink>
+                </nav>
+            </div>
+            <div class="navbar-right">
+                <select class="currency-pill" value="@CurrencyService.CurrentCurrencyCode"
+                        @onchange="OnCurrencyChanged">
+                    @foreach (var currency in CurrencyService.AvailableCurrencies)
+                    {
+                        <option value="@currency.Code">@currency.Symbol @currency.Code</option>
+                    }
+                </select>
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="user-pill">
+                            <span class="user-avatar-sm">@(context.User.Identity?.Name?[0].ToString().ToUpper() ?? "U")</span>
+                            <span class="user-name-sm">@context.User.Identity?.Name</span>
+                        </div>
+                        <button class="logout-pill" @onclick="HandleLogout" title="Sign Out">
+                            Sign Out
+                        </button>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="groww-main">
+        @Body
+    </main>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-bottom-nav">
+        <NavLink class="mobile-nav-item" href="" Match="NavLinkMatch.All">
+            <span>🏠</span><span>Explore</span>
+        </NavLink>
+        <NavLink class="mobile-nav-item" href="markets">
+            <span>📊</span><span>Markets</span>
+        </NavLink>
+        <NavLink class="mobile-nav-item" href="news">
+            <span>📰</span><span>News</span>
+        </NavLink>
+        <NavLink class="mobile-nav-item" href="backtest">
+            <span>🧪</span><span>Backtest</span>
+        </NavLink>
+    </nav>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await CurrencyService.LoadCurrenciesAsync();
+        CurrencyService.OnCurrencyChanged += StateHasChanged;
+    }
+
+    private async Task OnCurrencyChanged(ChangeEventArgs e)
+    {
+        if (e.Value is string currencyCode)
+        {
+            await CurrencyService.SetCurrencyAsync(currencyCode);
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        CurrencyService.OnCurrencyChanged -= StateHasChanged;
+    }
+}

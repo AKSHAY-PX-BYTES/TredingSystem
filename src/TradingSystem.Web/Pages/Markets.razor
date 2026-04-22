@@ -1,0 +1,445 @@
+@page "/markets"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
+@inject IExchangeApiService ExchangeApi
+@inject ICurrencyService Currency
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Markets - AI Trading System</PageTitle>
+
+<!-- Top Bar -->
+<div class="mkt-topbar">
+    <div class="mkt-topbar-left">
+        <h1 class="mkt-title">Market Explorer</h1>
+        <span class="mkt-subtitle">Real-time prices across global exchanges</span>
+    </div>
+    <div class="mkt-topbar-right">
+        @if (lastRefresh != null)
+        {
+            @if (exchangeData?.IsLive == true)
+            {
+                <span class="mkt-live-dot"></span>
+                <span class="mkt-live-label">LIVE</span>
+            }
+            else
+            {
+                <span class="mkt-sim-dot"></span>
+                <span class="mkt-sim-label">SIMULATED</span>
+            }
+            <span class="mkt-refresh-time">Updated @lastRefresh.Value.ToString("HH:mm:ss")</span>
+        }
+        <button class="mkt-refresh-btn" @onclick="RefreshData" disabled="@isLoading">
+            <span class="@(isLoading ? "spin" : "")">↻</span>
+        </button>
+    </div>
+</div>
+
+<!-- Exchange Tabs -->
+<div class="mkt-tabs">
+    @foreach (var tab in exchangeTabs)
+    {
+        <button class="mkt-tab @(tab.Code == activeExchange ? "mkt-tab-active" : "")"
+                @onclick="() => SwitchExchange(tab.Code)">
+            <span class="mkt-tab-flag">@tab.Flag</span>
+            <span class="mkt-tab-label">@tab.Name</span>
+            @if (tab.Code == activeExchange && exchangeData != null)
+            {
+                <span class="mkt-tab-badge @(exchangeData.Status == "Open" ? "mkt-badge-open" : "mkt-badge-closed")">
+                    @exchangeData.Status
+                </span>
+            }
+        </button>
+    }
+</div>
+
+@if (isLoading && exchangeData == null)
+{
+    <div class="mkt-loading">
+        <div class="loading-spinner"></div>
+        <span>Loading @activeExchange market data...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="mkt-error">⚠️ @error</div>
+}
+else if (exchangeData != null)
+{
+    <!-- Exchange Info Banner -->
+    <div class="mkt-banner">
+        <div class="mkt-banner-left">
+            <span class="mkt-banner-flag">@exchangeData.Flag</span>
+            <div class="mkt-banner-info">
+                <h2>@exchangeData.ExchangeName</h2>
+                <span class="mkt-banner-meta">@exchangeData.Country &bull; @exchangeData.Currency &bull; @exchangeData.Timezone</span>
+            </div>
+        </div>
+        <div class="mkt-status @(exchangeData.Status == "Open" ? "mkt-status-open" : "mkt-status-closed")">
+            <span class="mkt-status-dot"></span>
+            Market @exchangeData.Status
+        </div>
+    </div>
+
+    <!-- Indices Ticker Strip -->
+    @if (exchangeData.Indices.Any())
+    {
+        <div class="mkt-indices-strip">
+            @foreach (var idx in exchangeData.Indices)
+            {
+                <div class="mkt-index-chip @(idx.ChangePercent >= 0 ? "chip-up" : "chip-down")">
+                    <span class="chip-name">@idx.Name</span>
+                    <span class="chip-val">@idx.CurrentValue.ToString("N2")</span>
+                    <span class="chip-chg">
+                        @(idx.ChangePercent >= 0 ? "▲" : "▼")@Math.Abs(idx.ChangePercent).ToString("N2")%
+                    </span>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Three-Column Cards: Gainers / Losers / Most Active -->
+    <div class="mkt-trio">
+        <!-- Top Gainers -->
+        <div class="mkt-trio-card">
+            <div class="mkt-trio-header trio-green">
+                <span>🚀</span>
+                <h3>Top Gainers</h3>
+            </div>
+            <div class="mkt-trio-body">
+                @foreach (var stock in exchangeData.TopGainers)
+                {
+                    <div class="mkt-stock-row" @onclick="() => NavigateToStock(stock.Symbol)">
+                        <div class="mkt-stock-left">
+                            <span class="mkt-sym">@stock.Symbol</span>
+                            <span class="mkt-company">@Truncate(stock.CompanyName, 22)</span>
+                        </div>
+                        <div class="mkt-stock-spark">
+                            <canvas id="spark-g-@SanitizeId(stock.Symbol)" width="60" height="24"></canvas>
+                        </div>
+                        <div class="mkt-stock-right">
+                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice)</span>
+                            <span class="mkt-pct pct-up">+@Math.Abs(stock.ChangePercent).ToString("N2")%</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Top Losers -->
+        <div class="mkt-trio-card">
+            <div class="mkt-trio-header trio-red">
+                <span>📉</span>
+                <h3>Top Losers</h3>
+            </div>
+            <div class="mkt-trio-body">
+                @foreach (var stock in exchangeData.TopLosers)
+                {
+                    <div class="mkt-stock-row" @onclick="() => NavigateToStock(stock.Symbol)">
+                        <div class="mkt-stock-left">
+                            <span class="mkt-sym">@stock.Symbol</span>
+                            <span class="mkt-company">@Truncate(stock.CompanyName, 22)</span>
+                        </div>
+                        <div class="mkt-stock-spark">
+                            <canvas id="spark-l-@SanitizeId(stock.Symbol)" width="60" height="24"></canvas>
+                        </div>
+                        <div class="mkt-stock-right">
+                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice)</span>
+                            <span class="mkt-pct pct-down">@stock.ChangePercent.ToString("N2")%</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Most Active -->
+        <div class="mkt-trio-card">
+            <div class="mkt-trio-header trio-yellow">
+                <span>🔥</span>
+                <h3>Most Active</h3>
+            </div>
+            <div class="mkt-trio-body">
+                @foreach (var stock in exchangeData.MostActive)
+                {
+                    <div class="mkt-stock-row" @onclick="() => NavigateToStock(stock.Symbol)">
+                        <div class="mkt-stock-left">
+                            <span class="mkt-sym">@stock.Symbol</span>
+                            <span class="mkt-company">@Truncate(stock.CompanyName, 22)</span>
+                        </div>
+                        <div class="mkt-stock-spark">
+                            <canvas id="spark-a-@SanitizeId(stock.Symbol)" width="60" height="24"></canvas>
+                        </div>
+                        <div class="mkt-stock-right">
+                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice)</span>
+                            <span class="mkt-pct @(stock.ChangePercent >= 0 ? "pct-up" : "pct-down")">
+                                @(stock.ChangePercent >= 0 ? "+" : "")@stock.ChangePercent.ToString("N2")%
+                            </span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- All Stocks Table -->
+    <div class="mkt-table-card">
+        <div class="mkt-table-header">
+            <h3>All @exchangeData.ExchangeCode Stocks</h3>
+            <div class="mkt-table-controls">
+                <div class="mkt-search-wrap">
+                    <span class="mkt-search-icon">🔍</span>
+                    <input class="mkt-search" placeholder="Search symbol or company..."
+                           @bind="searchQuery" @bind:event="oninput" />
+                </div>
+                <select class="mkt-select" @bind="sectorFilter">
+                    <option value="">All Sectors</option>
+                    @foreach (var sector in GetSectors())
+                    {
+                        <option value="@sector">@sector</option>
+                    }
+                </select>
+                <select class="mkt-select" @bind="sortBy" @bind:after="ApplySort">
+                    <option value="symbol">Symbol</option>
+                    <option value="change_desc">% Change ↓</option>
+                    <option value="change_asc">% Change ↑</option>
+                    <option value="volume">Volume ↓</option>
+                    <option value="mcap">Market Cap ↓</option>
+                </select>
+            </div>
+        </div>
+        <div class="mkt-table-wrap">
+            <table class="mkt-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Company</th>
+                        <th>Sector</th>
+                        <th>Price</th>
+                        <th>Day Range</th>
+                        <th class="text-center">Trend</th>
+                        <th>Change</th>
+                        <th>Change %</th>
+                        <th>Volume</th>
+                        <th>Mkt Cap</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var stock in GetFilteredStocks())
+                    {
+                        <tr class="mkt-trow" @onclick="() => NavigateToStock(stock.Symbol)">
+                            <td><strong class="sym-link">@stock.Symbol</strong></td>
+                            <td class="company-cell">@Truncate(stock.CompanyName, 20)</td>
+                            <td><span class="mkt-sector-tag">@stock.Sector</span></td>
+                            <td class="price-cell">@Currency.FormatPrice(stock.CurrentPrice)</td>
+                            <td class="range-cell">
+                                <div class="day-range">
+                                    <span class="range-lo">@Currency.FormatPrice(stock.DayLow)</span>
+                                    <div class="range-bar">
+                                        <div class="range-fill" style="width: @GetRangePercent(stock)%"></div>
+                                        <div class="range-dot" style="left: @GetRangePercent(stock)%"></div>
+                                    </div>
+                                    <span class="range-hi">@Currency.FormatPrice(stock.DayHigh)</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <canvas id="spark-t-@SanitizeId(stock.Symbol)" width="80" height="28"></canvas>
+                            </td>
+                            <td class="@(stock.ChangePercent >= 0 ? "val-up" : "val-down")">
+                                @(stock.Change >= 0 ? "+" : "")@Currency.FormatPrice(stock.Change)
+                            </td>
+                            <td>
+                                <span class="mkt-pct-pill @(stock.ChangePercent >= 0 ? "pill-up" : "pill-down")">
+                                    @(stock.ChangePercent >= 0 ? "+" : "")@stock.ChangePercent.ToString("N2")%
+                                </span>
+                            </td>
+                            <td class="vol-cell">@FormatVolume(stock.Volume)</td>
+                            <td class="mcap-cell">@FormatMarketCap(stock.MarketCap)</td>
+                            <td>
+                                <button class="mkt-analyze-btn" @onclick:stopPropagation="true"
+                                        @onclick="() => NavigateToStock(stock.Symbol)">
+                                    Analyze
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="mkt-table-footer">
+            <span>Showing @GetFilteredStocks().Count of @(exchangeData?.AllStocks.Count ?? 0) stocks</span>
+        </div>
+    </div>
+}
+
+@code {
+    private string activeExchange = "NSE";
+    private bool isLoading = false;
+    private string? error;
+    private ExchangeData? exchangeData;
+    private string searchQuery = "";
+    private string sectorFilter = "";
+    private string sortBy = "symbol";
+    private DateTime? lastRefresh;
+    private System.Threading.Timer? _liveTimer;
+
+    private readonly List<(string Code, string Name, string Flag)> exchangeTabs = new()
+    {
+        ("NSE", "NSE", "🇮🇳"),
+        ("BSE", "BSE", "🇮🇳"),
+        ("US", "US Markets", "🇺🇸"),
+        ("GLOBAL", "Global", "🌍")
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Currency.OnCurrencyChanged += OnCurrencyChanged;
+        await LoadExchangeData();
+
+        // Auto-refresh every 30 seconds for live prices
+        _liveTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadExchangeData(silent: true);
+            });
+        }, null, 30_000, 30_000);
+    }
+
+    private void OnCurrencyChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SwitchExchange(string exchange)
+    {
+        if (exchange == activeExchange) return;
+        activeExchange = exchange;
+        searchQuery = "";
+        sectorFilter = "";
+        sortBy = "symbol";
+        await LoadExchangeData();
+    }
+
+    private async Task RefreshData() => await LoadExchangeData();
+
+    private async Task LoadExchangeData(bool silent = false)
+    {
+        if (!silent) { isLoading = true; error = null; StateHasChanged(); }
+
+        try
+        {
+            exchangeData = await ExchangeApi.GetExchangeDataAsync(activeExchange);
+            lastRefresh = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            if (!silent) error = $"Failed to load market data: {ex.Message}";
+        }
+        finally
+        {
+            if (!silent) isLoading = false;
+            StateHasChanged();
+            await RenderSparklines();
+        }
+    }
+
+    private async Task RenderSparklines()
+    {
+        if (exchangeData == null) return;
+        await Task.Delay(150);
+
+        try
+        {
+            foreach (var stock in exchangeData.TopGainers)
+                await RenderSparkline($"spark-g-{SanitizeId(stock.Symbol)}", stock.PriceHistory, stock.ChangePercent >= 0);
+            foreach (var stock in exchangeData.TopLosers)
+                await RenderSparkline($"spark-l-{SanitizeId(stock.Symbol)}", stock.PriceHistory, stock.ChangePercent >= 0);
+            foreach (var stock in exchangeData.MostActive)
+                await RenderSparkline($"spark-a-{SanitizeId(stock.Symbol)}", stock.PriceHistory, stock.ChangePercent >= 0);
+            foreach (var stock in GetFilteredStocks())
+                await RenderSparkline($"spark-t-{SanitizeId(stock.Symbol)}", stock.PriceHistory, stock.ChangePercent >= 0);
+        }
+        catch { }
+    }
+
+    private async Task RenderSparkline(string canvasId, List<decimal> history, bool isPositive)
+    {
+        if (history == null || history.Count == 0) return;
+        var data = history.Select(p => (double)p).ToArray();
+        await JS.InvokeVoidAsync("chartInterop.createSparkline", canvasId, data, isPositive);
+    }
+
+    private List<ExchangeStock> GetFilteredStocks()
+    {
+        if (exchangeData == null) return new();
+        var stocks = exchangeData.AllStocks.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var q = searchQuery.ToUpperInvariant();
+            stocks = stocks.Where(s =>
+                s.Symbol.ToUpperInvariant().Contains(q) ||
+                s.CompanyName.ToUpperInvariant().Contains(q));
+        }
+
+        if (!string.IsNullOrWhiteSpace(sectorFilter))
+            stocks = stocks.Where(s => s.Sector == sectorFilter);
+
+        stocks = sortBy switch
+        {
+            "change_desc" => stocks.OrderByDescending(s => s.ChangePercent),
+            "change_asc" => stocks.OrderBy(s => s.ChangePercent),
+            "volume" => stocks.OrderByDescending(s => s.Volume),
+            "mcap" => stocks.OrderByDescending(s => s.MarketCap),
+            _ => stocks.OrderBy(s => s.Symbol)
+        };
+
+        return stocks.ToList();
+    }
+
+    private IEnumerable<string> GetSectors()
+    {
+        if (exchangeData == null) return Enumerable.Empty<string>();
+        return exchangeData.AllStocks.Select(s => s.Sector).Distinct().OrderBy(s => s);
+    }
+
+    private void ApplySort() => StateHasChanged();
+
+    private void NavigateToStock(string symbol)
+    {
+        var cleanSymbol = symbol.Split('.')[0];
+        Navigation.NavigateTo($"/?symbol={cleanSymbol}");
+    }
+
+    private string GetRangePercent(ExchangeStock stock)
+    {
+        if (stock.DayHigh == stock.DayLow) return "50";
+        var pct = (double)(stock.CurrentPrice - stock.DayLow) / (double)(stock.DayHigh - stock.DayLow) * 100;
+        return Math.Clamp(pct, 2, 98).ToString("N0");
+    }
+
+    private static string Truncate(string s, int max) =>
+        s.Length <= max ? s : s[..(max - 1)] + "…";
+
+    private static string SanitizeId(string s) =>
+        s.Replace(".", "-").Replace(" ", "-");
+
+    private string FormatVolume(long volume)
+    {
+        if (volume >= 1_000_000_000) return $"{volume / 1_000_000_000.0:N1}B";
+        if (volume >= 1_000_000) return $"{volume / 1_000_000.0:N1}M";
+        if (volume >= 1_000) return $"{volume / 1_000.0:N1}K";
+        return volume.ToString();
+    }
+
+    private string FormatMarketCap(decimal mcap)
+    {
+        if (mcap >= 1_000_000) return $"{(mcap / 1_000_000):N1}T";
+        if (mcap >= 1_000) return $"{(mcap / 1_000):N1}B";
+        return $"{mcap:N0}M";
+    }
+
+    public void Dispose()
+    {
+        Currency.OnCurrencyChanged -= OnCurrencyChanged;
+        _liveTimer?.Dispose();
+    }
+}
