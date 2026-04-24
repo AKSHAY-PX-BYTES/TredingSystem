@@ -6,7 +6,7 @@ using TradingSystem.Api.Services;
 namespace TradingSystem.Api.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("auth")]
 [Produces("application/json")]
 public class AuthController : ControllerBase
 {

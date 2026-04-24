@@ -5,7 +5,7 @@ using TradingSystem.Api.Services;
 namespace TradingSystem.Api.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("exchange")]
 [Produces("application/json")]
 public class ExchangeController : ControllerBase
 {

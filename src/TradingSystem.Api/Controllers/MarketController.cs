@@ -8,7 +8,7 @@ namespace TradingSystem.Api.Controllers;
 
 [AllowAnonymous]
 [ApiController]
-[Route("[controller]")]
+[Route("market")]
 [Produces("application/json")]
 public class MarketController : ControllerBase
 {

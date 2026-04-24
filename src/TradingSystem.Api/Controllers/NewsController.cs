@@ -5,7 +5,7 @@ using TradingSystem.Api.Services;
 namespace TradingSystem.Api.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("news")]
 [Produces("application/json")]
 public class NewsController : ControllerBase
 {

@@ -5,7 +5,7 @@ using TradingSystem.Api.Services;
 namespace TradingSystem.Api.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("strategy")]
 [Produces("application/json")]
 public class StrategyController : ControllerBase
 {
