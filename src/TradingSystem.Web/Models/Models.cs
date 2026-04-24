@@ -33,6 +33,9 @@ public class StockQuote
     public decimal PreviousClose { get; set; }
     public decimal DayHigh { get; set; }
     public decimal DayLow { get; set; }
+    public decimal Week52High { get; set; }
+    public decimal Week52Low { get; set; }
+    public decimal MarketCap { get; set; }
     public long Volume { get; set; }
     public decimal Change { get; set; }
     public decimal ChangePercent { get; set; }
