@@ -1,0 +1,19 @@
+cd /d D:\Projects\Test\TredingSystem
+
+git init
+
+git commit -am "Updated code"
+
+git push origin main
+
+git config user.name "AKSHAY-PX-BYTES"
+
+git config user.email "apakshay582@gmail.com"
+
+git config credential.useHttpPath true
+
+git remote set-url origin https://AKSHAY-PX-BYTES@github.com/AKSHAY-PX-BYTES/TredingSystem.git
+
+git push origin main
+
+Login With Code
