@@ -6,6 +6,7 @@
 @inject INewsApiService NewsApi
 @inject ICurrencyService Currency
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <PageTitle>Explore Stocks - AI Trader</PageTitle>
 
@@ -263,6 +264,9 @@ else if (quote != null)
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "symbol")]
+    public string? SymbolFromUrl { get; set; }
+
     private string symbolInput = "AAPL";
     private string currentSymbol = "";
     private bool isLoading = false;
@@ -277,6 +281,13 @@ else if (quote != null)
     protected override async Task OnInitializedAsync()
     {
         Currency.OnCurrencyChanged += OnCurrencyChanged;
+        
+        // Read symbol from URL query parameter if present
+        if (!string.IsNullOrWhiteSpace(SymbolFromUrl))
+        {
+            symbolInput = SymbolFromUrl.ToUpper();
+        }
+        
         await LoadData();
     }
 

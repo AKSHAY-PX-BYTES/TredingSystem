@@ -70,24 +70,6 @@
                     }
                 </button>
             </EditForm>
-
-            <div class="demo-credentials">
-                <h4>Demo Credentials</h4>
-                <div class="credential-list">
-                    <div class="credential-item" @onclick='() => FillCredentials("admin", "Admin@123")'>
-                        <span class="role-badge admin">Admin</span>
-                        <span>admin / Admin@123</span>
-                    </div>
-                    <div class="credential-item" @onclick='() => FillCredentials("trader", "Trader@123")'>
-                        <span class="role-badge trader">Trader</span>
-                        <span>trader / Trader@123</span>
-                    </div>
-                    <div class="credential-item" @onclick='() => FillCredentials("demo", "Demo@123")'>
-                        <span class="role-badge demo">Demo</span>
-                        <span>demo / Demo@123</span>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="login-footer">
@@ -171,14 +153,6 @@
             isLoading = false;
             StateHasChanged();
         }
-    }
-
-    private void FillCredentials(string username, string password)
-    {
-        loginModel.Username = username;
-        loginModel.Password = password;
-        errorMessage = null;
-        StateHasChanged();
     }
 
     private void TogglePassword()
