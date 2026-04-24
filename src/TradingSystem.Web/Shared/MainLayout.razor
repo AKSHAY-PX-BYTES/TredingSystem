@@ -2,10 +2,11 @@
 @implements IDisposable
 @inject IAuthService AuthService
 @inject ICurrencyService CurrencyService
+@inject IThemeService ThemeService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<div class="groww-app">
+<div class="groww-app" data-theme="@ThemeService.CurrentTheme">
     <!-- Top Navbar -->
     <header class="groww-navbar">
         <div class="navbar-inner">
@@ -21,6 +22,15 @@
                     <NavLink class="nav-link" href="markets">
                         Markets
                     </NavLink>
+                    <NavLink class="nav-link" href="watchlist">
+                        Watchlist
+                    </NavLink>
+                    <NavLink class="nav-link" href="charts">
+                        Charts
+                    </NavLink>
+                    <NavLink class="nav-link" href="compare">
+                        Compare
+                    </NavLink>
                     <NavLink class="nav-link" href="news">
                         News
                     </NavLink>
@@ -30,6 +40,9 @@
                 </nav>
             </div>
             <div class="navbar-right">
+                <button class="theme-toggle" @onclick="ToggleTheme" title="Toggle Theme">
+                    @(ThemeService.IsDarkMode ? "☀️" : "🌙")
+                </button>
                 <select class="currency-pill" value="@CurrencyService.CurrentCurrencyCode"
                         @onchange="OnCurrencyChanged">
                     @foreach (var currency in CurrencyService.AvailableCurrencies)
@@ -65,11 +78,14 @@
         <NavLink class="mobile-nav-item" href="markets">
             <span>📊</span><span>Markets</span>
         </NavLink>
-        <NavLink class="mobile-nav-item" href="news">
-            <span>📰</span><span>News</span>
+        <NavLink class="mobile-nav-item" href="watchlist">
+            <span>�</span><span>Watchlist</span>
         </NavLink>
-        <NavLink class="mobile-nav-item" href="backtest">
-            <span>🧪</span><span>Backtest</span>
+        <NavLink class="mobile-nav-item" href="charts">
+            <span>📈</span><span>Charts</span>
+        </NavLink>
+        <NavLink class="mobile-nav-item" href="compare">
+            <span>⚖️</span><span>Compare</span>
         </NavLink>
     </nav>
 </div>
@@ -81,7 +97,9 @@
     protected override async Task OnInitializedAsync()
     {
         await CurrencyService.LoadCurrenciesAsync();
+        await ThemeService.InitializeAsync();
         CurrencyService.OnCurrencyChanged += StateHasChanged;
+        ThemeService.OnThemeChanged += StateHasChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -111,6 +129,11 @@
         }
     }
 
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleThemeAsync();
+    }
+
     private async Task HandleLogout()
     {
         await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
@@ -121,6 +144,7 @@
     public void Dispose()
     {
         CurrencyService.OnCurrencyChanged -= StateHasChanged;
+        ThemeService.OnThemeChanged -= StateHasChanged;
         _dotNetRef?.Dispose();
     }
 }

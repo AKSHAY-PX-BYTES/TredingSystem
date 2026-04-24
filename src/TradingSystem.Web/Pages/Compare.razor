@@ -1,0 +1,299 @@
+@page "/compare"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject IMarketApiService MarketApi
+@inject ICurrencyService Currency
+@inject NavigationManager Navigation
+
+<PageTitle>Compare Stocks - AI Trader</PageTitle>
+
+<div class="compare-page">
+    <div class="compare-header">
+        <h1>📊 Stock Comparison</h1>
+        <p class="compare-subtitle">Compare up to 4 stocks side-by-side</p>
+    </div>
+
+    <!-- Stock Selection -->
+    <div class="compare-selectors">
+        @for (int i = 0; i < 4; i++)
+        {
+            var index = i;
+            <div class="compare-selector">
+                <input type="text" class="compare-input" 
+                       placeholder="Enter symbol (e.g., AAPL)"
+                       value="@selectedSymbols[index]"
+                       @onchange="e => OnSymbolChanged(index, e.Value?.ToString())" />
+                @if (!string.IsNullOrEmpty(selectedSymbols[index]))
+                {
+                    <button class="btn-clear" @onclick="() => ClearSymbol(index)">✕</button>
+                }
+            </div>
+        }
+        <button class="btn-compare" @onclick="CompareStocks" disabled="@(isLoading || GetSelectedCount() < 2)">
+            @if (isLoading)
+            {
+                <span class="spinner-sm"></span>
+            }
+            else
+            {
+                <span>Compare</span>
+            }
+        </button>
+    </div>
+
+    <!-- Quick Compare Suggestions -->
+    <div class="compare-suggestions">
+        <span class="suggestion-label">Quick Compare:</span>
+        <button class="suggestion-btn" @onclick='() => QuickCompare("AAPL", "MSFT", "GOOGL", "AMZN")'>
+            Tech Giants
+        </button>
+        <button class="suggestion-btn" @onclick='() => QuickCompare("RELIANCE", "TCS", "INFY", "HDFC")'>
+            Indian Blue Chips
+        </button>
+        <button class="suggestion-btn" @onclick='() => QuickCompare("TSLA", "F", "GM", "")'>
+            Auto Sector
+        </button>
+        <button class="suggestion-btn" @onclick='() => QuickCompare("JPM", "BAC", "GS", "MS")'>
+            Banks
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="compare-error">⚠️ @error</div>
+    }
+
+    @if (quotes.Any())
+    {
+        <!-- Comparison Table -->
+        <div class="compare-table-container">
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th class="metric-header">Metric</th>
+                        @foreach (var quote in quotes)
+                        {
+                            <th class="stock-header">
+                                <div class="stock-header-content">
+                                    <div class="stock-avatar-compare">@quote.Symbol[0]</div>
+                                    <div>
+                                        <div class="stock-symbol-lg">@quote.Symbol</div>
+                                        <div class="stock-name-compare">@quote.CompanyName</div>
+                                    </div>
+                                </div>
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="metric-name">Current Price</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value price">@Currency.FormatPrice(quote.CurrentPrice)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Day Change</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value @(quote.ChangePercent >= 0 ? "gain" : "loss")">
+                                @(quote.ChangePercent >= 0 ? "+" : "")@quote.ChangePercent.ToString("N2")%
+                            </td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Day High</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value">@Currency.FormatPrice(quote.DayHigh)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Day Low</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value">@Currency.FormatPrice(quote.DayLow)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Volume</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value">@FormatVolume(quote.Volume)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Prev Close</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value">@Currency.FormatPrice(quote.PreviousClose)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">52W High</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value high">@Currency.FormatPrice(quote.Week52High)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">52W Low</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value low">@Currency.FormatPrice(quote.Week52Low)</td>
+                        }
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Market Cap</td>
+                        @foreach (var quote in quotes)
+                        {
+                            <td class="metric-value">@FormatMarketCap(quote.MarketCap)</td>
+                        }
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Visual Comparison Chart -->
+        <div class="compare-chart-section">
+            <h3>📈 Performance Comparison</h3>
+            <div class="compare-bars">
+                @{
+                    var maxChange = quotes.Max(q => Math.Abs(q.ChangePercent));
+                }
+                @foreach (var quote in quotes)
+                {
+                    var width = maxChange > 0 ? (Math.Abs(quote.ChangePercent) / maxChange) * 100 : 0;
+                    <div class="compare-bar-row">
+                        <span class="bar-label">@quote.Symbol</span>
+                        <div class="bar-track">
+                            <div class="bar-fill @(quote.ChangePercent >= 0 ? "gain" : "loss")"
+                                 style="width: @width.ToString("N0")%;">
+                            </div>
+                        </div>
+                        <span class="bar-value @(quote.ChangePercent >= 0 ? "gain" : "loss")">
+                            @(quote.ChangePercent >= 0 ? "+" : "")@quote.ChangePercent.ToString("N2")%
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Winner Card -->
+        <div class="compare-winner">
+            @{
+                var winner = quotes.OrderByDescending(q => q.ChangePercent).First();
+                var loser = quotes.OrderBy(q => q.ChangePercent).First();
+            }
+            <div class="winner-card gain">
+                <span class="winner-icon">🏆</span>
+                <div>
+                    <span class="winner-label">Today's Winner</span>
+                    <span class="winner-symbol">@winner.Symbol</span>
+                    <span class="winner-change">+@winner.ChangePercent.ToString("N2")%</span>
+                </div>
+            </div>
+            <div class="winner-card loss">
+                <span class="winner-icon">📉</span>
+                <div>
+                    <span class="winner-label">Today's Loser</span>
+                    <span class="winner-symbol">@loser.Symbol</span>
+                    <span class="winner-change">@loser.ChangePercent.ToString("N2")%</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string[] selectedSymbols = new string[4] { "", "", "", "" };
+    private List<StockQuote> quotes = new();
+    private bool isLoading = false;
+    private string? error;
+
+    private void OnSymbolChanged(int index, string? value)
+    {
+        selectedSymbols[index] = value?.ToUpper().Trim() ?? "";
+    }
+
+    private void ClearSymbol(int index)
+    {
+        selectedSymbols[index] = "";
+        quotes = quotes.Where(q => q.Symbol != selectedSymbols[index]).ToList();
+    }
+
+    private int GetSelectedCount()
+    {
+        return selectedSymbols.Count(s => !string.IsNullOrWhiteSpace(s));
+    }
+
+    private async Task QuickCompare(string s1, string s2, string s3, string s4)
+    {
+        selectedSymbols = new[] { s1, s2, s3, s4 };
+        await CompareStocks();
+    }
+
+    private async Task CompareStocks()
+    {
+        var symbols = selectedSymbols.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        if (symbols.Count < 2)
+        {
+            error = "Please enter at least 2 stock symbols to compare";
+            return;
+        }
+
+        isLoading = true;
+        error = null;
+        quotes.Clear();
+        StateHasChanged();
+
+        try
+        {
+            foreach (var symbol in symbols)
+            {
+                try
+                {
+                    var quote = await MarketApi.GetQuoteAsync(symbol);
+                    if (quote != null)
+                    {
+                        quotes.Add(quote);
+                    }
+                }
+                catch
+                {
+                    // Skip invalid symbols
+                }
+            }
+
+            if (quotes.Count < 2)
+            {
+                error = "Could not fetch data for enough stocks. Please check the symbols.";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatVolume(long volume)
+    {
+        if (volume >= 1_000_000_000) return $"{volume / 1_000_000_000.0:N1}B";
+        if (volume >= 1_000_000) return $"{volume / 1_000_000.0:N1}M";
+        if (volume >= 1_000) return $"{volume / 1_000.0:N1}K";
+        return volume.ToString("N0");
+    }
+
+    private string FormatMarketCap(decimal marketCap)
+    {
+        if (marketCap >= 1_000_000_000_000) return $"${marketCap / 1_000_000_000_000:N2}T";
+        if (marketCap >= 1_000_000_000) return $"${marketCap / 1_000_000_000:N2}B";
+        if (marketCap >= 1_000_000) return $"${marketCap / 1_000_000:N2}M";
+        return $"${marketCap:N0}";
+    }
+}

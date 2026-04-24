@@ -1,0 +1,235 @@
+@page "/watchlist"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
+@inject IWatchlistService WatchlistService
+@inject IMarketApiService MarketApi
+@inject ICurrencyService Currency
+@inject NavigationManager Navigation
+
+<PageTitle>My Watchlist - AI Trader</PageTitle>
+
+<div class="watchlist-page">
+    <div class="watchlist-header">
+        <div>
+            <h1>📋 My Watchlist</h1>
+            <p class="watchlist-subtitle">Track your favorite stocks and portfolio</p>
+        </div>
+        <div class="watchlist-actions">
+            <button class="btn-refresh" @onclick="RefreshPrices" disabled="@isRefreshing">
+                @if (isRefreshing)
+                {
+                    <span class="spinner-sm"></span>
+                }
+                else
+                {
+                    <span>🔄</span>
+                }
+                Refresh Prices
+            </button>
+        </div>
+    </div>
+
+    @if (watchlist.Count == 0)
+    {
+        <div class="watchlist-empty">
+            <div class="empty-icon">📊</div>
+            <h3>Your watchlist is empty</h3>
+            <p>Start by adding stocks from the <a href="/">Explore</a> or <a href="/markets">Markets</a> page</p>
+        </div>
+    }
+    else
+    {
+        <!-- Portfolio Summary -->
+        <div class="portfolio-summary">
+            <div class="summary-card">
+                <span class="summary-label">Total Stocks</span>
+                <span class="summary-value">@watchlist.Count</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Gainers</span>
+                <span class="summary-value gain">@watchlist.Count(w => w.ChangePercent > 0)</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Losers</span>
+                <span class="summary-value loss">@watchlist.Count(w => w.ChangePercent < 0)</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Portfolio Value</span>
+                <span class="summary-value">@Currency.FormatPrice(GetPortfolioValue())</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Total P&L</span>
+                <span class="summary-value @(GetTotalPnL() >= 0 ? "gain" : "loss")">
+                    @(GetTotalPnL() >= 0 ? "+" : "")@Currency.FormatPrice(GetTotalPnL())
+                </span>
+            </div>
+        </div>
+
+        <!-- Watchlist Table -->
+        <div class="watchlist-table-container">
+            <table class="watchlist-table">
+                <thead>
+                    <tr>
+                        <th>Stock</th>
+                        <th>Price</th>
+                        <th>Change</th>
+                        <th>Qty</th>
+                        <th>Avg Cost</th>
+                        <th>P&L</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in watchlist)
+                    {
+                        <tr @onclick="() => ViewStock(item.Symbol)" class="watchlist-row">
+                            <td>
+                                <div class="stock-info">
+                                    <div class="stock-avatar-sm">@item.Symbol[0]</div>
+                                    <div>
+                                        <div class="stock-symbol">@item.Symbol</div>
+                                        <div class="stock-name-sm">@item.CompanyName</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="price-cell">@Currency.FormatPrice(item.CurrentPrice)</td>
+                            <td class="change-cell @(item.ChangePercent >= 0 ? "gain" : "loss")">
+                                @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                            </td>
+                            <td>
+                                <input type="number" class="qty-input" value="@item.Quantity"
+                                       @onchange="e => UpdateQuantity(item, e)" @onclick:stopPropagation="true"
+                                       placeholder="0" min="0" />
+                            </td>
+                            <td>
+                                <input type="number" class="price-input" value="@item.BuyPrice"
+                                       @onchange="e => UpdateBuyPrice(item, e)" @onclick:stopPropagation="true"
+                                       placeholder="0.00" min="0" step="0.01" />
+                            </td>
+                            <td class="pnl-cell @(item.ProfitLoss >= 0 ? "gain" : "loss")">
+                                @if (item.Quantity > 0 && item.BuyPrice > 0)
+                                {
+                                    <span>@(item.ProfitLoss >= 0 ? "+" : "")@Currency.FormatPrice(item.ProfitLoss)</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn-remove" @onclick="() => RemoveFromWatchlist(item.Symbol)"
+                                        @onclick:stopPropagation="true" title="Remove">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<WatchlistItem> watchlist = new();
+    private bool isRefreshing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        WatchlistService.OnWatchlistChanged += OnWatchlistChanged;
+        Currency.OnCurrencyChanged += StateHasChanged;
+        await LoadWatchlist();
+        await RefreshPrices();
+    }
+
+    private async void OnWatchlistChanged()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadWatchlist();
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadWatchlist()
+    {
+        watchlist = await WatchlistService.GetWatchlistAsync();
+    }
+
+    private async Task RefreshPrices()
+    {
+        if (watchlist.Count == 0) return;
+        
+        isRefreshing = true;
+        StateHasChanged();
+
+        try
+        {
+            var prices = new Dictionary<string, decimal>();
+            foreach (var item in watchlist)
+            {
+                try
+                {
+                    var quote = await MarketApi.GetQuoteAsync(item.Symbol);
+                    if (quote != null)
+                    {
+                        prices[item.Symbol] = quote.CurrentPrice;
+                    }
+                }
+                catch { }
+            }
+            await WatchlistService.UpdatePricesAsync(prices);
+        }
+        finally
+        {
+            isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveFromWatchlist(string symbol)
+    {
+        await WatchlistService.RemoveFromWatchlistAsync(symbol);
+    }
+
+    private void ViewStock(string symbol)
+    {
+        Navigation.NavigateTo($"/?symbol={symbol}");
+    }
+
+    private async Task UpdateQuantity(WatchlistItem item, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var qty))
+        {
+            item.Quantity = qty > 0 ? qty : null;
+            await WatchlistService.GetWatchlistAsync(); // Trigger save
+        }
+    }
+
+    private async Task UpdateBuyPrice(WatchlistItem item, ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var price))
+        {
+            item.BuyPrice = price > 0 ? price : null;
+            await WatchlistService.GetWatchlistAsync(); // Trigger save
+        }
+    }
+
+    private decimal GetPortfolioValue()
+    {
+        return watchlist.Where(w => w.Quantity > 0)
+                       .Sum(w => w.CurrentPrice * (w.Quantity ?? 0));
+    }
+
+    private decimal GetTotalPnL()
+    {
+        return watchlist.Where(w => w.Quantity > 0 && w.BuyPrice > 0)
+                       .Sum(w => w.ProfitLoss);
+    }
+
+    public void Dispose()
+    {
+        WatchlistService.OnWatchlistChanged -= OnWatchlistChanged;
+        Currency.OnCurrencyChanged -= StateHasChanged;
+    }
+}

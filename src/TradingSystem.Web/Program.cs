@@ -37,5 +37,7 @@ builder.Services.AddScoped<INewsApiService, NewsApiService>();
 builder.Services.AddScoped<IPredictionApiService, PredictionApiService>();
 builder.Services.AddScoped<IBacktestApiService, BacktestApiService>();
 builder.Services.AddScoped<IExchangeApiService, ExchangeApiService>();
+builder.Services.AddScoped<IWatchlistService, WatchlistService>();
+builder.Services.AddScoped<IThemeService, ThemeService>();
 
 await builder.Build().RunAsync();

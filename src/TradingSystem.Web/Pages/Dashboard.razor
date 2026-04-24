@@ -5,6 +5,7 @@
 @inject IPredictionApiService PredictionApi
 @inject INewsApiService NewsApi
 @inject ICurrencyService Currency
+@inject IWatchlistService WatchlistService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -51,6 +52,13 @@ else if (quote != null)
             </div>
         </div>
         <div class="stock-hero-right">
+            <div class="stock-hero-actions">
+                <button class="watchlist-btn @(isInWatchlist ? "in-watchlist" : "")" 
+                        @onclick="ToggleWatchlist" title="@(isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist")">
+                    @(isInWatchlist ? "❤️" : "🤍")
+                </button>
+                <a href="/charts/@currentSymbol" class="chart-link-btn" title="View Charts">📈</a>
+            </div>
             <div class="stock-hero-price">@Currency.FormatPrice(quote.CurrentPrice)</div>
             <div class="stock-hero-change @(quote.ChangePercent >= 0 ? "chg-up" : "chg-down")">
                 @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change)
@@ -270,6 +278,7 @@ else if (quote != null)
     private string symbolInput = "AAPL";
     private string currentSymbol = "";
     private bool isLoading = false;
+    private bool isInWatchlist = false;
     private string? error;
 
     private StockQuote? quote;
@@ -298,6 +307,22 @@ else if (quote != null)
         if (e.Key == "Enter") await LoadData();
     }
 
+    private async Task ToggleWatchlist()
+    {
+        if (string.IsNullOrEmpty(currentSymbol) || quote == null) return;
+
+        if (isInWatchlist)
+        {
+            await WatchlistService.RemoveFromWatchlistAsync(currentSymbol);
+        }
+        else
+        {
+            await WatchlistService.AddToWatchlistAsync(currentSymbol, quote.CompanyName);
+        }
+        isInWatchlist = !isInWatchlist;
+        StateHasChanged();
+    }
+
     private async Task SelectSymbol(string symbol)
     {
         symbolInput = symbol;
@@ -317,11 +342,13 @@ else if (quote != null)
             var quoteTask = MarketApi.GetQuoteAsync(currentSymbol);
             var strategyTask = PredictionApi.GetStrategyAsync(currentSymbol);
             var newsTask = NewsApi.GetNewsAsync(currentSymbol);
-            await Task.WhenAll(quoteTask, strategyTask, newsTask);
+            var watchlistTask = WatchlistService.IsInWatchlistAsync(currentSymbol);
+            await Task.WhenAll(quoteTask, strategyTask, newsTask, watchlistTask);
 
             quote = await quoteTask;
             strategy = await strategyTask;
             news = await newsTask;
+            isInWatchlist = await watchlistTask;
             StateHasChanged();
 
             await Task.Delay(100);

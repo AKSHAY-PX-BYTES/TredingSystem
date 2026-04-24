@@ -1,0 +1,293 @@
+@page "/charts"
+@page "/charts/{Symbol}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject IMarketApiService MarketApi
+@inject ICurrencyService Currency
+@inject IJSRuntime JS
+
+<PageTitle>Advanced Charts - AI Trader</PageTitle>
+
+<div class="charts-page">
+    <div class="charts-header">
+        <div class="charts-title-section">
+            <h1>📈 Advanced Charts</h1>
+            <div class="charts-search">
+                <input type="text" class="charts-input" placeholder="Enter symbol..."
+                       @bind="symbolInput" @bind:event="oninput" @onkeydown="HandleKeyDown" />
+                <button class="btn-load-chart" @onclick="LoadChart" disabled="@isLoading">
+                    @if (isLoading) { <span class="spinner-sm"></span> } else { <span>Load</span> }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (quote != null)
+    {
+        <!-- Stock Info Bar -->
+        <div class="chart-stock-bar">
+            <div class="stock-info-left">
+                <span class="stock-avatar-chart">@currentSymbol[0]</span>
+                <div>
+                    <span class="stock-symbol-chart">@currentSymbol</span>
+                    <span class="stock-name-chart">@quote.CompanyName</span>
+                </div>
+            </div>
+            <div class="stock-price-info">
+                <span class="current-price-lg">@Currency.FormatPrice(quote.CurrentPrice)</span>
+                <span class="price-change-lg @(quote.ChangePercent >= 0 ? "gain" : "loss")">
+                    @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change)
+                    (@(quote.ChangePercent >= 0 ? "+" : "")@quote.ChangePercent.ToString("N2")%)
+                </span>
+            </div>
+        </div>
+
+        <!-- Timeframe Selector -->
+        <div class="timeframe-selector">
+            @foreach (var tf in timeframes)
+            {
+                <button class="tf-btn @(selectedTimeframe == tf.Key ? "active" : "")"
+                        @onclick="() => SelectTimeframe(tf.Key)">
+                    @tf.Value
+                </button>
+            }
+        </div>
+
+        <!-- Chart Type Selector -->
+        <div class="chart-type-selector">
+            <button class="type-btn @(chartType == "candlestick" ? "active" : "")"
+                    @onclick='() => SetChartType("candlestick")'>
+                🕯️ Candlestick
+            </button>
+            <button class="type-btn @(chartType == "line" ? "active" : "")"
+                    @onclick='() => SetChartType("line")'>
+                📈 Line
+            </button>
+            <button class="type-btn @(chartType == "area" ? "active" : "")"
+                    @onclick='() => SetChartType("area")'>
+                📊 Area
+            </button>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="chart-container-advanced">
+            <canvas id="advancedChart"></canvas>
+        </div>
+
+        <!-- Technical Indicators Toggle -->
+        <div class="indicators-toggle">
+            <span class="toggle-label">Indicators:</span>
+            @foreach (var ind in availableIndicators)
+            {
+                <label class="indicator-check">
+                    <input type="checkbox" checked="@activeIndicators.Contains(ind.Key)"
+                           @onchange="e => ToggleIndicator(ind.Key, (bool)(e.Value ?? false))" />
+                    <span>@ind.Value</span>
+                </label>
+            }
+        </div>
+
+        <!-- Price Stats -->
+        <div class="chart-stats">
+            <div class="stat-item">
+                <span class="stat-label">Open</span>
+                <span class="stat-value">@Currency.FormatPrice(quote.PreviousClose)</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">High</span>
+                <span class="stat-value gain">@Currency.FormatPrice(quote.DayHigh)</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Low</span>
+                <span class="stat-value loss">@Currency.FormatPrice(quote.DayLow)</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">52W High</span>
+                <span class="stat-value">@Currency.FormatPrice(quote.Week52High)</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">52W Low</span>
+                <span class="stat-value">@Currency.FormatPrice(quote.Week52Low)</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Volume</span>
+                <span class="stat-value">@FormatVolume(quote.Volume)</span>
+            </div>
+        </div>
+    }
+    else if (!isLoading && string.IsNullOrEmpty(error))
+    {
+        <div class="charts-empty">
+            <div class="empty-icon">📊</div>
+            <h3>Enter a stock symbol to view charts</h3>
+            <div class="quick-symbols">
+                @foreach (var s in popularSymbols)
+                {
+                    <button class="quick-symbol-btn" @onclick="() => QuickLoad(s)">@s</button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="chart-error">⚠️ @error</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Symbol { get; set; }
+
+    private string symbolInput = "";
+    private string currentSymbol = "";
+    private string chartType = "candlestick";
+    private string selectedTimeframe = "1M";
+    private bool isLoading = false;
+    private string? error;
+
+    private StockQuote? quote;
+    private List<StockData>? historicalData;
+
+    private readonly string[] popularSymbols = { "AAPL", "MSFT", "GOOGL", "TSLA", "RELIANCE", "TCS" };
+
+    private readonly Dictionary<string, string> timeframes = new()
+    {
+        { "1D", "1 Day" },
+        { "1W", "1 Week" },
+        { "1M", "1 Month" },
+        { "3M", "3 Months" },
+        { "6M", "6 Months" },
+        { "1Y", "1 Year" },
+        { "5Y", "5 Years" }
+    };
+
+    private readonly Dictionary<string, string> availableIndicators = new()
+    {
+        { "sma20", "SMA 20" },
+        { "sma50", "SMA 50" },
+        { "ema12", "EMA 12" },
+        { "bb", "Bollinger" }
+    };
+
+    private HashSet<string> activeIndicators = new() { "sma20" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(Symbol))
+        {
+            symbolInput = Symbol;
+            await LoadChart();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LoadChart();
+    }
+
+    private async Task QuickLoad(string symbol)
+    {
+        symbolInput = symbol;
+        await LoadChart();
+    }
+
+    private async Task LoadChart()
+    {
+        if (string.IsNullOrWhiteSpace(symbolInput)) return;
+
+        isLoading = true;
+        error = null;
+        currentSymbol = symbolInput.ToUpper();
+        StateHasChanged();
+
+        try
+        {
+            quote = await MarketApi.GetQuoteAsync(currentSymbol);
+            historicalData = await MarketApi.GetHistoryAsync(currentSymbol, GetDaysForTimeframe());
+            
+            await Task.Delay(100);
+            await RenderChart();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load chart: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectTimeframe(string tf)
+    {
+        selectedTimeframe = tf;
+        if (!string.IsNullOrEmpty(currentSymbol))
+        {
+            await LoadChart();
+        }
+    }
+
+    private async Task SetChartType(string type)
+    {
+        chartType = type;
+        await RenderChart();
+    }
+
+    private async Task ToggleIndicator(string indicator, bool enabled)
+    {
+        if (enabled)
+            activeIndicators.Add(indicator);
+        else
+            activeIndicators.Remove(indicator);
+        
+        await RenderChart();
+    }
+
+    private int GetDaysForTimeframe()
+    {
+        return selectedTimeframe switch
+        {
+            "1D" => 1,
+            "1W" => 7,
+            "1M" => 30,
+            "3M" => 90,
+            "6M" => 180,
+            "1Y" => 365,
+            "5Y" => 1825,
+            _ => 30
+        };
+    }
+
+    private async Task RenderChart()
+    {
+        if (historicalData == null || !historicalData.Any()) return;
+
+        var labels = historicalData.Select(d => d.Date.ToString("MMM dd")).ToArray();
+        var prices = historicalData.Select(d => d.Close).ToArray();
+        var highs = historicalData.Select(d => d.High).ToArray();
+        var lows = historicalData.Select(d => d.Low).ToArray();
+        var opens = historicalData.Select(d => d.Open).ToArray();
+
+        var chartData = new
+        {
+            labels,
+            prices,
+            highs,
+            lows,
+            opens,
+            chartType,
+            indicators = activeIndicators.ToArray(),
+            symbol = currentSymbol
+        };
+
+        await JS.InvokeVoidAsync("renderAdvancedChart", "advancedChart", chartData);
+    }
+
+    private string FormatVolume(long volume)
+    {
+        if (volume >= 1_000_000_000) return $"{volume / 1_000_000_000.0:N1}B";
+        if (volume >= 1_000_000) return $"{volume / 1_000_000.0:N1}M";
+        if (volume >= 1_000) return $"{volume / 1_000.0:N1}K";
+        return volume.ToString("N0");
+    }
+}
