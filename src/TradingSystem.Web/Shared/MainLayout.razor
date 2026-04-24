@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject IAuthService AuthService
 @inject ICurrencyService CurrencyService
 @inject NavigationManager Navigation
@@ -74,10 +75,32 @@
 </div>
 
 @code {
+    private DotNetObjectReference<MainLayout>? _dotNetRef;
+    private const int IdleTimeoutMinutes = 5;
+
     protected override async Task OnInitializedAsync()
     {
         await CurrencyService.LoadCurrenciesAsync();
         CurrencyService.OnCurrencyChanged += StateHasChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize idle timeout tracker
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("IdleTimeoutManager.init", _dotNetRef, IdleTimeoutMinutes);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnIdleTimeout()
+    {
+        // Auto logout due to inactivity
+        await AuthService.LogoutAsync();
+        await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
+        Navigation.NavigateTo("/login?reason=timeout", forceLoad: true);
     }
 
     private async Task OnCurrencyChanged(ChangeEventArgs e)
@@ -90,6 +113,7 @@
 
     private async Task HandleLogout()
     {
+        await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
         await AuthService.LogoutAsync();
         Navigation.NavigateTo("/login", forceLoad: true);
     }
@@ -97,5 +121,6 @@
     public void Dispose()
     {
         CurrencyService.OnCurrencyChanged -= StateHasChanged;
+        _dotNetRef?.Dispose();
     }
 }

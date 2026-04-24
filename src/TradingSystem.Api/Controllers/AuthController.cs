@@ -64,4 +64,37 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<UserInfo>.Ok(user));
     }
+
+    /// <summary>
+    /// Register a new user
+    /// </summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RegisterResponse), 200)]
+    [ProducesResponseType(typeof(RegisterResponse), 400)]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        _logger.LogInformation("POST /auth/register for user: {Username}", request.Username);
+
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+
+            return BadRequest(new RegisterResponse
+            {
+                Success = false,
+                Error = string.Join("; ", errors)
+            });
+        }
+
+        var result = await _authService.RegisterAsync(request);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }

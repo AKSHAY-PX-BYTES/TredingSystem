@@ -10,6 +10,7 @@ namespace TradingSystem.Api.Services;
 public interface IAuthService
 {
     Task<LoginResponse> LoginAsync(LoginRequest request);
+    Task<RegisterResponse> RegisterAsync(RegisterRequest request);
     Task<UserInfo?> GetUserAsync(string username);
 }
 
@@ -114,6 +115,52 @@ public class AuthService : IAuthService
             DisplayName = user.DisplayName,
             Role = user.Role,
             Email = user.Email
+        });
+    }
+
+    public Task<RegisterResponse> RegisterAsync(RegisterRequest request)
+    {
+        _logger.LogInformation("Registration attempt for user: {Username}", request.Username);
+
+        // Check if username already exists
+        if (_users.Any(u => u.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase)))
+        {
+            _logger.LogWarning("Registration failed: username '{Username}' already exists", request.Username);
+            return Task.FromResult(new RegisterResponse
+            {
+                Success = false,
+                Error = "Username already exists"
+            });
+        }
+
+        // Check if email already exists
+        if (_users.Any(u => u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase)))
+        {
+            _logger.LogWarning("Registration failed: email '{Email}' already exists", request.Email);
+            return Task.FromResult(new RegisterResponse
+            {
+                Success = false,
+                Error = "Email already registered"
+            });
+        }
+
+        // Create new user
+        var newUser = new UserRecord
+        {
+            Username = request.Username,
+            PasswordHash = HashPassword(request.Password),
+            DisplayName = request.Username, // Use username as display name initially
+            Role = "Trader", // Default role for new users
+            Email = request.Email
+        };
+
+        _users.Add(newUser);
+        _logger.LogInformation("User registered successfully: {Username}", request.Username);
+
+        return Task.FromResult(new RegisterResponse
+        {
+            Success = true,
+            Message = "Registration successful! You can now login."
         });
     }
 

@@ -20,6 +20,14 @@
         </div>
 
         <div class="login-body">
+            @if (showTimeoutMessage)
+            {
+                <div class="login-warning">
+                    <span class="warning-icon">⏰</span>
+                    <span>You were logged out due to inactivity</span>
+                </div>
+            }
+
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="login-error">
@@ -70,6 +78,11 @@
                     }
                 </button>
             </EditForm>
+
+            <div class="register-link" style="text-align: center; margin-top: 1.5rem;">
+                <span style="color: var(--text-muted);">Don't have an account?</span>
+                <a href="/register" style="color: var(--groww-green); font-weight: 600; margin-left: 0.5rem;">Sign Up</a>
+            </div>
         </div>
 
         <div class="login-footer">
@@ -106,9 +119,15 @@
     private string? errorMessage;
     private bool isLoading;
     private bool showPassword;
+    private bool showTimeoutMessage;
 
     protected override async Task OnInitializedAsync()
     {
+        // Check if redirected due to timeout
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        showTimeoutMessage = query["reason"] == "timeout";
+
         // If already authenticated, redirect to dashboard
         var isAuthenticated = await AuthService.IsAuthenticatedAsync();
         if (isAuthenticated)

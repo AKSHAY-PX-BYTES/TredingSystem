@@ -1,0 +1,188 @@
+@page "/register"
+@layout LoginLayout
+@using TradingSystem.Web.Models
+@using TradingSystem.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Sign Up - Trading System</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <span class="logo-icon">📈</span>
+                <h1>Trading System</h1>
+                <p class="login-subtitle">Create Your Account</p>
+            </div>
+        </div>
+
+        <div class="login-body">
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="login-success">
+                    <span class="success-icon">✅</span>
+                    <span>@successMessage</span>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="login-error">
+                    <span class="error-icon">⚠️</span>
+                    <span>@errorMessage</span>
+                </div>
+            }
+
+            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" class="login-form">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label for="username">
+                        <span class="field-icon">👤</span> Username
+                    </label>
+                    <InputText id="username" @bind-Value="registerModel.Username"
+                               class="form-input" placeholder="Choose a username"
+                               disabled="@isLoading" />
+                    <ValidationMessage For="@(() => registerModel.Username)" class="validation-msg" />
+                </div>
+
+                <div class="form-group">
+                    <label for="email">
+                        <span class="field-icon">📧</span> Email
+                    </label>
+                    <InputText id="email" @bind-Value="registerModel.Email"
+                               class="form-input" placeholder="Enter your email"
+                               disabled="@isLoading" />
+                    <ValidationMessage For="@(() => registerModel.Email)" class="validation-msg" />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <span class="field-icon">🔒</span> Password
+                    </label>
+                    <div class="password-wrapper">
+                        <input id="password" type="@(showPassword ? "text" : "password")"
+                               @bind="registerModel.Password" @bind:event="oninput"
+                               class="form-input" placeholder="Create a password (min 6 chars)"
+                               disabled="@isLoading" />
+                        <button type="button" class="toggle-password" @onclick="TogglePassword" tabindex="-1">
+                            @(showPassword ? "🙈" : "👁️")
+                        </button>
+                    </div>
+                    <ValidationMessage For="@(() => registerModel.Password)" class="validation-msg" />
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">
+                        <span class="field-icon">🔒</span> Confirm Password
+                    </label>
+                    <div class="password-wrapper">
+                        <input id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")"
+                               @bind="registerModel.ConfirmPassword" @bind:event="oninput"
+                               class="form-input" placeholder="Confirm your password"
+                               disabled="@isLoading" />
+                        <button type="button" class="toggle-password" @onclick="ToggleConfirmPassword" tabindex="-1">
+                            @(showConfirmPassword ? "🙈" : "👁️")
+                        </button>
+                    </div>
+                    <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="validation-msg" />
+                </div>
+
+                <button type="submit" class="login-btn" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner"></span>
+                        <span>Creating account...</span>
+                    }
+                    else
+                    {
+                        <span>📝 Sign Up</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="register-link" style="text-align: center; margin-top: 1.5rem;">
+                <span style="color: var(--text-muted);">Already have an account?</span>
+                <a href="/login" style="color: var(--groww-green); font-weight: 600; margin-left: 0.5rem;">Sign In</a>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            <p>© 2026 Trading System • Powered by AI & ML.NET</p>
+        </div>
+    </div>
+
+    <div class="login-features">
+        <div class="feature-item">
+            <span class="feature-icon">🤖</span>
+            <div class="feature-text">
+                <strong>AI-Powered Analysis</strong>
+                <span>Get intelligent trading insights</span>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">📊</span>
+            <div class="feature-text">
+                <strong>Live Market Data</strong>
+                <span>Real-time stock prices from Yahoo Finance</span>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">🔐</span>
+            <div class="feature-text">
+                <strong>Secure & Private</strong>
+                <span>Your data is encrypted and protected</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterRequest registerModel = new();
+    private bool isLoading = false;
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.RegisterAsync(registerModel);
+
+            if (result.Success)
+            {
+                successMessage = result.Message ?? "Account created successfully!";
+                registerModel = new RegisterRequest(); // Clear form
+                StateHasChanged();
+
+                // Redirect to login after 2 seconds
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = result.Error ?? "Registration failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void TogglePassword() => showPassword = !showPassword;
+    private void ToggleConfirmPassword() => showConfirmPassword = !showConfirmPassword;
+}

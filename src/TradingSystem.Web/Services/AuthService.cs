@@ -7,6 +7,7 @@ namespace TradingSystem.Web.Services;
 public interface IAuthService
 {
     Task<LoginResponse> LoginAsync(LoginRequest request);
+    Task<RegisterResponse> RegisterAsync(RegisterRequest request);
     Task LogoutAsync();
     Task<string?> GetTokenAsync();
     Task<bool> IsAuthenticatedAsync();
@@ -47,6 +48,21 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             return new LoginResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<RegisterResponse> RegisterAsync(RegisterRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/register", request);
+            var result = await response.Content.ReadFromJsonAsync<RegisterResponse>();
+
+            return result ?? new RegisterResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new RegisterResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
         }
     }
 
