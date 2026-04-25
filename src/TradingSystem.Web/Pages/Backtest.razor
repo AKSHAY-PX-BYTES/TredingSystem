@@ -5,6 +5,7 @@
 @inject ICurrencyService Currency
 @inject IJSRuntime JS
 
+<FeatureGate FeatureKey="backtest">
 <PageTitle>Backtesting - AI Trading System</PageTitle>
 
 <div class="page-header">
@@ -188,6 +189,7 @@
         }
     </div>
 }
+</FeatureGate>
 
 @code {
     private BacktestRequest request = new()

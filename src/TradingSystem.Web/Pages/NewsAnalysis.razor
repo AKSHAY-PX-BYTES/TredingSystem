@@ -3,6 +3,7 @@
 @inject INewsApiService NewsApi
 @inject IJSRuntime JS
 
+<FeatureGate FeatureKey="news">
 <PageTitle>News Analysis - AI Trading System</PageTitle>
 
 <div class="page-header">
@@ -136,6 +137,7 @@
         </div>
     </div>
 }
+</FeatureGate>
 
 @code {
     private string headlinesText = "";

@@ -5,6 +5,7 @@
 @inject ICurrencyService Currency
 @inject IJSRuntime JS
 
+<FeatureGate FeatureKey="charts">
 <PageTitle>Advanced Charts - AI Trader</PageTitle>
 
 <div class="charts-page">
@@ -133,6 +134,7 @@
         <div class="chart-error">⚠️ @error</div>
     }
 </div>
+</FeatureGate>
 
 @code {
     [Parameter] public string? Symbol { get; set; }

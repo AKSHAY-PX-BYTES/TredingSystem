@@ -1,0 +1,31 @@
+@inject IFeatureFlagService FeatureFlagService
+@inject NavigationManager Navigation
+
+@if (isAllowed)
+{
+    @ChildContent
+}
+else
+{
+    <div class="feature-disabled-page">
+        <div class="feature-disabled-card">
+            <span class="disabled-icon">🚫</span>
+            <h2>Feature Unavailable</h2>
+            <p>This feature has been temporarily disabled by the administrator.</p>
+            <a href="/" class="back-home-btn">← Back to Home</a>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string FeatureKey { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool isAllowed = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FeatureFlagService.LoadFlagsAsync();
+        isAllowed = FeatureFlagService.IsEnabled(FeatureKey);
+    }
+}

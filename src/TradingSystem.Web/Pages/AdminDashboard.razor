@@ -1,0 +1,150 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@using TradingSystem.Web.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject IFeatureFlagService FeatureFlagService
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Dashboard - Trading System</PageTitle>
+
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <div class="admin-title">
+            <span class="admin-icon">⚙️</span>
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p class="admin-subtitle">Manage features available to normal users</p>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="admin-loading">
+            <div class="spinner-large"></div>
+            <p>Loading feature flags...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="admin-error">
+            <span>⚠️</span> @errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="admin-info-banner">
+            <span>💡</span>
+            <p>Toggle features ON/OFF below. Disabled features will be <strong>hidden and inaccessible</strong> for all normal users (Trader/Viewer roles). Admin always has full access.</p>
+        </div>
+
+        <div class="feature-grid">
+            @foreach (var flag in flags)
+            {
+                <div class="feature-card @(flag.IsEnabled ? "enabled" : "disabled")">
+                    <div class="feature-card-header">
+                        <span class="feature-emoji">@GetFeatureEmoji(flag.FeatureKey)</span>
+                        <h3>@flag.DisplayName</h3>
+                    </div>
+                    <p class="feature-desc">@flag.Description</p>
+                    <div class="feature-card-footer">
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked="@flag.IsEnabled"
+                                       @onchange="e => ToggleFeature(flag.FeatureKey, (bool)(e.Value ?? false))"
+                                       disabled="@(updatingKey == flag.FeatureKey)" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label @(flag.IsEnabled ? "on" : "off")">
+                                @(flag.IsEnabled ? "Enabled" : "Disabled")
+                            </span>
+                        </div>
+                        @if (updatingKey == flag.FeatureKey)
+                        {
+                            <span class="updating-text">Saving...</span>
+                        }
+                        else
+                        {
+                            <span class="updated-info">Updated by @flag.UpdatedBy</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="admin-success-toast">✅ @successMessage</div>
+        }
+    }
+</div>
+
+@code {
+    private List<FeatureFlagItem> flags = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? updatingKey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await FeatureFlagService.LoadFlagsAsync();
+            flags = FeatureFlagService.GetAllFlags();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load features: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ToggleFeature(string featureKey, bool isEnabled)
+    {
+        updatingKey = featureKey;
+        successMessage = null;
+        StateHasChanged();
+
+        var success = await FeatureFlagService.UpdateFlagAsync(featureKey, isEnabled);
+
+        if (success)
+        {
+            flags = FeatureFlagService.GetAllFlags();
+            var flag = flags.FirstOrDefault(f => f.FeatureKey == featureKey);
+            successMessage = $"{flag?.DisplayName ?? featureKey} has been {(isEnabled ? "enabled" : "disabled")}";
+        }
+        else
+        {
+            errorMessage = $"Failed to update {featureKey}. Please try again.";
+        }
+
+        updatingKey = null;
+        StateHasChanged();
+
+        // Auto-clear success message
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            successMessage = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private string GetFeatureEmoji(string key) => key switch
+    {
+        "login" => "🔐",
+        "signup" => "📝",
+        "markets" => "📊",
+        "markets_click" => "🖱️",
+        "watchlist" => "⭐",
+        "charts" => "📈",
+        "compare" => "⚖️",
+        "news" => "📰",
+        "backtest" => "🔄",
+        "currency_change" => "💱",
+        _ => "⚙️"
+    };
+}

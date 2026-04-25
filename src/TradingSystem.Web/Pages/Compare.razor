@@ -4,6 +4,7 @@
 @inject ICurrencyService Currency
 @inject NavigationManager Navigation
 
+<FeatureGate FeatureKey="compare">
 <PageTitle>Compare Stocks - AI Trader</PageTitle>
 
 <div class="compare-page">
@@ -204,6 +205,7 @@
         </div>
     }
 </div>
+</FeatureGate>
 
 @code {
     private string[] selectedSymbols = new string[4] { "", "", "", "" };

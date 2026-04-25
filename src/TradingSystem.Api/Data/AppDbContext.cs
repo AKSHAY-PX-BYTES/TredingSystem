@@ -8,6 +8,7 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<FeatureFlagEntity> FeatureFlags => Set<FeatureFlagEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
+        });
+
+        modelBuilder.Entity<FeatureFlagEntity>(entity =>
+        {
+            entity.ToTable("feature_flags");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FeatureKey).HasColumnName("feature_key").IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayName).HasColumnName("display_name").IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(500);
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(true);
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").HasMaxLength(50);
+            entity.HasIndex(e => e.FeatureKey).IsUnique();
         });
     }
 }

@@ -3,8 +3,10 @@
 @using TradingSystem.Web.Models
 @using TradingSystem.Web.Services
 @inject IAuthService AuthService
+@inject IFeatureFlagService FeatureFlagService
 @inject NavigationManager Navigation
 
+<FeatureGate FeatureKey="signup">
 <PageTitle>Sign Up - Trading System</PageTitle>
 
 <div class="login-container">
@@ -137,6 +139,7 @@
         </div>
     </div>
 </div>
+</FeatureGate>
 
 @code {
     private RegisterRequest registerModel = new();

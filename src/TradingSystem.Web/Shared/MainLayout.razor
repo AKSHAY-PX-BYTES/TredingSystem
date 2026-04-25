@@ -3,6 +3,7 @@
 @inject IAuthService AuthService
 @inject ICurrencyService CurrencyService
 @inject IThemeService ThemeService
+@inject IFeatureFlagService FeatureFlagService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -19,37 +20,53 @@
                     <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                         Explore
                     </NavLink>
-                    <NavLink class="nav-link" href="markets">
-                        Markets
-                    </NavLink>
-                    <NavLink class="nav-link" href="watchlist">
-                        Watchlist
-                    </NavLink>
-                    <NavLink class="nav-link" href="charts">
-                        Charts
-                    </NavLink>
-                    <NavLink class="nav-link" href="compare">
-                        Compare
-                    </NavLink>
-                    <NavLink class="nav-link" href="news">
-                        News
-                    </NavLink>
-                    <NavLink class="nav-link" href="backtest">
-                        Backtest
-                    </NavLink>
+                    @if (IsFeatureVisible("markets"))
+                    {
+                        <NavLink class="nav-link" href="markets">Markets</NavLink>
+                    }
+                    @if (IsFeatureVisible("watchlist"))
+                    {
+                        <NavLink class="nav-link" href="watchlist">Watchlist</NavLink>
+                    }
+                    @if (IsFeatureVisible("charts"))
+                    {
+                        <NavLink class="nav-link" href="charts">Charts</NavLink>
+                    }
+                    @if (IsFeatureVisible("compare"))
+                    {
+                        <NavLink class="nav-link" href="compare">Compare</NavLink>
+                    }
+                    @if (IsFeatureVisible("news"))
+                    {
+                        <NavLink class="nav-link" href="news">News</NavLink>
+                    }
+                    @if (IsFeatureVisible("backtest"))
+                    {
+                        <NavLink class="nav-link" href="backtest">Backtest</NavLink>
+                    }
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <NavLink class="nav-link admin-nav-link" href="admin">
+                                ⚙️ Admin
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 </nav>
             </div>
             <div class="navbar-right">
                 <button class="theme-toggle" @onclick="ToggleTheme" title="Toggle Theme">
                     @(ThemeService.IsDarkMode ? "☀️" : "🌙")
                 </button>
-                <select class="currency-pill" value="@CurrencyService.CurrentCurrencyCode"
-                        @onchange="OnCurrencyChanged">
-                    @foreach (var currency in CurrencyService.AvailableCurrencies)
-                    {
-                        <option value="@currency.Code">@currency.Symbol @currency.Code</option>
-                    }
-                </select>
+                @if (IsFeatureVisible("currency_change"))
+                {
+                    <select class="currency-pill" value="@CurrencyService.CurrentCurrencyCode"
+                            @onchange="OnCurrencyChanged">
+                        @foreach (var currency in CurrencyService.AvailableCurrencies)
+                        {
+                            <option value="@currency.Code">@currency.Symbol @currency.Code</option>
+                        }
+                    </select>
+                }
                 <AuthorizeView>
                     <Authorized>
                         <div class="user-pill">
@@ -75,31 +92,46 @@
         <NavLink class="mobile-nav-item" href="" Match="NavLinkMatch.All">
             <span>🏠</span><span>Explore</span>
         </NavLink>
-        <NavLink class="mobile-nav-item" href="markets">
-            <span>📊</span><span>Markets</span>
-        </NavLink>
-        <NavLink class="mobile-nav-item" href="watchlist">
-            <span>�</span><span>Watchlist</span>
-        </NavLink>
-        <NavLink class="mobile-nav-item" href="charts">
-            <span>📈</span><span>Charts</span>
-        </NavLink>
-        <NavLink class="mobile-nav-item" href="compare">
-            <span>⚖️</span><span>Compare</span>
-        </NavLink>
+        @if (IsFeatureVisible("markets"))
+        {
+            <NavLink class="mobile-nav-item" href="markets">
+                <span>📊</span><span>Markets</span>
+            </NavLink>
+        }
+        @if (IsFeatureVisible("watchlist"))
+        {
+            <NavLink class="mobile-nav-item" href="watchlist">
+                <span>⭐</span><span>Watchlist</span>
+            </NavLink>
+        }
+        @if (IsFeatureVisible("charts"))
+        {
+            <NavLink class="mobile-nav-item" href="charts">
+                <span>📈</span><span>Charts</span>
+            </NavLink>
+        }
+        @if (IsFeatureVisible("compare"))
+        {
+            <NavLink class="mobile-nav-item" href="compare">
+                <span>⚖️</span><span>Compare</span>
+            </NavLink>
+        }
     </nav>
 </div>
 
 @code {
     private DotNetObjectReference<MainLayout>? _dotNetRef;
     private const int IdleTimeoutMinutes = 5;
+    private bool isAdmin = false;
 
     protected override async Task OnInitializedAsync()
     {
         await CurrencyService.LoadCurrenciesAsync();
         await ThemeService.InitializeAsync();
+        await FeatureFlagService.LoadFlagsAsync();
         CurrencyService.OnCurrencyChanged += StateHasChanged;
         ThemeService.OnThemeChanged += StateHasChanged;
+        FeatureFlagService.OnFlagsChanged += StateHasChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -109,6 +141,20 @@
             // Initialize idle timeout tracker
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("IdleTimeoutManager.init", _dotNetRef, IdleTimeoutMinutes);
+
+            // Check if user is admin
+            try
+            {
+                var userJson = await JS.InvokeAsync<string?>("localStorage.getItem", "authUser");
+                if (!string.IsNullOrEmpty(userJson))
+                {
+                    var user = System.Text.Json.JsonSerializer.Deserialize<TradingSystem.Web.Models.UserInfo>(userJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    isAdmin = user?.Role == "Admin";
+                    StateHasChanged();
+                }
+            }
+            catch { }
         }
     }
 
@@ -145,6 +191,13 @@
     {
         CurrencyService.OnCurrencyChanged -= StateHasChanged;
         ThemeService.OnThemeChanged -= StateHasChanged;
+        FeatureFlagService.OnFlagsChanged -= StateHasChanged;
         _dotNetRef?.Dispose();
+    }
+
+    private bool IsFeatureVisible(string featureKey)
+    {
+        // Admin always sees everything
+        return isAdmin || FeatureFlagService.IsEnabled(featureKey);
     }
 }

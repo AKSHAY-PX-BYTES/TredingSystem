@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
+<FeatureGate FeatureKey="markets">
 <PageTitle>Markets - AI Trading System</PageTitle>
 
 <!-- Top Bar -->
@@ -271,6 +272,7 @@ else if (exchangeData != null)
         </div>
     </div>
 }
+</FeatureGate>
 
 @code {
     private string activeExchange = "NSE";

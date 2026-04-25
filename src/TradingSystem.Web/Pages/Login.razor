@@ -3,6 +3,7 @@
 @using TradingSystem.Web.Models
 @using TradingSystem.Web.Services
 @inject IAuthService AuthService
+@inject IFeatureFlagService FeatureFlagService
 @inject CustomAuthStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -79,10 +80,13 @@
                 </button>
             </EditForm>
 
-            <div class="register-link" style="text-align: center; margin-top: 1.5rem;">
-                <span style="color: var(--text-muted);">Don't have an account?</span>
-                <a href="/register" style="color: var(--groww-green); font-weight: 600; margin-left: 0.5rem;">Sign Up</a>
-            </div>
+            @if (signupEnabled)
+            {
+                <div class="register-link" style="text-align: center; margin-top: 1.5rem;">
+                    <span style="color: var(--text-muted);">Don't have an account?</span>
+                    <a href="/register" style="color: var(--groww-green); font-weight: 600; margin-left: 0.5rem;">Sign Up</a>
+                </div>
+            }
         </div>
 
         <div class="login-footer">
@@ -133,9 +137,14 @@
     private bool isLoading;
     private bool showPassword;
     private bool showTimeoutMessage;
+    private bool signupEnabled = true;
 
     protected override async Task OnInitializedAsync()
     {
+        // Load feature flags to check if signup is enabled
+        await FeatureFlagService.LoadFlagsAsync();
+        signupEnabled = FeatureFlagService.IsEnabled("signup");
+
         // Check if redirected due to timeout
         var uri = new Uri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);

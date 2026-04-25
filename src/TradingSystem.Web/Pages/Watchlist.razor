@@ -6,6 +6,7 @@
 @inject ICurrencyService Currency
 @inject NavigationManager Navigation
 
+<FeatureGate FeatureKey="watchlist">
 <PageTitle>My Watchlist - AI Trader</PageTitle>
 
 <div class="watchlist-page">
@@ -129,6 +130,7 @@
         </div>
     }
 </div>
+</FeatureGate>
 
 @code {
     private List<WatchlistItem> watchlist = new();
