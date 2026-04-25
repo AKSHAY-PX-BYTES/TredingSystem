@@ -19,7 +19,8 @@
     <div class="explore-search-bar">
         <span class="search-icon-lg">🔍</span>
         <input class="explore-input" @bind="symbolInput" @bind:event="oninput"
-               @onkeydown="HandleKeyDown" placeholder="Search stocks e.g. AAPL, MSFT, RELIANCE" />
+               @onkeydown="HandleKeyDown" placeholder="Search stocks e.g. AAPL, MSFT, RELIANCE"
+               disabled="@(!exploreEnabled)" />
         <button class="explore-btn" @onclick="LoadData" disabled="@(isLoading || !exploreEnabled)">
             @if (isLoading) { <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> }
             else if (!exploreEnabled) { <span>🚫 Disabled</span> }
@@ -28,15 +29,15 @@
     </div>
     @if (!exploreEnabled)
     {
-        <div style="color: var(--groww-red); font-size: 0.85rem; margin-top: 0.5rem; text-align: center;">
-            ⚠️ Explore feature is currently disabled by the administrator.
+        <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; text-align: center;">
+            ℹ️ Custom search is disabled. You can still view the default stocks below.
         </div>
     }
     <div class="explore-chips">
         @foreach (var s in popularSymbols)
         {
             <button class="explore-chip @(s == currentSymbol ? "explore-chip-active" : "")"
-                    @onclick="() => SelectSymbol(s)" disabled="@(!exploreEnabled)">@s</button>
+                    @onclick="() => SelectSymbol(s)">@s</button>
         }
     </div>
 </div>
