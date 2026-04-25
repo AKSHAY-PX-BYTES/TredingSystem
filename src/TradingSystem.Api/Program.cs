@@ -188,6 +188,10 @@ using (var scope = app.Services.CreateScope())
             "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, email VARCHAR(100) NOT NULL UNIQUE, password_hash TEXT NOT NULL, display_name VARCHAR(100) NOT NULL, role VARCHAR(20) NOT NULL, created_at TIMESTAMP, last_login_at TIMESTAMP)");
         db.Database.ExecuteSqlRaw(
             "CREATE TABLE IF NOT EXISTS feature_flags (id SERIAL PRIMARY KEY, feature_key VARCHAR(50) NOT NULL UNIQUE, display_name VARCHAR(100) NOT NULL, description VARCHAR(500), is_enabled BOOLEAN DEFAULT true, updated_at TIMESTAMP, updated_by VARCHAR(50))");
+        db.Database.ExecuteSqlRaw(
+            "CREATE TABLE IF NOT EXISTS otps (id SERIAL PRIMARY KEY, email VARCHAR(100) NOT NULL, code VARCHAR(6) NOT NULL, created_at TIMESTAMP NOT NULL, expires_at TIMESTAMP NOT NULL, is_verified BOOLEAN NOT NULL DEFAULT false, UNIQUE(email, code))");
+        db.Database.ExecuteSqlRaw(
+            "CREATE INDEX IF NOT EXISTS ix_otps_email ON otps(email)");
         logger.LogInformation("Table check done.");
 
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
