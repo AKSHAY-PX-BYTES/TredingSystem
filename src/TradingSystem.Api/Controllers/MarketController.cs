@@ -6,7 +6,7 @@ using TradingSystem.Api.Services;
 
 namespace TradingSystem.Api.Controllers;
 
-[AllowAnonymous]
+[Authorize]
 [ApiController]
 [Route("market")]
 [Produces("application/json")]

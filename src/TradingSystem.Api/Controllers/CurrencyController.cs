@@ -4,6 +4,7 @@ using TradingSystem.Api.Services;
 
 namespace TradingSystem.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("currency")]
 [Produces("application/json")]

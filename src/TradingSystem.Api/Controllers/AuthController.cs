@@ -5,6 +5,7 @@ using TradingSystem.Api.Services;
 
 namespace TradingSystem.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("auth")]
 [Produces("application/json")]
