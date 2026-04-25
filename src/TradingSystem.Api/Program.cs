@@ -146,6 +146,7 @@ builder.Services.AddScoped<IBacktestService, BacktestService>();
 builder.Services.AddScoped<IExportService, ExportService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddSingleton<ICurrencyService, CurrencyService>();
 
 // Yahoo Finance live market data

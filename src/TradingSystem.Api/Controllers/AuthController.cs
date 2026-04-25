@@ -12,11 +12,13 @@ namespace TradingSystem.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IOtpService _otpService;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IOtpService otpService, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _otpService = otpService;
         _logger = logger;
     }
 
@@ -91,6 +93,17 @@ public class AuthController : ControllerBase
             });
         }
 
+        // Check if email has been verified via OTP
+        var isEmailVerified = await _otpService.IsEmailVerifiedAsync(request.Email);
+        if (!isEmailVerified)
+        {
+            return BadRequest(new RegisterResponse
+            {
+                Success = false,
+                Error = "Email must be verified with OTP before registration"
+            });
+        }
+
         var result = await _authService.RegisterAsync(request);
 
         if (!result.Success)
@@ -121,4 +134,66 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Send OTP to email for verification
+    /// </summary>
+    [HttpPost("send-otp")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(SendOtpResponse), 200)]
+    [ProducesResponseType(typeof(SendOtpResponse), 400)]
+    public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
+    {
+        _logger.LogInformation("POST /auth/send-otp for email: {Email}", request.Email);
+
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new SendOtpResponse
+            {
+                Success = false,
+                Error = "Invalid email address"
+            });
+        }
+
+        var result = await _otpService.SendOtpAsync(request.Email);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Verify OTP code sent to email
+    /// </summary>
+    [HttpPost("verify-otp")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(VerifyOtpResponse), 200)]
+    [ProducesResponseType(typeof(VerifyOtpResponse), 400)]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request)
+    {
+        _logger.LogInformation("POST /auth/verify-otp for email: {Email}", request.Email);
+
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+
+            return BadRequest(new VerifyOtpResponse
+            {
+                Success = false,
+                Error = string.Join("; ", errors)
+            });
+        }
+
+        var result = await _otpService.VerifyOtpAsync(request.Email, request.Code);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }
+

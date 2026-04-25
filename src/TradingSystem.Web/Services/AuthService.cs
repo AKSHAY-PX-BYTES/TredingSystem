@@ -13,6 +13,8 @@ public interface IAuthService
     Task<string?> GetTokenAsync();
     Task<string?> GetUsernameAsync();
     Task<bool> IsAuthenticatedAsync();
+    Task<SendOtpResponse> SendOtpAsync(string email);
+    Task<VerifyOtpResponse> VerifyOtpAsync(string email, string code);
 }
 
 public class AuthService : IAuthService
@@ -132,4 +134,35 @@ public class AuthService : IAuthService
             return false;
         }
     }
+
+    public async Task<SendOtpResponse> SendOtpAsync(string email)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/send-otp", new { Email = email });
+            var result = await response.Content.ReadFromJsonAsync<SendOtpResponse>();
+
+            return result ?? new SendOtpResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new SendOtpResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<VerifyOtpResponse> VerifyOtpAsync(string email, string code)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/verify-otp", new { Email = email, Code = code });
+            var result = await response.Content.ReadFromJsonAsync<VerifyOtpResponse>();
+
+            return result ?? new VerifyOtpResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new VerifyOtpResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
 }
+

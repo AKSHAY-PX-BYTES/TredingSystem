@@ -36,73 +36,141 @@
                 </div>
             }
 
-            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" class="login-form">
-                <DataAnnotationsValidator />
-
-                <div class="form-group">
-                    <label for="username">
-                        <span class="field-icon">👤</span> Username
-                    </label>
-                    <InputText id="username" @bind-Value="registerModel.Username"
-                               class="form-input" placeholder="Choose a username"
-                               disabled="@isLoading" />
-                    <ValidationMessage For="@(() => registerModel.Username)" class="validation-msg" />
-                </div>
-
-                <div class="form-group">
-                    <label for="email">
-                        <span class="field-icon">📧</span> Email
-                    </label>
-                    <InputText id="email" @bind-Value="registerModel.Email"
-                               class="form-input" placeholder="Enter your email"
-                               disabled="@isLoading" />
-                    <ValidationMessage For="@(() => registerModel.Email)" class="validation-msg" />
-                </div>
-
-                <div class="form-group">
-                    <label for="password">
-                        <span class="field-icon">🔒</span> Password
-                    </label>
-                    <div class="password-wrapper">
-                        <input id="password" type="@(showPassword ? "text" : "password")"
-                               @bind="registerModel.Password" @bind:event="oninput"
-                               class="form-input" placeholder="Create a password (min 6 chars)"
-                               disabled="@isLoading" />
-                        <button type="button" class="toggle-password" @onclick="TogglePassword" tabindex="-1">
-                            @(showPassword ? "🙈" : "👁️")
-                        </button>
+            @if (registrationStep == 1)
+            {
+                <!-- Step 1: Email Verification -->
+                <div class="form-section">
+                    <h3 style="text-align: center; margin-bottom: 1rem;">📧 Step 1: Verify Email</h3>
+                    <div class="form-group">
+                        <label for="email">
+                            <span class="field-icon">📧</span> Email Address
+                        </label>
+                        <InputText id="email" @bind-Value="registerModel.Email"
+                                   class="form-input" placeholder="Enter your email"
+                                   disabled="@isLoading" />
+                        <ValidationMessage For="@(() => registerModel.Email)" class="validation-msg" />
                     </div>
-                    <ValidationMessage For="@(() => registerModel.Password)" class="validation-msg" />
-                </div>
 
-                <div class="form-group">
-                    <label for="confirmPassword">
-                        <span class="field-icon">🔒</span> Confirm Password
-                    </label>
-                    <div class="password-wrapper">
-                        <input id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")"
-                               @bind="registerModel.ConfirmPassword" @bind:event="oninput"
-                               class="form-input" placeholder="Confirm your password"
-                               disabled="@isLoading" />
-                        <button type="button" class="toggle-password" @onclick="ToggleConfirmPassword" tabindex="-1">
-                            @(showConfirmPassword ? "🙈" : "👁️")
-                        </button>
+                    <button type="button" class="login-btn" @onclick="SendOtp" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner"></span>
+                            <span>Sending...</span>
+                        }
+                        else
+                        {
+                            <span>📧 Send OTP</span>
+                        }
+                    </button>
+                </div>
+            }
+            else if (registrationStep == 2)
+            {
+                <!-- Step 2: OTP Verification -->
+                <div class="form-section">
+                    <h3 style="text-align: center; margin-bottom: 1rem;">🔐 Step 2: Verify OTP</h3>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 1.5rem;">
+                        We've sent a 6-digit code to <strong>@registerModel.Email</strong>
+                    </p>
+                    
+                    <div class="form-group">
+                        <label for="otp">
+                            <span class="field-icon">�</span> OTP Code
+                        </label>
+                        <input id="otp" type="text" @bind="otpCode" @bind:event="oninput"
+                               class="form-input" placeholder="Enter 6-digit code"
+                               maxlength="6" pattern="[0-9]*" disabled="@isLoading"
+                               style="font-size: 1.5rem; letter-spacing: 0.5rem; text-align: center;" />
                     </div>
-                    <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="validation-msg" />
-                </div>
 
-                <button type="submit" class="login-btn" disabled="@isLoading">
-                    @if (isLoading)
-                    {
-                        <span class="spinner"></span>
-                        <span>Creating account...</span>
-                    }
-                    else
-                    {
-                        <span>📝 Sign Up</span>
-                    }
-                </button>
-            </EditForm>
+                    <button type="button" class="login-btn" @onclick="VerifyOtp" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner"></span>
+                            <span>Verifying...</span>
+                        }
+                        else
+                        {
+                            <span>✅ Verify OTP</span>
+                        }
+                    </button>
+
+                    <button type="button" class="login-btn" @onclick="() => registrationStep = 1" 
+                            disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
+                        ← Back
+                    </button>
+                </div>
+            }
+            else if (registrationStep == 3)
+            {
+                <!-- Step 3: Account Details -->
+                <div class="form-section">
+                    <h3 style="text-align: center; margin-bottom: 1rem;">👤 Step 3: Account Details</h3>
+                    
+                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" class="login-form">
+                        <DataAnnotationsValidator />
+
+                        <div class="form-group">
+                            <label for="username">
+                                <span class="field-icon">�</span> Username
+                            </label>
+                            <InputText id="username" @bind-Value="registerModel.Username"
+                                       class="form-input" placeholder="Choose a username"
+                                       disabled="@isLoading" />
+                            <ValidationMessage For="@(() => registerModel.Username)" class="validation-msg" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">
+                                <span class="field-icon">🔒</span> Password
+                            </label>
+                            <div class="password-wrapper">
+                                <input id="password" type="@(showPassword ? "text" : "password")"
+                                       @bind="registerModel.Password" @bind:event="oninput"
+                                       class="form-input" placeholder="Create a password (min 6 chars)"
+                                       disabled="@isLoading" />
+                                <button type="button" class="toggle-password" @onclick="TogglePassword" tabindex="-1">
+                                    @(showPassword ? "🙈" : "👁️")
+                                </button>
+                            </div>
+                            <ValidationMessage For="@(() => registerModel.Password)" class="validation-msg" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirmPassword">
+                                <span class="field-icon">🔒</span> Confirm Password
+                            </label>
+                            <div class="password-wrapper">
+                                <input id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")"
+                                       @bind="registerModel.ConfirmPassword" @bind:event="oninput"
+                                       class="form-input" placeholder="Confirm your password"
+                                       disabled="@isLoading" />
+                                <button type="button" class="toggle-password" @onclick="ToggleConfirmPassword" tabindex="-1">
+                                    @(showConfirmPassword ? "🙈" : "👁️")
+                                </button>
+                            </div>
+                            <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="validation-msg" />
+                        </div>
+
+                        <button type="submit" class="login-btn" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner"></span>
+                                <span>Creating account...</span>
+                            }
+                            else
+                            {
+                                <span>📝 Complete Sign Up</span>
+                            }
+                        </button>
+                    </EditForm>
+
+                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 2; errorMessage = null; }" 
+                            disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
+                        ← Back
+                    </button>
+                </div>
+            }
 
             <div class="register-link" style="text-align: center; margin-top: 1.5rem;">
                 <span style="color: var(--text-muted);">Already have an account?</span>
@@ -141,6 +209,7 @@
 </div>
 </FeatureGate>
 
+
 @code {
     private RegisterRequest registerModel = new();
     private bool isLoading = false;
@@ -148,6 +217,83 @@
     private bool showConfirmPassword = false;
     private string? errorMessage;
     private string? successMessage;
+    private int registrationStep = 1; // 1: Email, 2: OTP, 3: Account Details
+    private string otpCode = string.Empty;
+
+    private async Task SendOtp()
+    {
+        errorMessage = null;
+        
+        if (string.IsNullOrWhiteSpace(registerModel.Email))
+        {
+            errorMessage = "Email is required";
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await AuthService.SendOtpAsync(registerModel.Email);
+            
+            if (response?.Success == true)
+            {
+                registrationStep = 2;
+                otpCode = string.Empty;
+            }
+            else
+            {
+                errorMessage = response?.Error ?? "Failed to send OTP";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task VerifyOtp()
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(otpCode) || otpCode.Length != 6)
+        {
+            errorMessage = "OTP must be 6 digits";
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await AuthService.VerifyOtpAsync(registerModel.Email, otpCode);
+            
+            if (response?.Success == true)
+            {
+                registrationStep = 3;
+            }
+            else
+            {
+                errorMessage = response?.Error ?? "Failed to verify OTP";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
 
     private async Task HandleRegister()
     {
@@ -189,3 +335,4 @@
     private void TogglePassword() => showPassword = !showPassword;
     private void ToggleConfirmPassword() => showConfirmPassword = !showConfirmPassword;
 }
+

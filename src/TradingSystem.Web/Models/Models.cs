@@ -224,6 +224,21 @@ public class RegisterResponse
     public string? Error { get; set; }
 }
 
+public class SendOtpResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+}
+
+public class VerifyOtpResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+}
+
 // Currency Models
 public class CurrencyInfo
 {
