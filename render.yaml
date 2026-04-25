@@ -10,4 +10,6 @@ services:
         value: Production
       - key: ASPNETCORE_URLS
         value: http://+:10000
+      - key: DATABASE_URL
+        sync: false
     healthCheckPath: /swagger

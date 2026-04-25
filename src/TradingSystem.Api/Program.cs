@@ -118,11 +118,20 @@ builder.Services.AddCors(options =>
 // SignalR
 builder.Services.AddSignalR();
 
-// SQLite Database
-var dbPath = Path.Combine(AppContext.BaseDirectory, "data", "trading.db");
-Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+// PostgreSQL Database (Neon.tech free tier — persists across redeploys)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? throw new InvalidOperationException("Database connection string not found. Set ConnectionStrings:DefaultConnection or DATABASE_URL env var.");
+
+// Neon.tech provides postgres:// URLs, Npgsql needs postgresql:// or Host= format
+if (connectionString.StartsWith("postgres://"))
+{
+    var uri = new Uri(connectionString);
+    connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]};SSL Mode=Require;Trust Server Certificate=true";
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseNpgsql(connectionString));
 
 // Register application services (DI)
 builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
