@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TradingSystem.Api.BackgroundServices;
+using TradingSystem.Api.Data;
 using TradingSystem.Api.Hubs;
 using TradingSystem.Api.Middleware;
 using TradingSystem.Api.Services;
@@ -116,6 +118,12 @@ builder.Services.AddCors(options =>
 // SignalR
 builder.Services.AddSignalR();
 
+// SQLite Database
+var dbPath = Path.Combine(AppContext.BaseDirectory, "data", "trading.db");
+Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite($"Data Source={dbPath}"));
+
 // Register application services (DI)
 builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
 builder.Services.AddSingleton<INewsService, NewsService>();
@@ -123,7 +131,7 @@ builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddScoped<IStrategyEngine, StrategyEngine>();
 builder.Services.AddScoped<IBacktestService, BacktestService>();
 builder.Services.AddScoped<IExportService, ExportService>();
-builder.Services.AddSingleton<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ICurrencyService, CurrencyService>();
 
 // Yahoo Finance live market data
@@ -147,6 +155,15 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 var app = builder.Build();
+
+// Auto-migrate and seed database
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+    var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+    await authService.SeedDefaultUsersAsync();
+}
 
 // Configure the HTTP request pipeline
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();

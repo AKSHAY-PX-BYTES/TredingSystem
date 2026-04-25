@@ -2,7 +2,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using TradingSystem.Api.Data;
+using TradingSystem.Api.Data.Entities;
 using TradingSystem.Api.Models;
 
 namespace TradingSystem.Api.Services;
@@ -12,82 +15,106 @@ public interface IAuthService
     Task<LoginResponse> LoginAsync(LoginRequest request);
     Task<RegisterResponse> RegisterAsync(RegisterRequest request);
     Task<UserInfo?> GetUserAsync(string username);
+    Task SeedDefaultUsersAsync();
 }
 
 public class AuthService : IAuthService
 {
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AuthService> _logger;
     private readonly IConfiguration _configuration;
 
-    // In-memory user store (pre-seeded demo users)
-    private static readonly List<UserRecord> _users = new()
+    public AuthService(IServiceScopeFactory scopeFactory, ILogger<AuthService> logger, IConfiguration configuration)
     {
-        new()
-        {
-            Username = "admin",
-            PasswordHash = HashPassword("Admin@123"),
-            DisplayName = "Admin User",
-            Role = "Admin",
-            Email = "admin@tradingsystem.com"
-        },
-        new()
-        {
-            Username = "trader",
-            PasswordHash = HashPassword("Trader@123"),
-            DisplayName = "John Trader",
-            Role = "Trader",
-            Email = "trader@tradingsystem.com"
-        },
-        new()
-        {
-            Username = "demo",
-            PasswordHash = HashPassword("Demo@123"),
-            DisplayName = "Demo User",
-            Role = "Viewer",
-            Email = "demo@tradingsystem.com"
-        }
-    };
-
-    public AuthService(ILogger<AuthService> logger, IConfiguration configuration)
-    {
+        _scopeFactory = scopeFactory;
         _logger = logger;
         _configuration = configuration;
     }
 
-    public Task<LoginResponse> LoginAsync(LoginRequest request)
+    private AppDbContext CreateDbContext()
+    {
+        var scope = _scopeFactory.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    }
+
+    public async Task SeedDefaultUsersAsync()
+    {
+        using var db = CreateDbContext();
+
+        if (await db.Users.AnyAsync())
+        {
+            _logger.LogInformation("Database already has users, skipping seed.");
+            return;
+        }
+
+        _logger.LogInformation("Seeding default users into database...");
+
+        var defaultUsers = new List<UserEntity>
+        {
+            new()
+            {
+                Username = "admin",
+                PasswordHash = HashPassword("Admin@123"),
+                DisplayName = "Admin User",
+                Role = "Admin",
+                Email = "admin@tradingsystem.com",
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Username = "trader",
+                PasswordHash = HashPassword("Trader@123"),
+                DisplayName = "John Trader",
+                Role = "Trader",
+                Email = "trader@tradingsystem.com",
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Username = "demo",
+                PasswordHash = HashPassword("Demo@123"),
+                DisplayName = "Demo User",
+                Role = "Viewer",
+                Email = "demo@tradingsystem.com",
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        db.Users.AddRange(defaultUsers);
+        await db.SaveChangesAsync();
+        _logger.LogInformation("Seeded {Count} default users.", defaultUsers.Count);
+    }
+
+    public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
         _logger.LogInformation("Login attempt for user: {Username}", request.Username);
 
-        var user = _users.FirstOrDefault(u =>
-            u.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase));
+        using var db = CreateDbContext();
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == request.Username.ToLower());
 
         if (user == null)
         {
             _logger.LogWarning("Login failed: user '{Username}' not found", request.Username);
-            return Task.FromResult(new LoginResponse
-            {
-                Success = false,
-                Error = "Invalid username or password"
-            });
+            return new LoginResponse { Success = false, Error = "Invalid username or password" };
         }
 
         if (user.PasswordHash != HashPassword(request.Password))
         {
             _logger.LogWarning("Login failed: invalid password for '{Username}'", request.Username);
-            return Task.FromResult(new LoginResponse
-            {
-                Success = false,
-                Error = "Invalid username or password"
-            });
+            return new LoginResponse { Success = false, Error = "Invalid username or password" };
         }
 
-        // Generate JWT token
+        // Update last login
+        user.LastLoginAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
         var token = GenerateJwtToken(user);
         var expiresAt = DateTime.UtcNow.AddHours(8);
 
         _logger.LogInformation("Login successful for user: {Username}", request.Username);
 
-        return Task.FromResult(new LoginResponse
+        return new LoginResponse
         {
             Success = true,
             Token = token,
@@ -99,72 +126,65 @@ public class AuthService : IAuthService
                 Role = user.Role,
                 Email = user.Email
             }
-        });
+        };
     }
 
-    public Task<UserInfo?> GetUserAsync(string username)
+    public async Task<UserInfo?> GetUserAsync(string username)
     {
-        var user = _users.FirstOrDefault(u =>
-            u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+        using var db = CreateDbContext();
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
 
-        if (user == null) return Task.FromResult<UserInfo?>(null);
+        if (user == null) return null;
 
-        return Task.FromResult<UserInfo?>(new UserInfo
+        return new UserInfo
         {
             Username = user.Username,
             DisplayName = user.DisplayName,
             Role = user.Role,
             Email = user.Email
-        });
+        };
     }
 
-    public Task<RegisterResponse> RegisterAsync(RegisterRequest request)
+    public async Task<RegisterResponse> RegisterAsync(RegisterRequest request)
     {
         _logger.LogInformation("Registration attempt for user: {Username}", request.Username);
 
-        // Check if username already exists
-        if (_users.Any(u => u.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase)))
+        using var db = CreateDbContext();
+
+        if (await db.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower()))
         {
-            _logger.LogWarning("Registration failed: username '{Username}' already exists", request.Username);
-            return Task.FromResult(new RegisterResponse
-            {
-                Success = false,
-                Error = "Username already exists"
-            });
+            return new RegisterResponse { Success = false, Error = "Username already exists" };
         }
 
-        // Check if email already exists
-        if (_users.Any(u => u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase)))
+        if (await db.Users.AnyAsync(u => u.Email.ToLower() == request.Email.ToLower()))
         {
-            _logger.LogWarning("Registration failed: email '{Email}' already exists", request.Email);
-            return Task.FromResult(new RegisterResponse
-            {
-                Success = false,
-                Error = "Email already registered"
-            });
+            return new RegisterResponse { Success = false, Error = "Email already registered" };
         }
 
-        // Create new user
-        var newUser = new UserRecord
+        var newUser = new UserEntity
         {
             Username = request.Username,
             PasswordHash = HashPassword(request.Password),
-            DisplayName = request.Username, // Use username as display name initially
-            Role = "Trader", // Default role for new users
-            Email = request.Email
+            DisplayName = request.Username,
+            Role = "Trader",
+            Email = request.Email,
+            CreatedAt = DateTime.UtcNow
         };
 
-        _users.Add(newUser);
+        db.Users.Add(newUser);
+        await db.SaveChangesAsync();
+
         _logger.LogInformation("User registered successfully: {Username}", request.Username);
 
-        return Task.FromResult(new RegisterResponse
+        return new RegisterResponse
         {
             Success = true,
             Message = "Registration successful! You can now login."
-        });
+        };
     }
 
-    private string GenerateJwtToken(UserRecord user)
+    private string GenerateJwtToken(UserEntity user)
     {
         var jwtKey = _configuration["Jwt:Key"] ?? "TradingSystem_SuperSecret_Key_2026_!@#$%^&*()_LONG_ENOUGH_256BITS";
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
