@@ -172,10 +172,29 @@ var app = builder.Build();
 // Auto-migrate and seed database
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
-    var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
-    await authService.SeedDefaultUsersAsync();
+    
+    try
+    {
+        logger.LogInformation("Ensuring database is created...");
+        var created = db.Database.EnsureCreated();
+        logger.LogInformation("Database EnsureCreated result: {Created}", created);
+        
+        // Verify the table exists by running a raw check
+        var tableExists = db.Database.ExecuteSqlRaw(
+            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, email VARCHAR(100) NOT NULL UNIQUE, password_hash TEXT NOT NULL, display_name VARCHAR(100) NOT NULL, role VARCHAR(20) NOT NULL, created_at TIMESTAMP, last_login_at TIMESTAMP)");
+        logger.LogInformation("Table check done.");
+
+        var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+        await authService.SeedDefaultUsersAsync();
+        logger.LogInformation("Database seeding complete.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error during database initialization");
+        throw;
+    }
 }
 
 // Configure the HTTP request pipeline
