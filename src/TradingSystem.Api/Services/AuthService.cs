@@ -15,6 +15,7 @@ public interface IAuthService
     Task<LoginResponse> LoginAsync(LoginRequest request);
     Task<RegisterResponse> RegisterAsync(RegisterRequest request);
     Task<UserInfo?> GetUserAsync(string username);
+    Task<LoginResponse> RefreshTokenAsync(string username);
     Task SeedDefaultUsersAsync();
 }
 
@@ -110,7 +111,7 @@ public class AuthService : IAuthService
         await db.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddHours(8);
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
 
         _logger.LogInformation("Login successful for user: {Username}", request.Username);
 
@@ -184,6 +185,37 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<LoginResponse> RefreshTokenAsync(string username)
+    {
+        _logger.LogInformation("Token refresh for user: {Username}", username);
+
+        using var db = CreateDbContext();
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+
+        if (user == null)
+        {
+            return new LoginResponse { Success = false, Error = "User not found" };
+        }
+
+        var token = GenerateJwtToken(user);
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        return new LoginResponse
+        {
+            Success = true,
+            Token = token,
+            ExpiresAt = expiresAt,
+            User = new UserInfo
+            {
+                Username = user.Username,
+                DisplayName = user.DisplayName,
+                Role = user.Role,
+                Email = user.Email
+            }
+        };
+    }
+
     private string GenerateJwtToken(UserEntity user)
     {
         var jwtKey = _configuration["Jwt:Key"] ?? "TradingSystem_SuperSecret_Key_2026_!@#$%^&*()_LONG_ENOUGH_256BITS";
@@ -204,7 +236,7 @@ public class AuthService : IAuthService
             issuer: _configuration["Jwt:Issuer"] ?? "TradingSystem",
             audience: _configuration["Jwt:Audience"] ?? "TradingSystemUI",
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddMinutes(10),
             signingCredentials: credentials
         );
 

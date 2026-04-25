@@ -29,6 +29,23 @@ public class AuthorizationMessageHandler : DelegatingHandler
             // JSInterop might not be available during pre-rendering
         }
 
-        return await base.SendAsync(request, cancellationToken);
+        var response = await base.SendAsync(request, cancellationToken);
+
+        // If 401 Unauthorized, trigger session expired event
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            // Don't trigger for login/register/refresh endpoints
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (!path.Contains("/auth/login") && !path.Contains("/auth/register") && !path.Contains("/auth/refresh"))
+            {
+                try
+                {
+                    await _jsRuntime.InvokeVoidAsync("SessionExpiredHandler.trigger");
+                }
+                catch { }
+            }
+        }
+
+        return response;
     }
 }

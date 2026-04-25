@@ -97,4 +97,27 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Refresh JWT token (requires a valid or recently expired token)
+    /// </summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(LoginResponse), 200)]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        _logger.LogInformation("POST /auth/refresh for user: {Username}", request.Username);
+
+        if (string.IsNullOrWhiteSpace(request.Username))
+        {
+            return BadRequest(new LoginResponse { Success = false, Error = "Username is required" });
+        }
+
+        var result = await _authService.RefreshTokenAsync(request.Username);
+
+        if (!result.Success)
+            return Unauthorized(result);
+
+        return Ok(result);
+    }
 }

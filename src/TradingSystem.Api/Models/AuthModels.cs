@@ -65,3 +65,8 @@ public class RegisterResponse
     public string? Message { get; set; }
     public string? Error { get; set; }
 }
+
+public class RefreshTokenRequest
+{
+    public string Username { get; set; } = string.Empty;
+}

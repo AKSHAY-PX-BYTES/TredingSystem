@@ -8,8 +8,10 @@ public interface IAuthService
 {
     Task<LoginResponse> LoginAsync(LoginRequest request);
     Task<RegisterResponse> RegisterAsync(RegisterRequest request);
+    Task<bool> RefreshTokenAsync();
     Task LogoutAsync();
     Task<string?> GetTokenAsync();
+    Task<string?> GetUsernameAsync();
     Task<bool> IsAuthenticatedAsync();
 }
 
@@ -88,5 +90,46 @@ public class AuthService : IAuthService
     {
         var token = await GetTokenAsync();
         return !string.IsNullOrEmpty(token);
+    }
+
+    public async Task<string?> GetUsernameAsync()
+    {
+        try
+        {
+            var userJson = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", UserKey);
+            if (!string.IsNullOrEmpty(userJson))
+            {
+                var user = System.Text.Json.JsonSerializer.Deserialize<TradingSystem.Web.Models.UserInfo>(userJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return user?.Username;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    public async Task<bool> RefreshTokenAsync()
+    {
+        try
+        {
+            var username = await GetUsernameAsync();
+            if (string.IsNullOrEmpty(username)) return false;
+
+            var response = await _httpClient.PostAsJsonAsync("/auth/refresh", new { Username = username });
+            var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+            if (result?.Success == true && !string.IsNullOrEmpty(result.Token))
+            {
+                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, result.Token);
+                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", UserKey,
+                    System.Text.Json.JsonSerializer.Serialize(result.User));
+                return true;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

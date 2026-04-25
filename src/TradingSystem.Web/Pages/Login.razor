@@ -29,6 +29,14 @@
                 </div>
             }
 
+            @if (showExpiredMessage)
+            {
+                <div class="login-warning">
+                    <span class="warning-icon">🔑</span>
+                    <span>Your session token expired. Please login again.</span>
+                </div>
+            }
+
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="login-error">
@@ -137,6 +145,7 @@
     private bool isLoading;
     private bool showPassword;
     private bool showTimeoutMessage;
+    private bool showExpiredMessage;
     private bool signupEnabled = true;
 
     protected override async Task OnInitializedAsync()
@@ -149,6 +158,7 @@
         var uri = new Uri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         showTimeoutMessage = query["reason"] == "timeout";
+        showExpiredMessage = query["reason"] == "expired";
 
         // If already authenticated, redirect to dashboard
         var isAuthenticated = await AuthService.IsAuthenticatedAsync();

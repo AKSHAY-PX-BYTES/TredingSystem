@@ -121,7 +121,7 @@
 
 @code {
     private DotNetObjectReference<MainLayout>? _dotNetRef;
-    private const int IdleTimeoutMinutes = 5;
+    private const int IdleTimeoutMinutes = 10;
     private bool isAdmin = false;
 
     protected override async Task OnInitializedAsync()
@@ -141,6 +141,9 @@
             // Initialize idle timeout tracker
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("IdleTimeoutManager.init", _dotNetRef, IdleTimeoutMinutes);
+
+            // Initialize session expired handler (for 401 token expiry popup)
+            await JS.InvokeVoidAsync("SessionExpiredHandler.init", _dotNetRef);
 
             // Check if user is admin
             try
@@ -165,6 +168,34 @@
         await AuthService.LogoutAsync();
         await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
         Navigation.NavigateTo("/login?reason=timeout", forceLoad: true);
+    }
+
+    [JSInvokable]
+    public async Task OnSessionRefresh()
+    {
+        // User chose to continue — refresh the token
+        var success = await AuthService.RefreshTokenAsync();
+        if (success)
+        {
+            // Reset the idle timer too
+            await JS.InvokeVoidAsync("IdleTimeoutManager.resetTimer");
+        }
+        else
+        {
+            // Refresh failed, force logout
+            await AuthService.LogoutAsync();
+            await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
+            Navigation.NavigateTo("/login?reason=expired", forceLoad: true);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnSessionLogout()
+    {
+        // User chose to logout
+        await AuthService.LogoutAsync();
+        await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
+        Navigation.NavigateTo("/login?reason=expired", forceLoad: true);
     }
 
     private async Task OnCurrencyChanged(ChangeEventArgs e)
