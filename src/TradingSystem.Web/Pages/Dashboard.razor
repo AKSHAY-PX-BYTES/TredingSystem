@@ -6,6 +6,7 @@
 @inject INewsApiService NewsApi
 @inject ICurrencyService Currency
 @inject IWatchlistService WatchlistService
+@inject IFeatureFlagService FeatureFlagService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -19,16 +20,23 @@
         <span class="search-icon-lg">🔍</span>
         <input class="explore-input" @bind="symbolInput" @bind:event="oninput"
                @onkeydown="HandleKeyDown" placeholder="Search stocks e.g. AAPL, MSFT, RELIANCE" />
-        <button class="explore-btn" @onclick="LoadData" disabled="@isLoading">
+        <button class="explore-btn" @onclick="LoadData" disabled="@(isLoading || !exploreEnabled)">
             @if (isLoading) { <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> }
+            else if (!exploreEnabled) { <span>🚫 Disabled</span> }
             else { <span>Analyze</span> }
         </button>
     </div>
+    @if (!exploreEnabled)
+    {
+        <div style="color: var(--groww-red); font-size: 0.85rem; margin-top: 0.5rem; text-align: center;">
+            ⚠️ Explore feature is currently disabled by the administrator.
+        </div>
+    }
     <div class="explore-chips">
         @foreach (var s in popularSymbols)
         {
             <button class="explore-chip @(s == currentSymbol ? "explore-chip-active" : "")"
-                    @onclick="() => SelectSymbol(s)">@s</button>
+                    @onclick="() => SelectSymbol(s)" disabled="@(!exploreEnabled)">@s</button>
         }
     </div>
 </div>
@@ -279,6 +287,7 @@ else if (quote != null)
     private string currentSymbol = "";
     private bool isLoading = false;
     private bool isInWatchlist = false;
+    private bool exploreEnabled = true;
     private string? error;
 
     private StockQuote? quote;
@@ -290,7 +299,9 @@ else if (quote != null)
     protected override async Task OnInitializedAsync()
     {
         Currency.OnCurrencyChanged += OnCurrencyChanged;
-        
+        await FeatureFlagService.LoadFlagsAsync();
+        exploreEnabled = FeatureFlagService.IsEnabled("explore");
+
         // Read symbol from URL query parameter if present
         if (!string.IsNullOrWhiteSpace(SymbolFromUrl))
         {

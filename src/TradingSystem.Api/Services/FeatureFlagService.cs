@@ -22,6 +22,7 @@ public class FeatureFlagService : IFeatureFlagService
     {
         ("login", "Login", "Allow users to login to the system"),
         ("signup", "Sign Up", "Allow new user registration"),
+        ("explore", "Explore Stocks", "Allow users to use the Analyze button on Explore page"),
         ("markets", "Markets", "Access to Markets tab with live stock data"),
         ("markets_click", "Markets Clickable", "Allow clicking on stocks in Markets tab for details"),
         ("watchlist", "Watchlist", "Access to Watchlist / Portfolio tracker"),
