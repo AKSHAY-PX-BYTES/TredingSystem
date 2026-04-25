@@ -119,15 +119,19 @@ builder.Services.AddCors(options =>
 builder.Services.AddSignalR();
 
 // PostgreSQL Database (Neon.tech free tier — persists across redeploys)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? throw new InvalidOperationException("Database connection string not found. Set ConnectionStrings:DefaultConnection or DATABASE_URL env var.");
+var dbConnStr = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = !string.IsNullOrWhiteSpace(dbConnStr) ? dbConnStr
+    : Environment.GetEnvironmentVariable("DATABASE_URL");
 
-// Neon.tech provides postgres:// URLs, Npgsql needs postgresql:// or Host= format
-if (connectionString.StartsWith("postgres://"))
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("Database connection string not found. Set ConnectionStrings:DefaultConnection or DATABASE_URL env var.");
+
+// Neon.tech provides postgres:// URLs, Npgsql needs Host= format
+if (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://"))
 {
     var uri = new Uri(connectionString);
-    connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]};SSL Mode=Require;Trust Server Certificate=true";
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
