@@ -170,21 +170,28 @@ public class OtpService : IOtpService
         try
         {
             var emailConfig = _configuration.GetSection("Email");
-            var smtpServer = emailConfig["SmtpServer"];
+            var smtpServer = emailConfig["SmtpServer"] ?? "smtp.mailtrap.io";
             var smtpPort = int.Parse(emailConfig["SmtpPort"] ?? "587");
             var username = emailConfig["Username"];
             var password = emailConfig["Password"];
-            var senderEmail = emailConfig["SenderEmail"];
-            var senderName = emailConfig["SenderName"];
+            var senderEmail = emailConfig["SenderEmail"] ?? "noreply@tredingsystem.com";
+            var senderName = emailConfig["SenderName"] ?? "TredingSystem";
 
-            // For development/testing without real email credentials, just log
+            // For development/testing without real email credentials
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
-                _logger.LogWarning("⚠️ Email credentials not configured in environment. OTP code for {Email}: {Code}. To receive real emails, configure Email__Username and Email__Password on Render.", toEmail, code);
+                _logger.LogWarning(
+                    "⚠️ Email credentials not configured.\n" +
+                    "📧 OTP Code for {Email}: {Code}\n" +
+                    "💾 To receive emails, set these environment variables on Render:\n" +
+                    "   Email__Username (e.g., your-mailtrap-username)\n" +
+                    "   Email__Password (e.g., your-mailtrap-password)\n" +
+                    "📚 Get Mailtrap credentials from: https://mailtrap.io/api-tokens", 
+                    toEmail, code);
                 return;
             }
 
-            _logger.LogInformation("📧 Sending OTP email to {Email} via {SmtpServer}", toEmail, smtpServer);
+            _logger.LogInformation("📧 Sending OTP email to {Email} via {SmtpServer}:{SmtpPort}", toEmail, smtpServer, smtpPort);
 
             using (var client = new SmtpClient(smtpServer, smtpPort))
             {
@@ -195,7 +202,7 @@ public class OtpService : IOtpService
                 var mailMessage = new MailMessage
                 {
                     From = new MailAddress(senderEmail, senderName),
-                    Subject = "Your OTP Verification Code",
+                    Subject = "🔐 Your OTP Verification Code - TredingSystem",
                     Body = GenerateEmailBody(code),
                     IsBodyHtml = true
                 };
@@ -219,29 +226,109 @@ public class OtpService : IOtpService
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <style>
-        body {{ font-family: Arial, sans-serif; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
-        .content {{ padding: 20px; background-color: #f9f9f9; }}
-        .otp {{ font-size: 32px; font-weight: bold; color: #4CAF50; text-align: center; letter-spacing: 5px; }}
-        .footer {{ text-align: center; padding: 10px; color: #666; font-size: 12px; }}
+        body {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }}
+        .container {{ 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .header {{ 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }}
+        .header h1 {{
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }}
+        .content {{ 
+            padding: 30px 20px; 
+            color: #333;
+        }}
+        .otp-box {{
+            background-color: #f9f9f9;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 25px 0;
+        }}
+        .otp {{ 
+            font-size: 42px; 
+            font-weight: bold; 
+            color: #667eea;
+            letter-spacing: 8px; 
+            font-family: 'Courier New', monospace;
+        }}
+        .expiry {{
+            color: #e74c3c;
+            font-weight: 600;
+            margin-top: 15px;
+            font-size: 14px;
+        }}
+        .footer {{ 
+            text-align: center; 
+            padding: 20px; 
+            color: #999; 
+            font-size: 12px;
+            border-top: 1px solid #eee;
+        }}
+        .note {{
+            background-color: #f0f8ff;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            margin: 15px 0;
+            font-size: 13px;
+            color: #555;
+        }}
+        a {{
+            color: #667eea;
+            text-decoration: none;
+        }}
     </style>
 </head>
 <body>
     <div class='container'>
         <div class='header'>
-            <h1>TredingSystem</h1>
+            <h1>🔐 TredingSystem</h1>
+            <p style='margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>Email Verification</p>
         </div>
         <div class='content'>
             <p>Hello,</p>
-            <p>Your one-time password (OTP) for email verification is:</p>
-            <div class='otp'>{code}</div>
-            <p>This code will expire in 10 minutes.</p>
-            <p>If you didn't request this code, please ignore this email.</p>
+            <p>Thank you for signing up to TredingSystem! To verify your email address and complete your registration, please use the one-time password (OTP) below:</p>
+            
+            <div class='otp-box'>
+                <div class='otp'>{code}</div>
+                <div class='expiry'>⏰ Expires in 10 minutes</div>
+            </div>
+
+            <p>This code is valid for a single use only and will expire in 10 minutes.</p>
+
+            <div class='note'>
+                <strong>🔒 Security Note:</strong> Never share this code with anyone. TredingSystem support will never ask for your OTP code.
+            </div>
+
+            <p>If you didn't sign up for TredingSystem, please ignore this email or <a href='#'>contact us</a>.</p>
+
+            <p>Best regards,<br/>The TredingSystem Team</p>
         </div>
         <div class='footer'>
             <p>&copy; 2024 TredingSystem. All rights reserved.</p>
+            <p><a href='#'>Privacy Policy</a> | <a href='#'>Terms of Service</a></p>
         </div>
     </div>
 </body>
