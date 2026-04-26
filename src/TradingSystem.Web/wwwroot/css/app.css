@@ -93,22 +93,30 @@ body {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: center;
+    width: 100%;
 }
 
 .navbar-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 1.5rem;
     height: 56px;
+    box-sizing: border-box;
 }
 
 .navbar-left {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 2rem;
+    flex: 1;
+    min-width: 0;
 }
 
 .navbar-brand {
@@ -152,7 +160,9 @@ body {
 .navbar-right {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.75rem;
+    flex-wrap: nowrap;
 }
 
 .currency-pill {

@@ -146,9 +146,6 @@
                 // Initialize idle timeout tracker ONLY if authenticated
                 _dotNetRef = DotNetObjectReference.Create(this);
                 await JS.InvokeVoidAsync("IdleTimeoutManager.init", _dotNetRef, IdleTimeoutMinutes);
-
-                // Initialize session expired handler (for 401 token expiry popup)
-                await JS.InvokeVoidAsync("SessionExpiredHandler.init", _dotNetRef);
             }
 
             // Check if user is admin
