@@ -31,7 +31,7 @@ public class AuthorizationMessageHandler : DelegatingHandler
 
         var response = await base.SendAsync(request, cancellationToken);
 
-        // If 401 Unauthorized, trigger session expired event
+        // If 401 Unauthorized, trigger session expired event ONLY if user was authenticated
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             // Don't trigger for login/register/refresh endpoints
@@ -40,7 +40,12 @@ public class AuthorizationMessageHandler : DelegatingHandler
             {
                 try
                 {
-                    await _jsRuntime.InvokeVoidAsync("SessionExpiredHandler.trigger");
+                    // Only show popup if there was a token in localStorage (meaning user WAS logged in)
+                    var token = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", TokenKey);
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        await _jsRuntime.InvokeVoidAsync("SessionExpiredHandler.trigger");
+                    }
                 }
                 catch { }
             }
