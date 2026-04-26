@@ -138,12 +138,18 @@
     {
         if (firstRender)
         {
-            // Initialize idle timeout tracker
-            _dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("IdleTimeoutManager.init", _dotNetRef, IdleTimeoutMinutes);
+            // Check if user is authenticated before initializing idle timeout
+            var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            
+            if (isAuthenticated)
+            {
+                // Initialize idle timeout tracker ONLY if authenticated
+                _dotNetRef = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("IdleTimeoutManager.init", _dotNetRef, IdleTimeoutMinutes);
 
-            // Initialize session expired handler (for 401 token expiry popup)
-            await JS.InvokeVoidAsync("SessionExpiredHandler.init", _dotNetRef);
+                // Initialize session expired handler (for 401 token expiry popup)
+                await JS.InvokeVoidAsync("SessionExpiredHandler.init", _dotNetRef);
+            }
 
             // Check if user is admin
             try

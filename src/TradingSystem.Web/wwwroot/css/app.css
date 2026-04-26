@@ -1984,7 +1984,13 @@ tbody tr:hover {
 
 .explore-search-section {
     text-align: center;
-    padding: 2rem 0 1.5rem;
+    padding: 2rem 1rem 1.5rem;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .explore-title {
@@ -1993,12 +1999,14 @@ tbody tr:hover {
     color: var(--text-primary);
     margin-bottom: 0.3rem;
     letter-spacing: -0.03em;
+    line-height: 1.2;
 }
 
 .explore-subtitle {
     font-size: 0.88rem;
     color: var(--text-muted);
     margin-bottom: 1.25rem;
+    line-height: 1.4;
 }
 
 .explore-search-bar {
@@ -2084,42 +2092,80 @@ tbody tr:hover {
     margin-bottom: 1rem;
 }
 
-.stock-hero-left { display: flex; align-items: center; gap: 1rem; }
+.stock-hero-left { 
+    display: flex; 
+    align-items: center; 
+    gap: 1rem;
+    flex: 1;
+}
 
 .stock-avatar {
-    width: 48px; height: 48px;
+    width: 48px; 
+    height: 48px;
+    flex-shrink: 0;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--groww-green), #00b386);
     color: #0d1117;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.2rem; font-weight: 800;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 1.2rem; 
+    font-weight: 800;
 }
 
-.stock-name { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); }
+.stock-name { 
+    font-size: 1.15rem; 
+    font-weight: 700; 
+    color: var(--text-primary);
+    text-align: left;
+}
 
 .stock-symbol-tag {
-    font-size: 0.72rem; padding: 0.15rem 0.5rem;
-    background: rgba(88, 166, 255, 0.1); color: var(--accent-blue);
-    border-radius: 4px; font-weight: 700; margin-right: 0.4rem;
+    font-size: 0.72rem; 
+    padding: 0.15rem 0.5rem;
+    background: rgba(88, 166, 255, 0.1); 
+    color: var(--accent-blue);
+    border-radius: 4px; 
+    font-weight: 700; 
+    margin-right: 0.4rem;
 }
 
 .stock-live-badge {
-    font-size: 0.62rem; padding: 0.15rem 0.5rem;
-    background: rgba(0, 208, 156, 0.1); color: var(--groww-green);
-    border-radius: 4px; font-weight: 800;
-    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.62rem; 
+    padding: 0.15rem 0.5rem;
+    background: rgba(0, 208, 156, 0.1); 
+    color: var(--groww-green);
+    border-radius: 4px; 
+    font-weight: 800;
+    display: inline-flex; 
+    align-items: center; 
+    gap: 4px;
 }
 
 .live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
+    width: 6px; 
+    height: 6px; 
+    border-radius: 50%;
     background: var(--groww-green);
     animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-.stock-hero-right { text-align: right; }
+.stock-hero-right { 
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    text-align: right;
+    min-width: 150px;
+    white-space: nowrap;
+}
 
 .stock-hero-actions {
-    display: flex; gap: 0.5rem; justify-content: flex-end; margin-bottom: 0.5rem;
+    display: flex; 
+    gap: 0.5rem; 
+    justify-content: flex-end; 
+    margin-bottom: 0.5rem;
+    order: -1;
 }
 .watchlist-btn, .chart-link-btn {
     padding: 0.5rem 0.75rem; background: var(--bg-card);

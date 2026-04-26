@@ -177,17 +177,20 @@ public class OtpService : IOtpService
             var senderEmail = emailConfig["SenderEmail"];
             var senderName = emailConfig["SenderName"];
 
-            // For development/testing without real email, just log
+            // For development/testing without real email credentials, just log
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
-                _logger.LogWarning("Email credentials not configured. OTP code for {Email}: {Code}", toEmail, code);
+                _logger.LogWarning("⚠️ Email credentials not configured in environment. OTP code for {Email}: {Code}. To receive real emails, configure Email__Username and Email__Password on Render.", toEmail, code);
                 return;
             }
+
+            _logger.LogInformation("📧 Sending OTP email to {Email} via {SmtpServer}", toEmail, smtpServer);
 
             using (var client = new SmtpClient(smtpServer, smtpPort))
             {
                 client.EnableSsl = true;
                 client.Credentials = new NetworkCredential(username, password);
+                client.Timeout = 10000; // 10 second timeout
 
                 var mailMessage = new MailMessage
                 {
@@ -200,12 +203,12 @@ public class OtpService : IOtpService
                 mailMessage.To.Add(toEmail);
 
                 await client.SendMailAsync(mailMessage);
-                _logger.LogInformation("Email sent successfully to: {Email}", toEmail);
+                _logger.LogInformation("✅ Email sent successfully to: {Email}", toEmail);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending email to: {Email}", toEmail);
+            _logger.LogError(ex, "❌ Error sending email to: {Email}", toEmail);
             throw;
         }
     }
