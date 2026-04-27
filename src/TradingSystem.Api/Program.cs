@@ -9,6 +9,7 @@ using TradingSystem.Api.Data;
 using TradingSystem.Api.Hubs;
 using TradingSystem.Api.Middleware;
 using TradingSystem.Api.Services;
+using TradingSystem.Api.Services.EmailProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -147,6 +148,7 @@ builder.Services.AddScoped<IExportService, ExportService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<ICurrencyService, CurrencyService>();
 
 // Yahoo Finance live market data

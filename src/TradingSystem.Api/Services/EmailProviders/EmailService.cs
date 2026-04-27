@@ -320,21 +320,23 @@ public class EmailService : IEmailService
     private readonly IEmailProvider _provider;
     private readonly ILogger<EmailService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+    public EmailService(IConfiguration configuration, ILogger<EmailService> logger, ILoggerFactory loggerFactory)
     {
         _configuration = configuration;
         _logger = logger;
+        _loggerFactory = loggerFactory;
 
         var providerName = configuration["EmailProvider:Type"] ?? "Brevo"; // Default to Brevo
         
         _provider = providerName.ToLower() switch
         {
-            "brevo" => new BrevoEmailProvider(configuration, logger),
-            "mailgun" => new MailgunEmailProvider(configuration, logger),
-            "sendgrid" => new SendGridEmailProvider(configuration, logger),
-            "resend" => new ResendEmailProvider(configuration, logger),
-            _ => new BrevoEmailProvider(configuration, logger) // Default
+            "brevo" => new BrevoEmailProvider(configuration, _loggerFactory.CreateLogger<BrevoEmailProvider>()),
+            "mailgun" => new MailgunEmailProvider(configuration, _loggerFactory.CreateLogger<MailgunEmailProvider>()),
+            "sendgrid" => new SendGridEmailProvider(configuration, _loggerFactory.CreateLogger<SendGridEmailProvider>()),
+            "resend" => new ResendEmailProvider(configuration, _loggerFactory.CreateLogger<ResendEmailProvider>()),
+            _ => new BrevoEmailProvider(configuration, _loggerFactory.CreateLogger<BrevoEmailProvider>()) // Default
         };
 
         _logger.LogInformation("📧 Email service initialized with provider: {Provider}", providerName);
