@@ -3468,3 +3468,374 @@ tbody tr:hover {
     font-size: 0.85rem;
     margin-bottom: 1rem;
 }
+
+/* ===================== PLAN BADGES (Navbar) ===================== */
+.plan-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 0.15rem 0.45rem;
+    border-radius: 10px;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.plan-badge-basic {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    color: #475569;
+}
+
+.plan-badge-pro {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #78350f;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.plan-badge-super {
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+    animation: superGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes superGlow {
+    from { box-shadow: 0 0 6px rgba(124, 58, 237, 0.4); }
+    to { box-shadow: 0 0 14px rgba(124, 58, 237, 0.7); }
+}
+
+.plan-info-link {
+    font-size: 0.85rem !important;
+    padding: 0.25rem 0.4rem !important;
+    min-width: auto !important;
+}
+
+/* ===================== PLAN SELECTION (Signup) ===================== */
+.plan-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+    .plan-selection-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.plan-select-card {
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: var(--bg-secondary);
+    position: relative;
+}
+
+.plan-select-card:hover {
+    border-color: var(--groww-green);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.plan-select-card.plan-selected {
+    border-color: var(--groww-green);
+    background: var(--bg-primary);
+    box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.15);
+}
+
+.plan-select-badge-wrap { font-size: 1.8rem; margin-bottom: 0.3rem; }
+.plan-select-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.plan-select-price { margin: 0.3rem 0; }
+.plan-price-free { font-size: 1.2rem; font-weight: 800; color: var(--groww-green); }
+.plan-price-amount { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); }
+.plan-price-period { font-size: 0.75rem; color: var(--text-muted); }
+
+.plan-select-features {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: left;
+}
+
+.plan-select-features li {
+    padding: 0.15rem 0;
+}
+
+.plan-check-mark {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--groww-green);
+}
+
+/* ===================== PLANS PAGE ===================== */
+.plans-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+}
+
+.plans-hero {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.plans-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.plans-subtitle {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.plans-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.toggle-active { color: var(--text-primary); font-weight: 700; }
+
+.save-badge {
+    background: var(--groww-green);
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 8px;
+    font-weight: 700;
+    margin-left: 0.3rem;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+}
+
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border-color);
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider { background: var(--groww-green); }
+input:checked + .slider:before { transform: translateX(22px); }
+
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .plans-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.plan-card {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plan-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.plan-card.plan-current {
+    border-color: var(--groww-green);
+    box-shadow: 0 0 0 3px rgba(0,200,83,0.15);
+}
+
+.plan-popular {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245,158,11,0.2);
+}
+
+.plan-popular-tag {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #78350f;
+    padding: 0.25rem 1rem;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.plan-card-header { text-align: center; margin-bottom: 1rem; }
+.plan-card-icon { font-size: 2.2rem; }
+.plan-card-name { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); margin: 0.3rem 0; }
+
+.plan-card-price {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.2rem;
+    margin: 0.3rem 0;
+}
+
+.price-amount { font-size: 2rem; font-weight: 900; color: var(--text-primary); }
+.price-period { font-size: 0.85rem; color: var(--text-muted); }
+
+.plan-annual-note {
+    font-size: 0.72rem;
+    color: var(--groww-green);
+    font-weight: 600;
+    margin-top: 0.2rem;
+}
+
+.plan-card-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+}
+
+.plan-card-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    flex: 1;
+}
+
+.plan-card-features li {
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.plan-card-features li.excluded {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.plan-card-features li.highlight {
+    font-weight: 700;
+}
+
+.feat-icon { font-size: 0.8rem; flex-shrink: 0; }
+
+.plan-card-footer { text-align: center; }
+
+.plan-btn {
+    width: 100%;
+    padding: 0.65rem 1.5rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.plan-btn-basic { background: var(--border-color); color: var(--text-primary); }
+.plan-btn-basic:hover { background: var(--text-muted); color: #fff; }
+
+.plan-btn-pro {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #78350f;
+}
+.plan-btn-pro:hover { transform: scale(1.03); box-shadow: 0 4px 12px rgba(245,158,11,0.3); }
+
+.plan-btn-super {
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    color: #fff;
+}
+.plan-btn-super:hover { transform: scale(1.03); box-shadow: 0 4px 12px rgba(124,58,237,0.3); }
+
+.plan-btn-current {
+    background: var(--groww-green);
+    color: #fff;
+    cursor: default;
+    opacity: 0.8;
+}
+
+.plans-faq {
+    margin-top: 3rem;
+    text-align: center;
+}
+
+.plans-faq h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    text-align: left;
+}
+
+@media (max-width: 600px) {
+    .faq-grid { grid-template-columns: 1fr; }
+}
+
+.faq-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+.faq-item h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.4rem;
+}
+
+.faq-item p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+}

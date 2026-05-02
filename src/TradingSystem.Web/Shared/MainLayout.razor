@@ -45,6 +45,7 @@
                 {
                     <NavLink class="nav-link" href="backtest">Backtest</NavLink>
                 }
+                <NavLink class="nav-link" href="plans">Plans</NavLink>
                 <AuthorizeView Roles="Admin">
                     <Authorized>
                         <NavLink class="nav-link admin-nav-link" href="admin">
@@ -72,7 +73,11 @@
                         <div class="user-pill">
                             <span class="user-avatar-sm">@(context.User.Identity?.Name?[0].ToString().ToUpper() ?? "U")</span>
                             <span class="user-name-sm">@context.User.Identity?.Name</span>
+                            <span class="plan-badge plan-badge-@(userPlan.ToLower())">@GetPlanBadge(userPlan)</span>
                         </div>
+                        <NavLink class="nav-link plan-info-link" href="plans" title="View Plans">
+                            🏷️
+                        </NavLink>
                         <button class="change-pwd-pill" @onclick="() => showChangePassword = true" title="Change Password">
                             🔑
                         </button>
@@ -195,6 +200,7 @@
     private DotNetObjectReference<MainLayout>? _dotNetRef;
     private const int IdleTimeoutMinutes = 10;
     private bool isAdmin = false;
+    private string userPlan = "Basic";
 
     // Change password state
     private bool showChangePassword = false;
@@ -257,6 +263,7 @@
                     var user = System.Text.Json.JsonSerializer.Deserialize<TradingSystem.Web.Models.UserInfo>(userJson,
                         new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     isAdmin = user?.Role == "Admin";
+                    userPlan = user?.Plan ?? "Basic";
                     StateHasChanged();
                 }
             }
@@ -352,6 +359,13 @@
             pwdErrorMessage = result.Error ?? "Failed to change password";
         }
     }
+
+    private static string GetPlanBadge(string plan) => plan switch
+    {
+        "Super" => "👑 SUPER",
+        "Pro" => "⚡ PRO",
+        _ => "🆓 BASIC"
+    };
 
     public void Dispose()
     {

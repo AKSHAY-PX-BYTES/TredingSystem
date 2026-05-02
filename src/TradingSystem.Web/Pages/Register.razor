@@ -103,9 +103,61 @@
             }
             else if (registrationStep == 3)
             {
-                <!-- Step 3: Account Details -->
+                <!-- Step 3: Choose Plan -->
                 <div class="form-section">
-                    <h3 style="text-align: center; margin-bottom: 1rem;">👤 Step 3: Account Details</h3>
+                    <h3 style="text-align: center; margin-bottom: 0.5rem;">🏷️ Step 3: Choose Your Plan</h3>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                        Select a plan to get started. You can upgrade anytime.
+                    </p>
+
+                    <div class="plan-selection-grid">
+                        @foreach (var plan in availablePlans)
+                        {
+                            <div class="plan-select-card @(registerModel.Plan == plan.Name ? "plan-selected" : "") @(plan.Name.ToLower())-plan"
+                                 @onclick="() => registerModel.Plan = plan.Name">
+                                <div class="plan-select-badge-wrap">
+                                    <span class="plan-badge-icon plan-badge-@(plan.Name.ToLower())">@plan.Icon</span>
+                                </div>
+                                <div class="plan-select-name">@plan.Name</div>
+                                <div class="plan-select-price">
+                                    @if (plan.Price == 0)
+                                    {
+                                        <span class="plan-price-free">Free</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="plan-price-amount">$@plan.Price</span><span class="plan-price-period">/mo</span>
+                                    }
+                                </div>
+                                <ul class="plan-select-features">
+                                    @foreach (var feature in plan.Highlights)
+                                    {
+                                        <li>✓ @feature</li>
+                                    }
+                                </ul>
+                                @if (registerModel.Plan == plan.Name)
+                                {
+                                    <div class="plan-check-mark">✅ Selected</div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <button type="button" class="login-btn" @onclick="() => registrationStep = 4" 
+                            disabled="@(string.IsNullOrEmpty(registerModel.Plan))" style="margin-top: 1rem;">
+                        Continue →
+                    </button>
+                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 2; errorMessage = null; }"
+                            disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
+                        ← Back
+                    </button>
+                </div>
+            }
+            else if (registrationStep == 4)
+            {
+                <!-- Step 4: Account Details -->
+                <div class="form-section">
+                    <h3 style="text-align: center; margin-bottom: 1rem;">👤 Step 4: Account Details</h3>
                     
                     <div class="login-form">
                         <div class="form-group">
@@ -219,7 +271,7 @@
                         </button>
                     </div>
 
-                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 2; errorMessage = null; }" 
+                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 3; errorMessage = null; }" 
                             disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
                         ← Back
                     </button>
@@ -271,8 +323,24 @@
     private bool showConfirmPassword = false;
     private string? errorMessage;
     private string? successMessage;
-    private int registrationStep = 1; // 1: Email, 2: OTP, 3: Account Details
+    private int registrationStep = 1; // 1: Email, 2: OTP, 3: Choose Plan, 4: Account Details
     private string otpCode = string.Empty;
+
+    // Plan options
+    private readonly List<PlanOption> availablePlans = new()
+    {
+        new PlanOption { Name = "Basic", Icon = "🆓", Price = 0, Highlights = new[] { "Real-time market data", "Basic charts & indicators", "Watchlist (up to 10)", "Daily news digest" } },
+        new PlanOption { Name = "Pro", Icon = "⚡", Price = 29, Highlights = new[] { "Everything in Basic", "Advanced AI predictions", "Unlimited watchlists", "Backtesting engine", "Priority support" } },
+        new PlanOption { Name = "Super", Icon = "👑", Price = 79, Highlights = new[] { "Everything in Pro", "Real-time AI signals", "Portfolio analytics", "API access", "Dedicated account manager" } }
+    };
+
+    private class PlanOption
+    {
+        public string Name { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public decimal Price { get; set; }
+        public string[] Highlights { get; set; } = Array.Empty<string>();
+    }
 
     // Username validation
     private bool? usernameValid = null;

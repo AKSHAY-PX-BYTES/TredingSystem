@@ -1,0 +1,183 @@
+@page "/plans"
+@using TradingSystem.Web.Models
+@using TradingSystem.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Plans & Pricing - Trading System</PageTitle>
+
+<div class="plans-page">
+    <div class="plans-hero">
+        <h1 class="plans-title">Choose Your Trading Plan</h1>
+        <p class="plans-subtitle">Unlock powerful AI trading tools. Start free, upgrade anytime.</p>
+    </div>
+
+    <div class="plans-toggle">
+        <span class="@(isAnnual ? "" : "toggle-active")">Monthly</span>
+        <label class="switch">
+            <input type="checkbox" @bind="isAnnual" />
+            <span class="slider round"></span>
+        </label>
+        <span class="@(isAnnual ? "toggle-active" : "")">Annual <span class="save-badge">Save 20%</span></span>
+    </div>
+
+    <div class="plans-grid">
+        <!-- Basic -->
+        <div class="plan-card basic-card @(currentPlan == "Basic" ? "plan-current" : "")">
+            <div class="plan-card-header">
+                <span class="plan-card-icon">🆓</span>
+                <h2 class="plan-card-name">Basic</h2>
+                <div class="plan-card-price">
+                    <span class="price-amount">Free</span>
+                </div>
+                <p class="plan-card-desc">Perfect for getting started with market tracking.</p>
+            </div>
+            <ul class="plan-card-features">
+                <li class="included"><span class="feat-icon">✅</span> Real-time market data</li>
+                <li class="included"><span class="feat-icon">✅</span> Basic charts & indicators</li>
+                <li class="included"><span class="feat-icon">✅</span> Watchlist (up to 10 stocks)</li>
+                <li class="included"><span class="feat-icon">✅</span> Daily news digest</li>
+                <li class="included"><span class="feat-icon">✅</span> Email alerts (5/day)</li>
+                <li class="excluded"><span class="feat-icon">❌</span> AI predictions</li>
+                <li class="excluded"><span class="feat-icon">❌</span> Backtesting engine</li>
+                <li class="excluded"><span class="feat-icon">❌</span> Portfolio analytics</li>
+                <li class="excluded"><span class="feat-icon">❌</span> API access</li>
+            </ul>
+            <div class="plan-card-footer">
+                @if (currentPlan == "Basic")
+                {
+                    <button class="plan-btn plan-btn-current" disabled>Current Plan</button>
+                }
+                else
+                {
+                    <button class="plan-btn plan-btn-basic">Downgrade</button>
+                }
+            </div>
+        </div>
+
+        <!-- Pro -->
+        <div class="plan-card pro-card plan-popular @(currentPlan == "Pro" ? "plan-current" : "")">
+            <div class="plan-popular-tag">🔥 Most Popular</div>
+            <div class="plan-card-header">
+                <span class="plan-card-icon">⚡</span>
+                <h2 class="plan-card-name">Pro</h2>
+                <div class="plan-card-price">
+                    <span class="price-amount">$@(isAnnual ? "23" : "29")</span>
+                    <span class="price-period">/month</span>
+                </div>
+                @if (isAnnual)
+                {
+                    <div class="plan-annual-note">Billed $276/year</div>
+                }
+                <p class="plan-card-desc">Advanced tools for serious traders.</p>
+            </div>
+            <ul class="plan-card-features">
+                <li class="included"><span class="feat-icon">✅</span> Everything in Basic</li>
+                <li class="included highlight"><span class="feat-icon">⚡</span> Advanced AI predictions</li>
+                <li class="included"><span class="feat-icon">✅</span> Unlimited watchlists</li>
+                <li class="included highlight"><span class="feat-icon">⚡</span> Backtesting engine</li>
+                <li class="included"><span class="feat-icon">✅</span> Email alerts (unlimited)</li>
+                <li class="included"><span class="feat-icon">✅</span> Compare tool</li>
+                <li class="included"><span class="feat-icon">✅</span> Priority support</li>
+                <li class="excluded"><span class="feat-icon">❌</span> Portfolio analytics</li>
+                <li class="excluded"><span class="feat-icon">❌</span> API access</li>
+            </ul>
+            <div class="plan-card-footer">
+                @if (currentPlan == "Pro")
+                {
+                    <button class="plan-btn plan-btn-current" disabled>Current Plan</button>
+                }
+                else
+                {
+                    <button class="plan-btn plan-btn-pro">@(currentPlan == "Super" ? "Downgrade to Pro" : "Upgrade to Pro")</button>
+                }
+            </div>
+        </div>
+
+        <!-- Super -->
+        <div class="plan-card super-card @(currentPlan == "Super" ? "plan-current" : "")">
+            <div class="plan-card-header">
+                <span class="plan-card-icon">👑</span>
+                <h2 class="plan-card-name">Super</h2>
+                <div class="plan-card-price">
+                    <span class="price-amount">$@(isAnnual ? "63" : "79")</span>
+                    <span class="price-period">/month</span>
+                </div>
+                @if (isAnnual)
+                {
+                    <div class="plan-annual-note">Billed $756/year</div>
+                }
+                <p class="plan-card-desc">Ultimate power for professional traders.</p>
+            </div>
+            <ul class="plan-card-features">
+                <li class="included"><span class="feat-icon">✅</span> Everything in Pro</li>
+                <li class="included highlight"><span class="feat-icon">👑</span> Real-time AI signals</li>
+                <li class="included highlight"><span class="feat-icon">👑</span> Portfolio analytics</li>
+                <li class="included highlight"><span class="feat-icon">👑</span> API access</li>
+                <li class="included"><span class="feat-icon">✅</span> Dedicated account manager</li>
+                <li class="included"><span class="feat-icon">✅</span> Custom alerts & webhooks</li>
+                <li class="included"><span class="feat-icon">✅</span> White-glove onboarding</li>
+                <li class="included"><span class="feat-icon">✅</span> Early access to features</li>
+                <li class="included"><span class="feat-icon">✅</span> SLA guarantee</li>
+            </ul>
+            <div class="plan-card-footer">
+                @if (currentPlan == "Super")
+                {
+                    <button class="plan-btn plan-btn-current" disabled>Current Plan</button>
+                }
+                else
+                {
+                    <button class="plan-btn plan-btn-super">Upgrade to Super</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="plans-faq">
+        <h2>Frequently Asked Questions</h2>
+        <div class="faq-grid">
+            <div class="faq-item">
+                <h4>Can I switch plans anytime?</h4>
+                <p>Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
+            </div>
+            <div class="faq-item">
+                <h4>Is there a free trial for Pro/Super?</h4>
+                <p>All new Pro and Super users get a 7-day free trial. No credit card required to start.</p>
+            </div>
+            <div class="faq-item">
+                <h4>What payment methods are accepted?</h4>
+                <p>We accept all major credit cards, PayPal, and bank transfers for annual plans.</p>
+            </div>
+            <div class="faq-item">
+                <h4>Can I cancel my subscription?</h4>
+                <p>Absolutely. Cancel anytime with no penalties. You'll retain access until the end of your billing period.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string currentPlan = "Basic";
+    private bool isAnnual = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var userJson = await JS.InvokeAsync<string?>("localStorage.getItem", "authUser");
+                if (!string.IsNullOrEmpty(userJson))
+                {
+                    var user = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    currentPlan = user?.Plan ?? "Basic";
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+}

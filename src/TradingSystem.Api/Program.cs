@@ -230,6 +230,10 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_created_at ON activity_logs(created_at)");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_ip ON activity_logs(ip_address)");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_country ON activity_logs(country_code)");
+        
+        // Add plan column to users table if not exists
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) NOT NULL DEFAULT 'Basic'");
+        
         logger.LogInformation("Table check done.");
 
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();

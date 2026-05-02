@@ -200,6 +200,7 @@ public class UserInfo
     public string DisplayName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? Email { get; set; }
+    public string Plan { get; set; } = "Basic";
 }
 
 public class RegisterRequest
@@ -219,6 +220,8 @@ public class RegisterRequest
     [Required(ErrorMessage = "Confirm password is required")]
     [Compare("Password", ErrorMessage = "Passwords do not match")]
     public string ConfirmPassword { get; set; } = string.Empty;
+
+    public string Plan { get; set; } = "Basic";
 }
 
 public class RegisterResponse

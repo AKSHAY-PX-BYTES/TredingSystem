@@ -60,6 +60,7 @@ public class AuthService : IAuthService
                 PasswordHash = HashPassword("Admin@123"),
                 DisplayName = "Admin User",
                 Role = "Admin",
+                Plan = "Super",
                 Email = "admin@tradingsystem.com",
                 CreatedAt = DateTime.UtcNow
             },
@@ -69,6 +70,7 @@ public class AuthService : IAuthService
                 PasswordHash = HashPassword("Trader@123"),
                 DisplayName = "John Trader",
                 Role = "Trader",
+                Plan = "Pro",
                 Email = "trader@tradingsystem.com",
                 CreatedAt = DateTime.UtcNow
             },
@@ -78,6 +80,7 @@ public class AuthService : IAuthService
                 PasswordHash = HashPassword("Demo@123"),
                 DisplayName = "Demo User",
                 Role = "Viewer",
+                Plan = "Basic",
                 Email = "demo@tradingsystem.com",
                 CreatedAt = DateTime.UtcNow
             }
@@ -127,7 +130,8 @@ public class AuthService : IAuthService
                 Username = user.Username,
                 DisplayName = user.DisplayName,
                 Role = user.Role,
-                Email = user.Email
+                Email = user.Email,
+                Plan = user.Plan
             }
         };
     }
@@ -145,7 +149,8 @@ public class AuthService : IAuthService
             Username = user.Username,
             DisplayName = user.DisplayName,
             Role = user.Role,
-            Email = user.Email
+            Email = user.Email,
+            Plan = user.Plan
         };
     }
 
@@ -171,12 +176,16 @@ public class AuthService : IAuthService
             return new RegisterResponse { Success = false, Error = "Email already registered" };
         }
 
+        var validPlans = new[] { "Basic", "Pro", "Super" };
+        var plan = validPlans.Contains(request.Plan) ? request.Plan : "Basic";
+
         var newUser = new UserEntity
         {
             Username = request.Username,
             PasswordHash = HashPassword(request.Password),
             DisplayName = request.Username,
             Role = "Trader",
+            Plan = plan,
             Email = request.Email,
             CreatedAt = DateTime.UtcNow
         };
@@ -219,7 +228,8 @@ public class AuthService : IAuthService
                 Username = user.Username,
                 DisplayName = user.DisplayName,
                 Role = user.Role,
-                Email = user.Email
+                Email = user.Email,
+                Plan = user.Plan
             }
         };
     }
@@ -260,6 +270,7 @@ public class AuthService : IAuthService
             new Claim(ClaimTypes.GivenName, user.DisplayName),
             new Claim(ClaimTypes.Role, user.Role),
             new Claim(ClaimTypes.Email, user.Email),
+            new Claim("Plan", user.Plan),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
         };

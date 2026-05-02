@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PasswordHash).HasColumnName("password_hash").IsRequired();
             entity.Property(e => e.DisplayName).HasColumnName("display_name").IsRequired().HasMaxLength(100);
             entity.Property(e => e.Role).HasColumnName("role").IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Plan).HasColumnName("plan").IsRequired().HasMaxLength(20).HasDefaultValue("Basic");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
             entity.HasIndex(e => e.Username).IsUnique();
