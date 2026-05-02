@@ -141,11 +141,11 @@ public class OtpService : IOtpService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error verifying OTP for email: {Email}", email);
+            _logger.LogError(ex, "Error verifying OTP for email: {Email}. Exception: {Message}", email, ex.Message);
             return new VerifyOtpResponse
             {
                 Success = false,
-                Error = "Failed to verify OTP"
+                Error = $"Failed to verify OTP: {ex.Message}"
             };
         }
     }

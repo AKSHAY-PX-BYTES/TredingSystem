@@ -11,6 +11,9 @@ using TradingSystem.Api.Middleware;
 using TradingSystem.Api.Services;
 using TradingSystem.Api.Services.EmailProviders;
 
+// Fix Npgsql timestamp handling - allow DateTime without explicit Kind
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
