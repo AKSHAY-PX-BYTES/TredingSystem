@@ -16,6 +16,7 @@ public interface IAuthService
     Task<SendOtpResponse> SendOtpAsync(string email);
     Task<VerifyOtpResponse> VerifyOtpAsync(string email, string code);
     Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request);
+    Task<bool> CheckUsernameExistsAsync(string username);
 }
 
 public class AuthService : IAuthService
@@ -178,6 +179,29 @@ public class AuthService : IAuthService
         {
             return new ChangePasswordResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
         }
+    }
+
+    public async Task<bool> CheckUsernameExistsAsync(string username)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"/auth/check-username/{Uri.EscapeDataString(username)}");
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<UsernameCheckResponse>();
+                return result?.Exists ?? false;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private class UsernameCheckResponse
+    {
+        public bool Exists { get; set; }
     }
 }
 

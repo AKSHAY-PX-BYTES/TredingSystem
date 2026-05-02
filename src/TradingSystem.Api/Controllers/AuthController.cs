@@ -25,6 +25,18 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Check if a username exists
+    /// </summary>
+    [HttpGet("check-username/{username}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(object), 200)]
+    public async Task<IActionResult> CheckUsername(string username)
+    {
+        var exists = await _authService.UsernameExistsAsync(username);
+        return Ok(new { exists });
+    }
+
+    /// <summary>
     /// Authenticate user and return JWT token
     /// </summary>
     [HttpPost("login")]

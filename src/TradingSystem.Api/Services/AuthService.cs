@@ -17,6 +17,7 @@ public interface IAuthService
     Task<UserInfo?> GetUserAsync(string username);
     Task<LoginResponse> RefreshTokenAsync(string username);
     Task<ChangePasswordResponse> ChangePasswordAsync(string username, ChangePasswordRequest request);
+    Task<bool> UsernameExistsAsync(string username);
     Task SeedDefaultUsersAsync();
 }
 
@@ -146,6 +147,12 @@ public class AuthService : IAuthService
             Role = user.Role,
             Email = user.Email
         };
+    }
+
+    public async Task<bool> UsernameExistsAsync(string username)
+    {
+        using var db = CreateDbContext();
+        return await db.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower());
     }
 
     public async Task<RegisterResponse> RegisterAsync(RegisterRequest request)

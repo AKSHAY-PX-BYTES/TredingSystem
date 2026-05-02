@@ -1011,6 +1011,96 @@ tbody tr:hover {
     opacity: 1;
 }
 
+/* Username validation wrapper */
+.username-wrapper {
+    position: relative;
+}
+.username-wrapper .form-input {
+    padding-right: 2.5rem;
+}
+.username-status {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+}
+.username-status.checking {
+    animation: pulse 1s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.form-input.input-valid {
+    border-color: var(--groww-green) !important;
+    box-shadow: 0 0 0 2px rgba(0, 200, 100, 0.15);
+}
+.form-input.input-invalid {
+    border-color: var(--groww-red, #ff4d4d) !important;
+    box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+}
+
+.field-msg {
+    font-size: 0.78rem;
+    margin-top: 0.35rem;
+    font-weight: 500;
+}
+.field-success { color: var(--groww-green); }
+.field-error { color: var(--groww-red, #ff4d4d); }
+
+/* Locked field */
+.field-locked {
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
+}
+.lock-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 0.35rem;
+}
+
+/* Password Policy Checklist */
+.pwd-policy {
+    background: var(--bg-secondary, #1a1d23);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-top: 0.65rem;
+}
+.pwd-policy-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.pwd-rule {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    padding: 0.3rem 0;
+    transition: color 0.2s;
+    font-weight: 500;
+}
+.pwd-rule.pass {
+    color: var(--groww-green);
+}
+.pwd-rule.fail {
+    color: var(--groww-red, #ff4d4d);
+}
+.pwd-icon {
+    font-size: 0.75rem;
+    width: 1.1rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
 .login-btn {
     width: 100%;
     padding: 0.85rem;
