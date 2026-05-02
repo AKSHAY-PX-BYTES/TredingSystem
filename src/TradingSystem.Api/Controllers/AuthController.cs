@@ -263,5 +263,45 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Change password for authenticated user
+    /// </summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    [ProducesResponseType(typeof(ChangePasswordResponse), 200)]
+    [ProducesResponseType(typeof(ChangePasswordResponse), 400)]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+            return Unauthorized(new ChangePasswordResponse { Success = false, Error = "Not authenticated" });
+
+        _logger.LogInformation("POST /auth/change-password for user: {Username}", username);
+
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(new ChangePasswordResponse { Success = false, Error = string.Join("; ", errors) });
+        }
+
+        var result = await _authService.ChangePasswordAsync(username, request);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "PasswordChange",
+            Username = username,
+            IsSuccess = result.Success,
+            Details = result.Success ? null : result.Error
+        });
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }
 

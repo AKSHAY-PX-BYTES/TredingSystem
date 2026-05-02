@@ -105,3 +105,24 @@ public class VerifyOtpResponse
     public string? Error { get; set; }
 }
 
+public class ChangePasswordRequest
+{
+    [Required(ErrorMessage = "Current password is required")]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "New password is required")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "New password must be at least 6 characters")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Confirm password is required")]
+    [Compare("NewPassword", ErrorMessage = "Passwords do not match")]
+    public string ConfirmNewPassword { get; set; } = string.Empty;
+}
+
+public class ChangePasswordResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+}
+

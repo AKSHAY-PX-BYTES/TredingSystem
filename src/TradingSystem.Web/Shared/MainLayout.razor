@@ -73,6 +73,9 @@
                             <span class="user-avatar-sm">@(context.User.Identity?.Name?[0].ToString().ToUpper() ?? "U")</span>
                             <span class="user-name-sm">@context.User.Identity?.Name</span>
                         </div>
+                        <button class="change-pwd-pill" @onclick="() => showChangePassword = true" title="Change Password">
+                            🔑
+                        </button>
                         <button class="logout-pill" @onclick="HandleLogout" title="Sign Out">
                             Sign Out
                         </button>
@@ -117,12 +120,60 @@
             </NavLink>
         }
     </nav>
+
+    <!-- Change Password Modal -->
+    @if (showChangePassword)
+    {
+        <div class="modal-overlay" @onclick="() => showChangePassword = false">
+            <div class="modal-content change-pwd-modal" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h3>🔑 Change Password</h3>
+                    <button class="modal-close" @onclick="() => showChangePassword = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(pwdSuccessMessage))
+                    {
+                        <div class="pwd-success">✅ @pwdSuccessMessage</div>
+                    }
+                    @if (!string.IsNullOrEmpty(pwdErrorMessage))
+                    {
+                        <div class="pwd-error">❌ @pwdErrorMessage</div>
+                    }
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" @bind="currentPassword" placeholder="Enter current password" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" @bind="newPassword" placeholder="Enter new password (min 6 chars)" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm New Password</label>
+                        <input type="password" @bind="confirmNewPassword" placeholder="Confirm new password" class="form-input" />
+                    </div>
+                    <button class="pwd-submit-btn" @onclick="HandleChangePassword" disabled="@isChangingPassword">
+                        @if (isChangingPassword) { <span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span> }
+                        else { <span>Change Password</span> }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
     private DotNetObjectReference<MainLayout>? _dotNetRef;
     private const int IdleTimeoutMinutes = 10;
     private bool isAdmin = false;
+
+    // Change password state
+    private bool showChangePassword = false;
+    private string currentPassword = string.Empty;
+    private string newPassword = string.Empty;
+    private string confirmNewPassword = string.Empty;
+    private string? pwdErrorMessage;
+    private string? pwdSuccessMessage;
+    private bool isChangingPassword = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -219,6 +270,54 @@
         await JS.InvokeVoidAsync("IdleTimeoutManager.stop");
         await AuthService.LogoutAsync();
         Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    private async Task HandleChangePassword()
+    {
+        pwdErrorMessage = null;
+        pwdSuccessMessage = null;
+
+        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmNewPassword))
+        {
+            pwdErrorMessage = "All fields are required";
+            return;
+        }
+
+        if (newPassword.Length < 6)
+        {
+            pwdErrorMessage = "New password must be at least 6 characters";
+            return;
+        }
+
+        if (newPassword != confirmNewPassword)
+        {
+            pwdErrorMessage = "New passwords do not match";
+            return;
+        }
+
+        isChangingPassword = true;
+        StateHasChanged();
+
+        var result = await AuthService.ChangePasswordAsync(new TradingSystem.Web.Models.ChangePasswordRequest
+        {
+            CurrentPassword = currentPassword,
+            NewPassword = newPassword,
+            ConfirmNewPassword = confirmNewPassword
+        });
+
+        isChangingPassword = false;
+
+        if (result.Success)
+        {
+            pwdSuccessMessage = result.Message ?? "Password changed successfully!";
+            currentPassword = string.Empty;
+            newPassword = string.Empty;
+            confirmNewPassword = string.Empty;
+        }
+        else
+        {
+            pwdErrorMessage = result.Error ?? "Failed to change password";
+        }
     }
 
     public void Dispose()

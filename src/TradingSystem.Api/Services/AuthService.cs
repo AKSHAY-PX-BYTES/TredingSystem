@@ -16,6 +16,7 @@ public interface IAuthService
     Task<RegisterResponse> RegisterAsync(RegisterRequest request);
     Task<UserInfo?> GetUserAsync(string username);
     Task<LoginResponse> RefreshTokenAsync(string username);
+    Task<ChangePasswordResponse> ChangePasswordAsync(string username, ChangePasswordRequest request);
     Task SeedDefaultUsersAsync();
 }
 
@@ -214,6 +215,30 @@ public class AuthService : IAuthService
                 Email = user.Email
             }
         };
+    }
+
+    public async Task<ChangePasswordResponse> ChangePasswordAsync(string username, ChangePasswordRequest request)
+    {
+        _logger.LogInformation("Password change attempt for user: {Username}", username);
+
+        using var db = CreateDbContext();
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+
+        if (user == null)
+            return new ChangePasswordResponse { Success = false, Error = "User not found" };
+
+        if (user.PasswordHash != HashPassword(request.CurrentPassword))
+            return new ChangePasswordResponse { Success = false, Error = "Current password is incorrect" };
+
+        if (request.NewPassword != request.ConfirmNewPassword)
+            return new ChangePasswordResponse { Success = false, Error = "New passwords do not match" };
+
+        user.PasswordHash = HashPassword(request.NewPassword);
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Password changed successfully for user: {Username}", username);
+        return new ChangePasswordResponse { Success = true, Message = "Password changed successfully" };
     }
 
     private string GenerateJwtToken(UserEntity user)

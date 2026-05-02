@@ -15,6 +15,7 @@ public interface IAuthService
     Task<bool> IsAuthenticatedAsync();
     Task<SendOtpResponse> SendOtpAsync(string email);
     Task<VerifyOtpResponse> VerifyOtpAsync(string email, string code);
+    Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request);
 }
 
 public class AuthService : IAuthService
@@ -162,6 +163,20 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             return new VerifyOtpResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/change-password", request);
+            var result = await response.Content.ReadFromJsonAsync<ChangePasswordResponse>();
+            return result ?? new ChangePasswordResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new ChangePasswordResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
         }
     }
 }
