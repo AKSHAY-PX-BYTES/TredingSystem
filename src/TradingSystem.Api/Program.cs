@@ -150,6 +150,8 @@ builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<ICurrencyService, CurrencyService>();
+builder.Services.AddScoped<IActivityTrackingService, ActivityTrackingService>();
+builder.Services.AddHttpContextAccessor();
 
 // Yahoo Finance live market data
 builder.Services.AddHttpClient("YahooFinance", client =>
@@ -194,6 +196,37 @@ using (var scope = app.Services.CreateScope())
             "CREATE TABLE IF NOT EXISTS otps (id SERIAL PRIMARY KEY, email VARCHAR(100) NOT NULL, code VARCHAR(6) NOT NULL, created_at TIMESTAMP NOT NULL, expires_at TIMESTAMP NOT NULL, is_verified BOOLEAN NOT NULL DEFAULT false, UNIQUE(email, code))");
         db.Database.ExecuteSqlRaw(
             "CREATE INDEX IF NOT EXISTS ix_otps_email ON otps(email)");
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id BIGSERIAL PRIMARY KEY,
+                event_type VARCHAR(50) NOT NULL,
+                username VARCHAR(50),
+                email VARCHAR(100),
+                ip_address VARCHAR(45) NOT NULL,
+                user_agent VARCHAR(500),
+                country VARCHAR(100),
+                city VARCHAR(100),
+                region VARCHAR(100),
+                country_code VARCHAR(5),
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
+                isp VARCHAR(200),
+                timezone VARCHAR(50),
+                device_type VARCHAR(20),
+                browser VARCHAR(50),
+                os VARCHAR(50),
+                is_success BOOLEAN DEFAULT true,
+                details VARCHAR(500),
+                http_method VARCHAR(10),
+                request_path VARCHAR(200),
+                session_id VARCHAR(100),
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_event_type ON activity_logs(event_type)");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_username ON activity_logs(username)");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_created_at ON activity_logs(created_at)");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_ip ON activity_logs(ip_address)");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_country ON activity_logs(country_code)");
         logger.LogInformation("Table check done.");
 
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();

@@ -13,12 +13,14 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IOtpService _otpService;
+    private readonly IActivityTrackingService _activityTracker;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, IOtpService otpService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IOtpService otpService, IActivityTrackingService activityTracker, ILogger<AuthController> logger)
     {
         _authService = authService;
         _otpService = otpService;
+        _activityTracker = activityTracker;
         _logger = logger;
     }
 
@@ -44,7 +46,23 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request);
 
         if (!result.Success)
+        {
+            await _activityTracker.TrackAsync(new ActivityEvent
+            {
+                EventType = "Login",
+                Username = request.Username,
+                IsSuccess = false,
+                Details = result.Error ?? "Invalid credentials"
+            });
             return Unauthorized(result);
+        }
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "Login",
+            Username = request.Username,
+            IsSuccess = true
+        });
 
         return Ok(result);
     }
@@ -107,7 +125,25 @@ public class AuthController : ControllerBase
         var result = await _authService.RegisterAsync(request);
 
         if (!result.Success)
+        {
+            await _activityTracker.TrackAsync(new ActivityEvent
+            {
+                EventType = "Signup",
+                Username = request.Username,
+                Email = request.Email,
+                IsSuccess = false,
+                Details = result.Error ?? "Registration failed"
+            });
             return BadRequest(result);
+        }
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "Signup",
+            Username = request.Username,
+            Email = request.Email,
+            IsSuccess = true
+        });
 
         return Ok(result);
     }
@@ -130,7 +166,23 @@ public class AuthController : ControllerBase
         var result = await _authService.RefreshTokenAsync(request.Username);
 
         if (!result.Success)
+        {
+            await _activityTracker.TrackAsync(new ActivityEvent
+            {
+                EventType = "TokenRefresh",
+                Username = request.Username,
+                IsSuccess = false,
+                Details = result.Error
+            });
             return Unauthorized(result);
+        }
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "TokenRefresh",
+            Username = request.Username,
+            IsSuccess = true
+        });
 
         return Ok(result);
     }
@@ -156,6 +208,14 @@ public class AuthController : ControllerBase
         }
 
         var result = await _otpService.SendOtpAsync(request.Email);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "OtpSent",
+            Email = request.Email,
+            IsSuccess = result.Success,
+            Details = result.Success ? null : result.Error
+        });
 
         if (!result.Success)
             return BadRequest(result);
@@ -189,6 +249,14 @@ public class AuthController : ControllerBase
         }
 
         var result = await _otpService.VerifyOtpAsync(request.Email, request.Code);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "OtpVerified",
+            Email = request.Email,
+            IsSuccess = result.Success,
+            Details = result.Success ? null : result.Error
+        });
 
         if (!result.Success)
             return BadRequest(result);

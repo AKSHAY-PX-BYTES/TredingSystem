@@ -12,11 +12,13 @@ namespace TradingSystem.Api.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IFeatureFlagService _featureFlagService;
+    private readonly IActivityTrackingService _activityTracker;
     private readonly ILogger<AdminController> _logger;
 
-    public AdminController(IFeatureFlagService featureFlagService, ILogger<AdminController> logger)
+    public AdminController(IFeatureFlagService featureFlagService, IActivityTrackingService activityTracker, ILogger<AdminController> logger)
     {
         _featureFlagService = featureFlagService;
+        _activityTracker = activityTracker;
         _logger = logger;
     }
 
@@ -54,6 +56,14 @@ public class AdminController : ControllerBase
         var updated = await _featureFlagService.UpdateFlagAsync(featureKey, request.IsEnabled, username);
         if (updated == null)
             return NotFound(new ApiResponse<string> { Success = false, Data = null, Timestamp = DateTime.UtcNow });
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "FeatureToggle",
+            Username = username,
+            IsSuccess = true,
+            Details = $"{featureKey} → {(request.IsEnabled ? "Enabled" : "Disabled")}"
+        });
 
         return Ok(new ApiResponse<FeatureFlagDto>
         {

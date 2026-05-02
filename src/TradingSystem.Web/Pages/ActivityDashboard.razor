@@ -1,0 +1,493 @@
+@page "/admin/activity"
+@using Microsoft.AspNetCore.Authorization
+@using TradingSystem.Web.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject IActivityApiService ActivityApi
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Activity Tracker - Admin</PageTitle>
+
+<div class="act-dashboard">
+    <!-- Header -->
+    <div class="act-header">
+        <div class="act-header-left">
+            <span class="act-icon">🛡️</span>
+            <div>
+                <h1>Activity Tracker</h1>
+                <p class="act-subtitle">Security monitoring &amp; user activity analytics</p>
+            </div>
+        </div>
+        <div class="act-header-right">
+            <select class="act-period-select" value="@selectedDays" @onchange="OnPeriodChanged">
+                <option value="7">Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="60">Last 60 Days</option>
+                <option value="90">Last 90 Days</option>
+            </select>
+            <button class="act-refresh-btn" @onclick="LoadAllData" disabled="@isLoading">
+                @if (isLoading) { <span class="spinner-sm"></span> } else { <span>🔄</span> }
+                Refresh
+            </button>
+            <a href="/admin" class="act-back-btn">← Back to Admin</a>
+        </div>
+    </div>
+
+    @if (isLoading && stats == null)
+    {
+        <div class="act-loading">
+            <div class="spinner-large"></div>
+            <p>Loading activity data...</p>
+        </div>
+    }
+    else if (stats != null)
+    {
+        <!-- KPI Cards Row -->
+        <div class="act-kpi-grid">
+            <div class="act-kpi-card kpi-blue">
+                <div class="kpi-icon">📊</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.TotalEvents.ToString("N0")</span>
+                    <span class="kpi-label">Total Events</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-green">
+                <div class="kpi-icon">🔐</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.TotalLogins.ToString("N0")</span>
+                    <span class="kpi-label">Successful Logins</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-purple">
+                <div class="kpi-icon">📝</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.TotalSignups.ToString("N0")</span>
+                    <span class="kpi-label">New Signups</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-red">
+                <div class="kpi-icon">⚠️</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.FailedLogins.ToString("N0")</span>
+                    <span class="kpi-label">Failed Logins</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-orange">
+                <div class="kpi-icon">👥</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.UniqueUsers.ToString("N0")</span>
+                    <span class="kpi-label">Unique Users</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-teal">
+                <div class="kpi-icon">🌍</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.UniqueCountries.ToString("N0")</span>
+                    <span class="kpi-label">Countries</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-indigo">
+                <div class="kpi-icon">🌐</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.UniqueIps.ToString("N0")</span>
+                    <span class="kpi-label">Unique IPs</span>
+                </div>
+            </div>
+            <div class="act-kpi-card kpi-pink">
+                <div class="kpi-icon">📅</div>
+                <div class="kpi-data">
+                    <span class="kpi-value">@stats.DaysCovered</span>
+                    <span class="kpi-label">Days Tracked</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1: Timeline + Event Breakdown -->
+        <div class="act-charts-row">
+            <div class="act-chart-card act-chart-wide">
+                <div class="act-chart-header">
+                    <h3>📈 Activity Timeline</h3>
+                    <span class="act-chart-badge">Daily</span>
+                </div>
+                <div class="act-chart-body">
+                    <canvas id="actTimelineChart"></canvas>
+                </div>
+            </div>
+            <div class="act-chart-card">
+                <div class="act-chart-header">
+                    <h3>🎯 Event Breakdown</h3>
+                </div>
+                <div class="act-chart-body">
+                    <canvas id="actEventPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2: Countries + Browsers + Devices -->
+        <div class="act-charts-row act-charts-3">
+            <div class="act-chart-card">
+                <div class="act-chart-header">
+                    <h3>🌍 Top Countries</h3>
+                </div>
+                <div class="act-chart-body">
+                    <canvas id="actCountryChart"></canvas>
+                </div>
+            </div>
+            <div class="act-chart-card">
+                <div class="act-chart-header">
+                    <h3>🖥️ Browsers</h3>
+                </div>
+                <div class="act-chart-body">
+                    <canvas id="actBrowserChart"></canvas>
+                </div>
+            </div>
+            <div class="act-chart-card">
+                <div class="act-chart-header">
+                    <h3>📱 Devices &amp; OS</h3>
+                </div>
+                <div class="act-chart-body act-chart-split">
+                    <canvas id="actDeviceChart"></canvas>
+                    <canvas id="actOsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Country & City Leaderboards -->
+        <div class="act-charts-row">
+            <div class="act-chart-card">
+                <div class="act-chart-header">
+                    <h3>🏆 Top Countries</h3>
+                </div>
+                <div class="act-leaderboard">
+                    @if (countries != null)
+                    {
+                        @foreach (var c in countries.Take(10))
+                        {
+                            <div class="lb-row">
+                                <span class="lb-flag">@GetFlag(c.CountryCode)</span>
+                                <span class="lb-name">@c.Country</span>
+                                <span class="lb-count">@c.Count events</span>
+                                <span class="lb-users">@c.UniqueUsers users</span>
+                                <div class="lb-bar">
+                                    <div class="lb-bar-fill" style="width: @GetBarWidth(c.Count, countries.FirstOrDefault()?.Count ?? 1)%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="act-chart-card">
+                <div class="act-chart-header">
+                    <h3>🏙️ Top Cities</h3>
+                </div>
+                <div class="act-leaderboard">
+                    @if (stats.TopCities.Any())
+                    {
+                        var maxCity = stats.TopCities.Values.FirstOrDefault();
+                        @foreach (var city in stats.TopCities.Take(10))
+                        {
+                            <div class="lb-row">
+                                <span class="lb-flag">📍</span>
+                                <span class="lb-name">@city.Key</span>
+                                <span class="lb-count">@city.Value events</span>
+                                <div class="lb-bar">
+                                    <div class="lb-bar-fill lb-bar-purple" style="width: @GetBarWidth(city.Value, maxCity)%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="lb-empty">No city data available yet</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity Log Table -->
+        <div class="act-chart-card act-full-width">
+            <div class="act-chart-header">
+                <h3>📋 Recent Activity Log</h3>
+                <div class="act-table-filters">
+                    <select class="act-filter-select" value="@filterEventType" @onchange="OnEventFilterChanged">
+                        <option value="">All Events</option>
+                        <option value="Login">Login</option>
+                        <option value="Signup">Signup</option>
+                        <option value="OtpSent">OTP Sent</option>
+                        <option value="OtpVerified">OTP Verified</option>
+                        <option value="TokenRefresh">Token Refresh</option>
+                        <option value="FeatureToggle">Feature Toggle</option>
+                    </select>
+                    <input class="act-filter-input" type="text" placeholder="Filter by username..." 
+                           @bind="filterUsername" @bind:event="oninput" @onkeydown="OnFilterKeyDown" />
+                </div>
+            </div>
+            <div class="act-table-container">
+                <table class="act-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>Location</th>
+                            <th>Device</th>
+                            <th>Browser / OS</th>
+                            <th>Status</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (recentLogs != null)
+                        {
+                            @foreach (var log in recentLogs)
+                            {
+                                <tr class="@(log.IsSuccess ? "" : "act-row-fail")">
+                                    <td class="act-td-time">
+                                        <span class="td-date">@log.CreatedAt.ToString("MMM dd")</span>
+                                        <span class="td-time">@log.CreatedAt.ToString("HH:mm:ss")</span>
+                                    </td>
+                                    <td>
+                                        <span class="act-event-badge @GetEventBadgeClass(log.EventType)">
+                                            @GetEventEmoji(log.EventType) @log.EventType
+                                        </span>
+                                    </td>
+                                    <td class="act-td-user">@(log.Username ?? "—")</td>
+                                    <td class="act-td-ip">
+                                        <code>@log.IpAddress</code>
+                                    </td>
+                                    <td class="act-td-loc">
+                                        @if (!string.IsNullOrEmpty(log.Country))
+                                        {
+                                            <span>@GetFlag(log.CountryCode) @log.City, @log.Country</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="td-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="act-device-badge">@GetDeviceEmoji(log.DeviceType) @log.DeviceType</span>
+                                    </td>
+                                    <td class="act-td-browser">
+                                        <span>@(log.Browser ?? "—") / @(log.OperatingSystem ?? "—")</span>
+                                    </td>
+                                    <td>
+                                        <span class="act-status-dot @(log.IsSuccess ? "status-ok" : "status-fail")">
+                                            @(log.IsSuccess ? "✅" : "❌")
+                                        </span>
+                                    </td>
+                                    <td class="act-td-detail">@(log.Details ?? "—")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="act-empty">
+            <span>📭</span>
+            <p>No activity data available yet. Events will appear here as users interact with the system.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private ActivityStatsModel? stats;
+    private List<ActivityTimelineModel>? timeline;
+    private List<CountryStatsModel>? countries;
+    private List<DeviceStatsModel>? devices;
+    private List<ActivityLogModel>? recentLogs;
+    private bool isLoading = true;
+    private int selectedDays = 30;
+    private string filterEventType = "";
+    private string filterUsername = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllData();
+    }
+
+    private async Task LoadAllData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var statsTask = ActivityApi.GetStatsAsync(selectedDays);
+            var timelineTask = ActivityApi.GetTimelineAsync(selectedDays);
+            var countriesTask = ActivityApi.GetCountriesAsync(selectedDays);
+            var devicesTask = ActivityApi.GetDevicesAsync(selectedDays);
+            var recentTask = string.IsNullOrEmpty(filterEventType) && string.IsNullOrEmpty(filterUsername)
+                ? ActivityApi.GetRecentAsync(100)
+                : ActivityApi.SearchAsync(
+                    string.IsNullOrEmpty(filterEventType) ? null : filterEventType,
+                    string.IsNullOrEmpty(filterUsername) ? null : filterUsername);
+
+            await Task.WhenAll(statsTask, timelineTask, countriesTask, devicesTask, recentTask);
+
+            stats = await statsTask;
+            timeline = await timelineTask;
+            countries = await countriesTask;
+            devices = await devicesTask;
+            recentLogs = await recentTask;
+        }
+        catch { }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+
+            await Task.Delay(150);
+            await RenderCharts();
+        }
+    }
+
+    private async Task RenderCharts()
+    {
+        try
+        {
+            // Timeline chart
+            if (timeline != null && timeline.Any())
+            {
+                var labels = timeline.Select(t => t.Date.Length > 5 ? t.Date[5..] : t.Date).ToArray();
+                var datasets = new object[]
+                {
+                    new { label = "Logins", data = timeline.Select(t => t.Logins).ToArray(), color = "rgb(0, 208, 156)", fill = false, pointRadius = 2 },
+                    new { label = "Signups", data = timeline.Select(t => t.Signups).ToArray(), color = "rgb(99, 102, 241)", fill = false, pointRadius = 2 },
+                    new { label = "Failures", data = timeline.Select(t => t.Failures).ToArray(), color = "rgb(239, 68, 68)", fill = false, pointRadius = 2 }
+                };
+                await JS.InvokeVoidAsync("chartInterop.createLineChart", "actTimelineChart", labels, datasets, "Activity Over Time");
+            }
+
+            // Event breakdown pie chart
+            if (stats?.EventBreakdown != null && stats.EventBreakdown.Any())
+            {
+                var pieLabels = stats.EventBreakdown.Keys.ToArray();
+                var pieData = stats.EventBreakdown.Values.Select(v => (double)v).ToArray();
+                var pieColors = new[] { "#00d09c", "#6366f1", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#ec4899", "#10b981" };
+                await JS.InvokeVoidAsync("chartInterop.createDoughnutChart", "actEventPieChart", pieLabels, pieData, pieColors);
+            }
+
+            // Country bar chart
+            if (stats?.TopCountries != null && stats.TopCountries.Any())
+            {
+                var cLabels = stats.TopCountries.Keys.ToArray();
+                var cData = stats.TopCountries.Values.Select(v => (double)v).ToArray();
+                var cColors = cData.Select(_ => "rgba(99, 102, 241, 0.7)").ToArray();
+                await JS.InvokeVoidAsync("chartInterop.createBarChart", "actCountryChart", cLabels, cData, "Events", cColors);
+            }
+
+            // Browser doughnut
+            if (stats?.BrowserBreakdown != null && stats.BrowserBreakdown.Any())
+            {
+                var bLabels = stats.BrowserBreakdown.Keys.ToArray();
+                var bData = stats.BrowserBreakdown.Values.Select(v => (double)v).ToArray();
+                var bColors = new[] { "#f59e0b", "#06b6d4", "#ef4444", "#10b981", "#8b5cf6", "#ec4899", "#6366f1", "#00d09c" };
+                await JS.InvokeVoidAsync("chartInterop.createDoughnutChart", "actBrowserChart", bLabels, bData, bColors);
+            }
+
+            // Device doughnut
+            if (devices != null && devices.Any())
+            {
+                var dLabels = devices.Select(d => d.DeviceType).ToArray();
+                var dData = devices.Select(d => (double)d.Count).ToArray();
+                var dColors = new[] { "#00d09c", "#6366f1", "#f59e0b", "#ef4444" };
+                await JS.InvokeVoidAsync("chartInterop.createDoughnutChart", "actDeviceChart", dLabels, dData, dColors);
+            }
+
+            // OS doughnut
+            if (stats?.OsBreakdown != null && stats.OsBreakdown.Any())
+            {
+                var oLabels = stats.OsBreakdown.Keys.ToArray();
+                var oData = stats.OsBreakdown.Values.Select(v => (double)v).ToArray();
+                var oColors = new[] { "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899" };
+                await JS.InvokeVoidAsync("chartInterop.createDoughnutChart", "actOsChart", oLabels, oData, oColors);
+            }
+        }
+        catch { }
+    }
+
+    private async Task OnPeriodChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var days))
+        {
+            selectedDays = days;
+            await LoadAllData();
+        }
+    }
+
+    private async Task OnEventFilterChanged(ChangeEventArgs e)
+    {
+        filterEventType = e.Value?.ToString() ?? "";
+        await LoadFilteredLogs();
+    }
+
+    private async Task OnFilterKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadFilteredLogs();
+    }
+
+    private async Task LoadFilteredLogs()
+    {
+        recentLogs = await ActivityApi.SearchAsync(
+            string.IsNullOrEmpty(filterEventType) ? null : filterEventType,
+            string.IsNullOrEmpty(filterUsername) ? null : filterUsername);
+        StateHasChanged();
+    }
+
+    // ── Helpers ──────────────────────────────────
+
+    private string GetFlag(string? countryCode) => countryCode switch
+    {
+        "IN" => "🇮🇳", "US" => "🇺🇸", "GB" => "🇬🇧", "DE" => "🇩🇪", "FR" => "🇫🇷",
+        "JP" => "🇯🇵", "CN" => "🇨🇳", "AU" => "🇦🇺", "CA" => "🇨🇦", "BR" => "🇧🇷",
+        "SG" => "🇸🇬", "AE" => "🇦🇪", "KR" => "🇰🇷", "RU" => "🇷🇺", "IT" => "🇮🇹",
+        "LO" => "🏠",
+        _ => "🌍"
+    };
+
+    private string GetEventEmoji(string eventType) => eventType switch
+    {
+        "Login" => "🔐",
+        "Signup" => "📝",
+        "OtpSent" => "📧",
+        "OtpVerified" => "✅",
+        "TokenRefresh" => "🔄",
+        "FeatureToggle" => "⚙️",
+        "Logout" => "🚪",
+        "StockSearch" => "🔍",
+        _ => "📌"
+    };
+
+    private string GetEventBadgeClass(string eventType) => eventType switch
+    {
+        "Login" => "badge-green",
+        "Signup" => "badge-purple",
+        "OtpSent" => "badge-blue",
+        "OtpVerified" => "badge-teal",
+        "TokenRefresh" => "badge-orange",
+        "FeatureToggle" => "badge-yellow",
+        _ => "badge-gray"
+    };
+
+    private string GetDeviceEmoji(string deviceType) => deviceType switch
+    {
+        "Desktop" => "🖥️",
+        "Mobile" => "📱",
+        "Tablet" => "📱",
+        "Bot" => "🤖",
+        _ => "❓"
+    };
+
+    private double GetBarWidth(int value, int max)
+        => max > 0 ? Math.Round(value * 100.0 / max, 1) : 0;
+
+    public void Dispose() { }
+}
