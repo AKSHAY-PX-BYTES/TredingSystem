@@ -381,7 +381,7 @@ else if (quote != null)
     {
         if (quote?.HistoricalData == null || !quote.HistoricalData.Any()) return;
         var labels = quote.HistoricalData.Select(d => d.Date.ToString("MMM dd")).ToArray();
-        var closePrices = quote.HistoricalData.Select(d => (double)d.Close).ToArray();
+        var closePrices = quote.HistoricalData.Select(d => (double)Currency.ConvertFromUsd(d.Close)).ToArray();
         var isUp = closePrices.Last() >= closePrices.First();
         var color = isUp ? "rgb(0, 208, 156)" : "rgb(235, 77, 75)";
 

@@ -265,10 +265,10 @@
         if (historicalData == null || !historicalData.Any()) return;
 
         var labels = historicalData.Select(d => d.Date.ToString("MMM dd")).ToArray();
-        var prices = historicalData.Select(d => d.Close).ToArray();
-        var highs = historicalData.Select(d => d.High).ToArray();
-        var lows = historicalData.Select(d => d.Low).ToArray();
-        var opens = historicalData.Select(d => d.Open).ToArray();
+        var prices = historicalData.Select(d => Currency.ConvertFromUsd(d.Close)).ToArray();
+        var highs = historicalData.Select(d => Currency.ConvertFromUsd(d.High)).ToArray();
+        var lows = historicalData.Select(d => Currency.ConvertFromUsd(d.Low)).ToArray();
+        var opens = historicalData.Select(d => Currency.ConvertFromUsd(d.Open)).ToArray();
 
         var chartData = new
         {
