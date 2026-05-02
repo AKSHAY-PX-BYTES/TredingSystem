@@ -60,6 +60,9 @@ public class RegisterRequest
     public string ConfirmPassword { get; set; } = string.Empty;
 
     public string Plan { get; set; } = "Basic";
+
+    public string? PhoneNumber { get; set; }
+    public string? CountryCode { get; set; }
 }
 
 public class RegisterResponse

@@ -6,7 +6,6 @@ window.IdleTimeoutManager = {
     remainingSeconds: 300,
     dotNetRef: null,
     isActive: false,
-    timerElement: null,
 
     init: function (dotNetReference, timeoutMinutes) {
         try {
@@ -14,9 +13,6 @@ window.IdleTimeoutManager = {
             this.timeoutDuration = (timeoutMinutes || 5) * 60 * 1000;
             this.remainingSeconds = Math.floor(this.timeoutDuration / 1000);
             this.isActive = true;
-            
-            // Create timer display element
-            this.createTimerDisplay();
             
             // Track user activity - only reset on actual user actions, not mousemove
             const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
@@ -30,55 +26,6 @@ window.IdleTimeoutManager = {
         } catch (err) {
             console.error('[IdleTimeout] ❌ Init failed:', err);
         }
-    },
-
-    createTimerDisplay: function () {
-        // Remove existing timer if any
-        const existing = document.getElementById('idle-timer-display');
-        if (existing) existing.remove();
-
-        // Create timer element — will be placed in navbar
-        const timer = document.createElement('div');
-        timer.id = 'idle-timer-display';
-        timer.innerHTML = `
-            <span style="margin-right: 4px;">⏱️</span>
-            <strong id="idle-timer-countdown" style="color: #00d09c;">05:00</strong>
-        `;
-        timer.style.cssText = `
-            display: flex !important;
-            align-items: center !important;
-            gap: 2px !important;
-            background: rgba(0,208,156,0.1) !important;
-            border: 1px solid rgba(0,208,156,0.3) !important;
-            border-radius: 8px !important;
-            padding: 6px 12px !important;
-            font-size: 12px !important;
-            font-weight: 600 !important;
-            color: #c9d1d9 !important;
-            font-family: 'Inter', monospace !important;
-            white-space: nowrap !important;
-        `;
-
-        // Try to insert into navbar-right, before the Sign Out button
-        const navRight = document.querySelector('.navbar-right');
-        const signOutBtn = document.querySelector('.logout-pill');
-        if (navRight && signOutBtn) {
-            navRight.insertBefore(timer, signOutBtn);
-        } else if (navRight) {
-            navRight.appendChild(timer);
-        } else {
-            // Fallback: fixed position top-right
-            timer.style.cssText += `
-                position: fixed !important;
-                top: 12px !important;
-                right: 120px !important;
-                z-index: 999999 !important;
-            `;
-            document.body.appendChild(timer);
-        }
-
-        this.timerElement = document.getElementById('idle-timer-countdown');
-        console.log('[IdleTimeout] Timer display created in navbar');
     },
 
     startCountdown: function () {
@@ -97,39 +44,7 @@ window.IdleTimeoutManager = {
                 this.onTimeout();
                 return;
             }
-
-            this.updateDisplay();
         }, 1000);
-    },
-
-    updateDisplay: function () {
-        if (!this.timerElement) {
-            this.timerElement = document.getElementById('idle-timer-countdown');
-            if (!this.timerElement) return;
-        }
-
-        const mins = Math.floor(this.remainingSeconds / 60);
-        const secs = this.remainingSeconds % 60;
-        const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        this.timerElement.textContent = timeStr;
-
-        // Change color based on remaining time
-        const container = document.getElementById('idle-timer-display');
-        if (container) {
-            if (this.remainingSeconds <= 60) {
-                container.style.borderColor = '#ef4444';
-                container.style.background = 'rgba(239,68,68,0.1)';
-                this.timerElement.style.color = '#ef4444';
-            } else if (this.remainingSeconds <= 120) {
-                container.style.borderColor = '#fbbf24';
-                container.style.background = 'rgba(251,191,36,0.1)';
-                this.timerElement.style.color = '#fbbf24';
-            } else {
-                container.style.borderColor = 'rgba(0,208,156,0.3)';
-                container.style.background = 'rgba(0,208,156,0.1)';
-                this.timerElement.style.color = '#00d09c';
-            }
-        }
     },
 
     resetTimer: function () {
@@ -137,7 +52,6 @@ window.IdleTimeoutManager = {
 
         // Reset countdown
         this.remainingSeconds = Math.floor(this.timeoutDuration / 1000);
-        this.updateDisplay();
 
         // Clear existing timeout
         if (this.timeoutId) {

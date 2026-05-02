@@ -5,6 +5,8 @@
 @inject IAuthService AuthService
 @inject IFeatureFlagService FeatureFlagService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
 
 <FeatureGate FeatureKey="signup">
 <PageTitle>Sign Up - Trading System</PageTitle>
@@ -103,9 +105,145 @@
             }
             else if (registrationStep == 3)
             {
+                <!-- Step 3: Phone Verification (Firebase - FREE) -->
+                <div class="form-section">
+                    <h3 style="text-align: center; margin-bottom: 0.5rem;">📱 Step 3: Verify Phone</h3>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                        Add your mobile number for account security. <em>Optional — you can skip.</em>
+                    </p>
+
+                    @if (!isPhoneVerified)
+                    {
+                        <div class="phone-input-row">
+                            <select class="country-code-select" @bind="selectedCountryCode" disabled="@(isPhoneOtpSent)">
+                                <option value="+91">🇮🇳 +91</option>
+                                <option value="+1">🇺🇸 +1</option>
+                                <option value="+44">🇬🇧 +44</option>
+                                <option value="+61">🇦🇺 +61</option>
+                                <option value="+81">🇯🇵 +81</option>
+                                <option value="+49">🇩🇪 +49</option>
+                                <option value="+33">🇫🇷 +33</option>
+                                <option value="+86">🇨🇳 +86</option>
+                                <option value="+971">🇦🇪 +971</option>
+                                <option value="+65">🇸🇬 +65</option>
+                                <option value="+82">🇰🇷 +82</option>
+                                <option value="+55">🇧🇷 +55</option>
+                                <option value="+7">🇷🇺 +7</option>
+                                <option value="+27">🇿🇦 +27</option>
+                                <option value="+234">🇳🇬 +234</option>
+                                <option value="+62">🇮🇩 +62</option>
+                                <option value="+60">🇲🇾 +60</option>
+                                <option value="+63">🇵🇭 +63</option>
+                                <option value="+66">🇹🇭 +66</option>
+                                <option value="+90">🇹🇷 +90</option>
+                                <option value="+52">🇲🇽 +52</option>
+                                <option value="+39">🇮🇹 +39</option>
+                                <option value="+34">🇪🇸 +34</option>
+                                <option value="+31">🇳🇱 +31</option>
+                                <option value="+46">🇸🇪 +46</option>
+                                <option value="+41">🇨🇭 +41</option>
+                                <option value="+48">🇵🇱 +48</option>
+                                <option value="+92">🇵🇰 +92</option>
+                                <option value="+880">🇧🇩 +880</option>
+                                <option value="+94">🇱🇰 +94</option>
+                                <option value="+977">🇳🇵 +977</option>
+                            </select>
+                            <input type="tel" class="form-input phone-number-input" 
+                                   @bind="phoneNumber" @bind:event="oninput"
+                                   placeholder="Enter mobile number" maxlength="15"
+                                   disabled="@(isPhoneOtpSent)" />
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(phoneError))
+                    {
+                        <div class="login-error" style="margin-top: 0.5rem;">
+                            <span class="error-icon">⚠️</span> <span>@phoneError</span>
+                        </div>
+                    }
+
+                    @if (!isPhoneOtpSent && !isPhoneVerified)
+                    {
+                        <button type="button" class="login-btn" id="send-phone-otp-btn"
+                                @onclick="SendPhoneOtp" disabled="@(phoneNumber.Length < 6 || isSendingPhoneOtp)">
+                            @if (isSendingPhoneOtp)
+                            {
+                                <span class="spinner"></span>
+                                <span>Sending OTP...</span>
+                            }
+                            else
+                            {
+                                <span>📱 Send OTP</span>
+                            }
+                        </button>
+                    }
+
+                    @if (isPhoneOtpSent && !isPhoneVerified)
+                    {
+                        <div style="text-align: center; color: var(--groww-green); font-size: 0.85rem; margin: 0.75rem 0;">
+                            ✅ OTP sent to <strong>@selectedCountryCode @MaskPhone(phoneNumber)</strong>
+                        </div>
+
+                        <div class="form-group">
+                            <label><span class="field-icon">🔢</span> Enter 6-digit OTP</label>
+                            <input type="text" class="form-input" @bind="phoneOtpCode" @bind:event="oninput"
+                                   placeholder="Enter OTP" maxlength="6"
+                                   style="font-size: 1.5rem; letter-spacing: 0.5rem; text-align: center;" />
+                        </div>
+
+                        <button type="button" class="login-btn" @onclick="VerifyPhoneOtp"
+                                disabled="@(phoneOtpCode.Length < 6 || isVerifyingPhone)">
+                            @if (isVerifyingPhone)
+                            {
+                                <span class="spinner"></span>
+                                <span>Verifying...</span>
+                            }
+                            else
+                            {
+                                <span>✅ Verify Phone</span>
+                            }
+                        </button>
+
+                        <button type="button" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; margin-top: 0.5rem; font-size: 0.85rem; text-decoration: underline;"
+                                @onclick="ResendPhoneOtp" disabled="@isSendingPhoneOtp">
+                            Resend OTP
+                        </button>
+                    }
+
+                    @if (isPhoneVerified)
+                    {
+                        <div class="phone-verified-badge">
+                            <span style="font-size: 1.4rem;">✅</span>
+                            <span>Phone verified: <strong>@selectedCountryCode @MaskPhone(phoneNumber)</strong></span>
+                        </div>
+                    }
+
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" class="login-btn" @onclick="() => registrationStep = 2"
+                                style="background-color: var(--text-muted); flex: 0 0 auto;">
+                            ← Back
+                        </button>
+                        @if (isPhoneVerified)
+                        {
+                            <button type="button" class="login-btn" @onclick="() => registrationStep = 4" style="flex: 1;">
+                                Continue →
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="login-btn" @onclick="SkipPhoneStep"
+                                    style="flex: 1; background: transparent; border: 2px solid var(--border-color); color: var(--text-muted);">
+                                Skip for now →
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+            else if (registrationStep == 4)
+            {
                 <!-- Step 3: Choose Plan -->
                 <div class="form-section">
-                    <h3 style="text-align: center; margin-bottom: 0.5rem;">🏷️ Step 3: Choose Your Plan</h3>
+                    <h3 style="text-align: center; margin-bottom: 0.5rem;">🏷️ Step 4: Choose Your Plan</h3>
                     <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
                         Select a plan to get started. You can upgrade anytime.
                     </p>
@@ -143,21 +281,21 @@
                         }
                     </div>
 
-                    <button type="button" class="login-btn" @onclick="() => registrationStep = 4" 
+                    <button type="button" class="login-btn" @onclick="() => registrationStep = 5" 
                             disabled="@(string.IsNullOrEmpty(registerModel.Plan))" style="margin-top: 1rem;">
                         Continue →
                     </button>
-                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 2; errorMessage = null; }"
+                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 3; errorMessage = null; }"
                             disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
                         ← Back
                     </button>
                 </div>
             }
-            else if (registrationStep == 4)
+            else if (registrationStep == 5)
             {
-                <!-- Step 4: Account Details -->
+                <!-- Step 5: Account Details -->
                 <div class="form-section">
-                    <h3 style="text-align: center; margin-bottom: 1rem;">👤 Step 4: Account Details</h3>
+                    <h3 style="text-align: center; margin-bottom: 1rem;">👤 Step 5: Account Details</h3>
                     
                     <div class="login-form">
                         <div class="form-group">
@@ -271,7 +409,7 @@
                         </button>
                     </div>
 
-                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 3; errorMessage = null; }" 
+                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 4; errorMessage = null; }" 
                             disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
                         ← Back
                     </button>
@@ -323,8 +461,19 @@
     private bool showConfirmPassword = false;
     private string? errorMessage;
     private string? successMessage;
-    private int registrationStep = 1; // 1: Email, 2: OTP, 3: Choose Plan, 4: Account Details
+    private int registrationStep = 1; // 1: Email, 2: OTP, 3: Phone, 4: Plan, 5: Account Details
     private string otpCode = string.Empty;
+
+    // Phone verification state (Firebase)
+    private string selectedCountryCode = "+91";
+    private string phoneNumber = string.Empty;
+    private string phoneOtpCode = string.Empty;
+    private string? phoneError;
+    private bool isSendingPhoneOtp = false;
+    private bool isPhoneOtpSent = false;
+    private bool isVerifyingPhone = false;
+    private bool isPhoneVerified = false;
+    private bool firebaseInitialized = false;
 
     // Plan options
     private readonly List<PlanOption> availablePlans = new()
@@ -444,6 +593,155 @@
         }
     }
 
+    // ─── Firebase Phone Verification ───
+
+    private async Task InitFirebaseIfNeeded()
+    {
+        if (firebaseInitialized) return;
+
+        try
+        {
+            var config = new
+            {
+                apiKey = Configuration["Firebase:apiKey"] ?? "",
+                authDomain = Configuration["Firebase:authDomain"] ?? "",
+                projectId = Configuration["Firebase:projectId"] ?? "",
+                storageBucket = Configuration["Firebase:storageBucket"] ?? "",
+                messagingSenderId = Configuration["Firebase:messagingSenderId"] ?? "",
+                appId = Configuration["Firebase:appId"] ?? ""
+            };
+
+            var configJson = System.Text.Json.JsonSerializer.Serialize(config);
+            var result = await JS.InvokeAsync<bool>("FirebasePhoneAuth.init", configJson);
+            firebaseInitialized = result;
+        }
+        catch (Exception ex)
+        {
+            phoneError = $"Firebase init failed: {ex.Message}";
+        }
+    }
+
+    private async Task SendPhoneOtp()
+    {
+        phoneError = null;
+        var cleanPhone = new string(phoneNumber.Where(char.IsDigit).ToArray());
+
+        if (cleanPhone.Length < 6)
+        {
+            phoneError = "Enter a valid phone number";
+            return;
+        }
+
+        isSendingPhoneOtp = true;
+        StateHasChanged();
+
+        try
+        {
+            await InitFirebaseIfNeeded();
+            if (!firebaseInitialized)
+            {
+                phoneError = "Firebase not configured. You can skip this step.";
+                isSendingPhoneOtp = false;
+                return;
+            }
+
+            // Setup reCAPTCHA
+            await JS.InvokeAsync<bool>("FirebasePhoneAuth.setupRecaptcha", "send-phone-otp-btn");
+
+            // Send OTP via Firebase
+            var fullNumber = $"{selectedCountryCode}{cleanPhone}";
+            var result = await JS.InvokeAsync<PhoneOtpResult>("FirebasePhoneAuth.sendOtp", fullNumber);
+
+            if (result.Success)
+            {
+                isPhoneOtpSent = true;
+                phoneOtpCode = string.Empty;
+            }
+            else
+            {
+                phoneError = result.Error ?? "Failed to send OTP";
+            }
+        }
+        catch (Exception ex)
+        {
+            phoneError = $"Error: {ex.Message}. You can skip this step.";
+        }
+        finally
+        {
+            isSendingPhoneOtp = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResendPhoneOtp()
+    {
+        isPhoneOtpSent = false;
+        phoneOtpCode = string.Empty;
+        phoneError = null;
+
+        // Cleanup old reCAPTCHA
+        try { await JS.InvokeVoidAsync("FirebasePhoneAuth.cleanup"); } catch { }
+        firebaseInitialized = false;
+
+        StateHasChanged();
+        await SendPhoneOtp();
+    }
+
+    private async Task VerifyPhoneOtp()
+    {
+        phoneError = null;
+
+        if (phoneOtpCode.Length < 6)
+        {
+            phoneError = "Enter the complete 6-digit OTP";
+            return;
+        }
+
+        isVerifyingPhone = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await JS.InvokeAsync<PhoneOtpResult>("FirebasePhoneAuth.verifyOtp", phoneOtpCode.Trim());
+
+            if (result.Success)
+            {
+                isPhoneVerified = true;
+            }
+            else
+            {
+                phoneError = result.Error ?? "Invalid OTP";
+            }
+        }
+        catch (Exception ex)
+        {
+            phoneError = $"Verification error: {ex.Message}";
+        }
+        finally
+        {
+            isVerifyingPhone = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SkipPhoneStep()
+    {
+        phoneNumber = string.Empty;
+        registrationStep = 4;
+    }
+
+    private static string MaskPhone(string phone) =>
+        phone.Length > 4 ? new string('*', phone.Length - 4) + phone[^4..] : phone;
+
+    private class PhoneOtpResult
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+        public string? Uid { get; set; }
+        public string? Phone { get; set; }
+    }
+
     private async Task HandleRegister()
     {
         if (!RegCanSubmit) return;
@@ -455,6 +753,13 @@
 
         try
         {
+            // Include phone if verified
+            if (isPhoneVerified && !string.IsNullOrWhiteSpace(phoneNumber))
+            {
+                registerModel.PhoneNumber = new string(phoneNumber.Where(char.IsDigit).ToArray());
+                registerModel.CountryCode = selectedCountryCode;
+            }
+
             var result = await AuthService.RegisterAsync(registerModel);
 
             if (result.Success)

@@ -3574,6 +3574,53 @@ tbody tr:hover {
     color: var(--groww-green);
 }
 
+/* ===================== PHONE VERIFICATION (Signup Step) ===================== */
+.phone-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1rem;
+}
+
+.country-code-select {
+    flex-shrink: 0;
+    width: 115px;
+    padding: 0.65rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23888' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+
+.country-code-select:focus {
+    border-color: var(--groww-green);
+    outline: none;
+}
+
+.phone-number-input {
+    flex: 1 !important;
+}
+
+.phone-verified-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(135deg, rgba(0, 200, 83, 0.12), rgba(0, 200, 83, 0.04));
+    border: 2px solid var(--groww-green);
+    border-radius: 10px;
+    color: var(--groww-green);
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+}
+
 /* ===================== PLANS PAGE ===================== */
 .plans-page {
     max-width: 1100px;

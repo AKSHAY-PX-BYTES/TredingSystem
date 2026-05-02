@@ -187,6 +187,9 @@ public class AuthService : IAuthService
             Role = "Trader",
             Plan = plan,
             Email = request.Email,
+            PhoneNumber = request.PhoneNumber,
+            CountryCode = request.CountryCode,
+            IsPhoneVerified = !string.IsNullOrEmpty(request.PhoneNumber),
             CreatedAt = DateTime.UtcNow
         };
 
