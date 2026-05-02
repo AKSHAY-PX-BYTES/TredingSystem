@@ -145,13 +145,43 @@
                     </div>
                     <div class="form-group">
                         <label>New Password</label>
-                        <input type="password" @bind="newPassword" placeholder="Enter new password (min 6 chars)" class="form-input" />
+                        <input type="password" @bind="newPassword" @bind:event="oninput" placeholder="Enter new password" class="form-input" />
+                        @if (!string.IsNullOrWhiteSpace(newPassword))
+                        {
+                            <div class="pwd-policy">
+                                <div class="pwd-policy-title">Password must contain:</div>
+                                <div class="pwd-rule @(CpHasMinLength ? "pass" : "fail")">
+                                    <span class="pwd-icon">@(CpHasMinLength ? "✅" : "❌")</span> At least 8 characters
+                                </div>
+                                <div class="pwd-rule @(CpHasLowercase ? "pass" : "fail")">
+                                    <span class="pwd-icon">@(CpHasLowercase ? "✅" : "❌")</span> Lower case letters (a-z)
+                                </div>
+                                <div class="pwd-rule @(CpHasUppercase ? "pass" : "fail")">
+                                    <span class="pwd-icon">@(CpHasUppercase ? "✅" : "❌")</span> Upper case letters (A-Z)
+                                </div>
+                                <div class="pwd-rule @(CpHasDigit ? "pass" : "fail")">
+                                    <span class="pwd-icon">@(CpHasDigit ? "✅" : "❌")</span> Numbers (0-9)
+                                </div>
+                                <div class="pwd-rule @(CpHasSpecial ? "pass" : "fail")">
+                                    <span class="pwd-icon">@(CpHasSpecial ? "✅" : "❌")</span> Special characters (e.g. !@@#$%^&amp;)
+                                </div>
+                                <div class="pwd-rule @(CpNoRepeatingChars ? "pass" : "fail")">
+                                    <span class="pwd-icon">@(CpNoRepeatingChars ? "✅" : "❌")</span> No more than 2 identical characters in a row
+                                </div>
+                            </div>
+                        }
                     </div>
                     <div class="form-group">
                         <label>Confirm New Password</label>
-                        <input type="password" @bind="confirmNewPassword" placeholder="Confirm new password" class="form-input" />
+                        <input type="password" @bind="confirmNewPassword" @bind:event="oninput" placeholder="Confirm new password" class="form-input" />
+                        @if (!string.IsNullOrWhiteSpace(confirmNewPassword))
+                        {
+                            <div class="field-msg @(newPassword == confirmNewPassword ? "field-success" : "field-error")">
+                                @(newPassword == confirmNewPassword ? "✅ Passwords match" : "❌ Passwords do not match")
+                            </div>
+                        }
                     </div>
-                    <button class="pwd-submit-btn" @onclick="HandleChangePassword" disabled="@isChangingPassword">
+                    <button class="pwd-submit-btn" @onclick="HandleChangePassword" disabled="@(!CpCanSubmit)">
                         @if (isChangingPassword) { <span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span> }
                         else { <span>Change Password</span> }
                     </button>
@@ -174,6 +204,25 @@
     private string? pwdErrorMessage;
     private string? pwdSuccessMessage;
     private bool isChangingPassword = false;
+
+    // Change password policy checks
+    private bool CpHasMinLength => newPassword.Length >= 8;
+    private bool CpHasLowercase => newPassword.Any(char.IsLower);
+    private bool CpHasUppercase => newPassword.Any(char.IsUpper);
+    private bool CpHasDigit => newPassword.Any(char.IsDigit);
+    private bool CpHasSpecial => newPassword.Any(c => "!@#$%^&*()_+-=[]{}|;':\",./<>?`~".Contains(c));
+    private bool CpNoRepeatingChars => !CpHasThreeConsecutive(newPassword);
+    private bool CpAllRulesPass => CpHasMinLength && CpHasLowercase && CpHasUppercase && CpHasDigit && CpHasSpecial && CpNoRepeatingChars;
+    private bool CpCanSubmit => !isChangingPassword && !string.IsNullOrWhiteSpace(currentPassword) && CpAllRulesPass && newPassword == confirmNewPassword;
+
+    private static bool CpHasThreeConsecutive(string s)
+    {
+        for (int i = 2; i < s.Length; i++)
+        {
+            if (s[i] == s[i - 1] && s[i] == s[i - 2]) return true;
+        }
+        return false;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -277,23 +326,7 @@
         pwdErrorMessage = null;
         pwdSuccessMessage = null;
 
-        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmNewPassword))
-        {
-            pwdErrorMessage = "All fields are required";
-            return;
-        }
-
-        if (newPassword.Length < 6)
-        {
-            pwdErrorMessage = "New password must be at least 6 characters";
-            return;
-        }
-
-        if (newPassword != confirmNewPassword)
-        {
-            pwdErrorMessage = "New passwords do not match";
-            return;
-        }
+        if (!CpCanSubmit) return;
 
         isChangingPassword = true;
         StateHasChanged();
