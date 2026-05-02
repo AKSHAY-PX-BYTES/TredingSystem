@@ -28,9 +28,11 @@ public class OtpService : IOtpService
     {
         try
         {
+            email = email.Trim().ToLowerInvariant();
+
             // Check if user already exists with this email
             var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
 
             if (existingUser != null)
             {
@@ -104,17 +106,30 @@ public class OtpService : IOtpService
     {
         try
         {
+            _logger.LogInformation("Verifying OTP for email: {Email}, code: {Code}", email, code);
+
+            email = email.Trim().ToLowerInvariant();
+            code = code.Trim();
+
             var otp = await _context.Otps
-                .FirstOrDefaultAsync(o => o.Email == email && o.Code == code && !o.IsVerified);
+                .Where(o => o.Email == email && o.Code == code && !o.IsVerified)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
 
             if (otp == null)
             {
+                // Check if there's any OTP for this email at all
+                var anyOtp = await _context.Otps.AnyAsync(o => o.Email == email);
+                _logger.LogWarning("OTP not found for {Email}. Any OTPs exist: {Any}", email, anyOtp);
+
                 return new VerifyOtpResponse
                 {
                     Success = false,
                     Error = "Invalid OTP code"
                 };
             }
+
+            _logger.LogInformation("Found OTP id={Id}, expires={Expires}, now={Now}", otp.Id, otp.ExpiresAt, DateTime.UtcNow);
 
             // Check if OTP is expired
             if (DateTime.UtcNow > otp.ExpiresAt)
@@ -128,10 +143,9 @@ public class OtpService : IOtpService
 
             // Mark as verified
             otp.IsVerified = true;
-            _context.Otps.Update(otp);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("OTP verified for email: {Email}", email);
+            _logger.LogInformation("OTP verified successfully for email: {Email}", email);
 
             return new VerifyOtpResponse
             {
@@ -141,7 +155,7 @@ public class OtpService : IOtpService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error verifying OTP for email: {Email}. Exception: {Message}", email, ex.Message);
+            _logger.LogError(ex, "Error verifying OTP for email: {Email}. Exception: {Message}", email, ex.ToString());
             return new VerifyOtpResponse
             {
                 Success = false,

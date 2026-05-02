@@ -261,6 +261,7 @@
     private async Task VerifyOtp()
     {
         errorMessage = null;
+        otpCode = otpCode?.Trim() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(otpCode) || otpCode.Length != 6)
         {
