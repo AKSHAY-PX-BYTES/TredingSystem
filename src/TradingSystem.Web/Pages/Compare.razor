@@ -75,7 +75,12 @@
                         {
                             <th class="stock-header">
                                 <div class="stock-header-content">
-                                    <div class="stock-avatar-compare">@quote.Symbol[0]</div>
+                                    <div class="stock-avatar-compare">
+                                        <img src="https://assets.parqet.com/logos/symbol/@(GetCleanSymbol(quote.Symbol))" 
+                                             alt="@quote.Symbol" class="stock-logo-img"
+                                             onerror="this.style.display='none';this.parentElement.querySelector('.stock-initial').style.display='flex'" />
+                                        <span class="stock-initial" style="display:none">@quote.Symbol[0]</span>
+                                    </div>
                                     <div>
                                         <div class="stock-symbol-lg">@quote.Symbol</div>
                                         <div class="stock-name-compare">@quote.CompanyName</div>
@@ -298,4 +303,6 @@
         if (marketCap >= 1_000_000) return $"${marketCap / 1_000_000:N2}M";
         return $"${marketCap:N0}";
     }
+
+    private string GetCleanSymbol(string symbol) => symbol.Split('.')[0].ToUpperInvariant();
 }

@@ -28,7 +28,12 @@
         <!-- Stock Info Bar -->
         <div class="chart-stock-bar">
             <div class="stock-info-left">
-                <span class="stock-avatar-chart">@currentSymbol[0]</span>
+                <span class="stock-avatar-chart">
+                    <img src="https://assets.parqet.com/logos/symbol/@(GetCleanSymbol(currentSymbol))" 
+                         alt="@currentSymbol" class="stock-logo-img"
+                         onerror="this.style.display='none';this.parentElement.querySelector('.stock-initial').style.display='flex'" />
+                    <span class="stock-initial" style="display:none">@currentSymbol[0]</span>
+                </span>
                 <div>
                     <span class="stock-symbol-chart">@currentSymbol</span>
                     <span class="stock-name-chart">@quote.CompanyName</span>
@@ -307,4 +312,6 @@
     }
 
     public void Dispose() => Currency.OnCurrencyChanged -= OnCurrencyChanged;
+
+    private string GetCleanSymbol(string symbol) => symbol.Split('.')[0].ToUpperInvariant();
 }

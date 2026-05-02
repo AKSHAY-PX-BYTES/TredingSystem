@@ -86,7 +86,12 @@
                         <tr @onclick="() => ViewStock(item.Symbol)" class="watchlist-row">
                             <td>
                                 <div class="stock-info">
-                                    <div class="stock-avatar-sm">@item.Symbol[0]</div>
+                                    <div class="stock-avatar-sm">
+                                        <img src="https://assets.parqet.com/logos/symbol/@(GetCleanSymbol(item.Symbol))" 
+                                             alt="@item.Symbol" class="stock-logo-img"
+                                             onerror="this.style.display='none';this.parentElement.querySelector('.stock-initial').style.display='flex'" />
+                                        <span class="stock-initial" style="display:none">@item.Symbol[0]</span>
+                                    </div>
                                     <div>
                                         <div class="stock-symbol">@item.Symbol</div>
                                         <div class="stock-name-sm">@item.CompanyName</div>
@@ -234,4 +239,6 @@
         WatchlistService.OnWatchlistChanged -= OnWatchlistChanged;
         Currency.OnCurrencyChanged -= StateHasChanged;
     }
+
+    private string GetCleanSymbol(string symbol) => symbol.Split('.')[0].ToUpperInvariant();
 }

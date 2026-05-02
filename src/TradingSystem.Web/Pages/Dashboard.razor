@@ -51,7 +51,12 @@ else if (quote != null)
     <!-- Stock Header Card -->
     <div class="stock-hero fade-in">
         <div class="stock-hero-left">
-            <div class="stock-avatar">@currentSymbol[0]</div>
+            <div class="stock-avatar">
+                <img src="https://assets.parqet.com/logos/symbol/@(GetCleanSymbol(currentSymbol))" 
+                     alt="@currentSymbol" class="stock-logo-img"
+                     onerror="this.style.display='none';this.parentElement.querySelector('.stock-initial').style.display='flex'" />
+                <span class="stock-initial" style="display:none">@currentSymbol[0]</span>
+            </div>
             <div>
                 <h2 class="stock-name">@quote.CompanyName</h2>
                 <span class="stock-symbol-tag">@currentSymbol</span>
@@ -444,4 +449,6 @@ else if (quote != null)
     }
 
     public void Dispose() => Currency.OnCurrencyChanged -= OnCurrencyChanged;
+
+    private string GetCleanSymbol(string symbol) => symbol.Split('.')[0].ToUpperInvariant();
 }
