@@ -312,7 +312,15 @@ else if (quote != null)
         await LoadData();
     }
 
-    private void OnCurrencyChanged() => InvokeAsync(StateHasChanged);
+    private async void OnCurrencyChanged()
+    {
+        await InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Delay(50);
+            await RenderPriceChart();
+        });
+    }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {

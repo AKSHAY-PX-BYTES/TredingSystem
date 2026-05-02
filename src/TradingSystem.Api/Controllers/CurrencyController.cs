@@ -23,8 +23,10 @@ public class CurrencyController : ControllerBase
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<CurrencyListResponse>), 200)]
-    public IActionResult GetCurrencies()
+    public async Task<IActionResult> GetCurrencies()
     {
+        // Refresh live rates (cached for 30 min, so cheap to call)
+        await _currencyService.RefreshRatesAsync();
         var currencies = _currencyService.GetSupportedCurrencies();
         return Ok(ApiResponse<CurrencyListResponse>.Ok(new CurrencyListResponse { Currencies = currencies }));
     }

@@ -1,6 +1,7 @@
 @page "/charts"
 @page "/charts/{Symbol}"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IDisposable
 @inject IMarketApiService MarketApi
 @inject ICurrencyService Currency
 @inject IJSRuntime JS
@@ -174,11 +175,22 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Currency.OnCurrencyChanged += OnCurrencyChanged;
         if (!string.IsNullOrEmpty(Symbol))
         {
             symbolInput = Symbol;
             await LoadChart();
         }
+    }
+
+    private async void OnCurrencyChanged()
+    {
+        await InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Delay(50);
+            await RenderChart();
+        });
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
@@ -293,4 +305,6 @@
         if (volume >= 1_000) return $"{volume / 1_000.0:N1}K";
         return volume.ToString("N0");
     }
+
+    public void Dispose() => Currency.OnCurrencyChanged -= OnCurrencyChanged;
 }
