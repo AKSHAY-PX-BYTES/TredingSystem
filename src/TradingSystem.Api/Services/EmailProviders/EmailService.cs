@@ -48,7 +48,7 @@ public class BrevoEmailProvider : IEmailProvider
                     "   4. Generate API key\n" +
                     "   5. Set EmailProviders__Brevo__ApiKey on Render\n" +
                     "   Free Tier: 300 emails/day ✅");
-                return;
+                throw new InvalidOperationException("Brevo API key is not configured. Email cannot be sent.");
             }
 
             using (var client = new HttpClient())
@@ -56,9 +56,12 @@ public class BrevoEmailProvider : IEmailProvider
                 client.DefaultRequestHeaders.Add("api-key", apiKey);
                 client.Timeout = TimeSpan.FromSeconds(10);
 
+                var senderEmail = _configuration["EmailProviders:Brevo:SenderEmail"] ?? "noreply@tredingsystem.com";
+                var senderName = _configuration["EmailProviders:Brevo:SenderName"] ?? "TredingSystem";
+
                 var payload = new
                 {
-                    sender = new { name = "TredingSystem", email = "noreply@tredingsystem.com" },
+                    sender = new { name = senderName, email = senderEmail },
                     to = new[] { new { email = toEmail } },
                     subject = subject,
                     htmlContent = htmlBody
@@ -122,7 +125,7 @@ public class MailgunEmailProvider : IEmailProvider
                     "   3. Go to API & Domain Management\n" +
                     "   4. Copy API Key and Domain\n" +
                     "   5. Set EmailProviders__Mailgun__ApiKey and Domain on Render");
-                return;
+                throw new InvalidOperationException("Mailgun credentials are not configured. Email cannot be sent.");
             }
 
             using (var client = new HttpClient())
@@ -193,7 +196,7 @@ public class SendGridEmailProvider : IEmailProvider
                     "   3. Go to Settings → API Keys\n" +
                     "   4. Create Full Access API key\n" +
                     "   5. Set EmailProviders__SendGrid__ApiKey on Render");
-                return;
+                throw new InvalidOperationException("SendGrid API key is not configured. Email cannot be sent.");
             }
 
             using (var client = new HttpClient())
@@ -266,7 +269,7 @@ public class ResendEmailProvider : IEmailProvider
                     "   3. Go to API Keys\n" +
                     "   4. Create API key\n" +
                     "   5. Set EmailProviders__Resend__ApiKey on Render");
-                return;
+                throw new InvalidOperationException("Resend API key is not configured. Email cannot be sent.");
             }
 
             using (var client = new HttpClient())

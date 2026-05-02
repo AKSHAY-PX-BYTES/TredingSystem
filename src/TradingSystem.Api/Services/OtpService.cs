@@ -74,8 +74,12 @@ public class OtpService : IOtpService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "⚠️ Failed to send OTP email to {Email}, but OTP was saved to database", email);
-                // Don't throw - OTP is saved, user can still verify if they get the code another way
+                _logger.LogWarning(ex, "⚠️ Failed to send OTP email to {Email}", email);
+                return new SendOtpResponse
+                {
+                    Success = false,
+                    Error = "Failed to send OTP email. Please check email provider configuration or try again later."
+                };
             }
 
             return new SendOtpResponse

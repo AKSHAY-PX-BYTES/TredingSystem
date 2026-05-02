@@ -9,3 +9,4 @@ obj/
 *.exe
 node_modules/
 wwwroot/_framework/
+appsettings.Development.json

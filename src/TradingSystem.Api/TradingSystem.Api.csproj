@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TradingSystem.Api</RootNamespace>
+    <UserSecretsId>a074dda1-29f2-4288-8e41-9c4f3e61904f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
