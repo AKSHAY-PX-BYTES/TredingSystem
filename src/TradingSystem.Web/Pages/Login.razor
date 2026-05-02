@@ -45,91 +45,37 @@
                 </div>
             }
 
-            <div class="login-form">
+            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="login-form">
+                <DataAnnotationsValidator />
+
                 <div class="form-group">
                     <label for="username">
                         <span class="field-icon">👤</span> Username
                     </label>
-                    <div class="username-wrapper">
-                        <input id="username" type="text" @bind="loginModel.Username" @bind:event="oninput"
-                               @onfocusout="CheckUsername"
-                               class="form-input @usernameInputClass" placeholder="Enter your username"
+                    <InputText id="username" @bind-Value="loginModel.Username"
+                               class="form-input" placeholder="Enter your username"
                                disabled="@isLoading" />
-                        @if (isCheckingUsername)
-                        {
-                            <span class="username-status checking">⏳</span>
-                        }
-                        else if (usernameValid == true)
-                        {
-                            <span class="username-status valid">✅</span>
-                        }
-                        else if (usernameValid == false)
-                        {
-                            <span class="username-status invalid">❌</span>
-                        }
-                    </div>
-                    @if (usernameValid == false && !string.IsNullOrEmpty(usernameMessage))
-                    {
-                        <div class="field-msg field-error">@usernameMessage</div>
-                    }
-                    @if (usernameValid == true)
-                    {
-                        <div class="field-msg field-success">@usernameMessage</div>
-                    }
+                    <ValidationMessage For="@(() => loginModel.Username)" class="validation-msg" />
                 </div>
 
-                <div class="form-group @(usernameValid != true ? "field-locked" : "")">
+                <div class="form-group">
                     <label for="password">
                         <span class="field-icon">🔒</span> Password
-                        @if (usernameValid != true)
-                        {
-                            <span class="lock-hint">— Enter valid username first</span>
-                        }
                     </label>
                     <div class="password-wrapper">
                         <input id="password" type="@(showPassword ? "text" : "password")"
                                @bind="loginModel.Password" @bind:event="oninput"
                                class="form-input" placeholder="Enter your password"
-                               disabled="@(isLoading || usernameValid != true)" />
+                               disabled="@isLoading" />
                         <button type="button" class="toggle-password" @onclick="TogglePassword"
-                                tabindex="-1" disabled="@(usernameValid != true)">
+                                tabindex="-1">
                             @(showPassword ? "🙈" : "👁️")
                         </button>
                     </div>
-
-                    @if (usernameValid == true && !string.IsNullOrWhiteSpace(loginModel.Password))
-                    {
-                        <div class="pwd-policy">
-                            <div class="pwd-policy-title">Password must contain:</div>
-                            <div class="pwd-rule @(HasMinLength ? "pass" : "fail")">
-                                <span class="pwd-icon">@(HasMinLength ? "✅" : "❌")</span>
-                                At least 8 characters
-                            </div>
-                            <div class="pwd-rule @(HasLowercase ? "pass" : "fail")">
-                                <span class="pwd-icon">@(HasLowercase ? "✅" : "❌")</span>
-                                Lower case letters (a-z)
-                            </div>
-                            <div class="pwd-rule @(HasUppercase ? "pass" : "fail")">
-                                <span class="pwd-icon">@(HasUppercase ? "✅" : "❌")</span>
-                                Upper case letters (A-Z)
-                            </div>
-                            <div class="pwd-rule @(HasDigit ? "pass" : "fail")">
-                                <span class="pwd-icon">@(HasDigit ? "✅" : "❌")</span>
-                                Numbers (0-9)
-                            </div>
-                            <div class="pwd-rule @(HasSpecial ? "pass" : "fail")">
-                                <span class="pwd-icon">@(HasSpecial ? "✅" : "❌")</span>
-                                Special characters (e.g. !@@#$%^&amp;)
-                            </div>
-                            <div class="pwd-rule @(NoRepeatingChars ? "pass" : "fail")">
-                                <span class="pwd-icon">@(NoRepeatingChars ? "✅" : "❌")</span>
-                                No more than 2 identical characters in a row
-                            </div>
-                        </div>
-                    }
+                    <ValidationMessage For="@(() => loginModel.Password)" class="validation-msg" />
                 </div>
 
-                <button type="button" class="login-btn" @onclick="HandleLogin" disabled="@(!CanSubmit)">
+                <button type="submit" class="login-btn" disabled="@isLoading">
                     @if (isLoading)
                     {
                         <span class="spinner"></span>
@@ -140,7 +86,7 @@
                         <span>🔐 Sign In</span>
                     }
                 </button>
-            </div>
+            </EditForm>
 
             @if (signupEnabled)
             {
@@ -202,39 +148,6 @@
     private bool showExpiredMessage;
     private bool signupEnabled = true;
 
-    // Username validation
-    private bool? usernameValid;
-    private string? usernameMessage;
-    private bool isCheckingUsername;
-    private string lastCheckedUsername = string.Empty;
-
-    private string usernameInputClass => usernameValid switch
-    {
-        true => "input-valid",
-        false => "input-invalid",
-        _ => ""
-    };
-
-    // Password policy checks
-    private string pwd => loginModel.Password ?? string.Empty;
-    private bool HasMinLength => pwd.Length >= 8;
-    private bool HasLowercase => pwd.Any(char.IsLower);
-    private bool HasUppercase => pwd.Any(char.IsUpper);
-    private bool HasDigit => pwd.Any(char.IsDigit);
-    private bool HasSpecial => pwd.Any(c => "!@#$%^&*()_+-=[]{}|;':\",./<>?`~".Contains(c));
-    private bool NoRepeatingChars => !HasThreeConsecutiveIdentical(pwd);
-    private bool AllPasswordRulesPass => HasMinLength && HasLowercase && HasUppercase && HasDigit && HasSpecial && NoRepeatingChars;
-    private bool CanSubmit => usernameValid == true && AllPasswordRulesPass && !isLoading && !string.IsNullOrWhiteSpace(loginModel.Password);
-
-    private static bool HasThreeConsecutiveIdentical(string s)
-    {
-        for (int i = 2; i < s.Length; i++)
-        {
-            if (s[i] == s[i - 1] && s[i] == s[i - 2]) return true;
-        }
-        return false;
-    }
-
     protected override async Task OnInitializedAsync()
     {
         await FeatureFlagService.LoadFlagsAsync();
@@ -252,56 +165,13 @@
         }
     }
 
-    private async Task CheckUsername()
-    {
-        var username = loginModel.Username?.Trim() ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(username))
-        {
-            usernameValid = null;
-            usernameMessage = null;
-            return;
-        }
-
-        if (username == lastCheckedUsername && usernameValid != null)
-            return;
-
-        isCheckingUsername = true;
-        usernameValid = null;
-        usernameMessage = null;
-        StateHasChanged();
-
-        try
-        {
-            var exists = await AuthService.CheckUsernameExistsAsync(username);
-            lastCheckedUsername = username;
-
-            if (exists)
-            {
-                usernameValid = true;
-                usernameMessage = $"✓ Username \"{username}\" found";
-            }
-            else
-            {
-                usernameValid = false;
-                usernameMessage = $"Username \"{username}\" does not exist";
-            }
-        }
-        catch
-        {
-            usernameValid = false;
-            usernameMessage = "Unable to verify username";
-        }
-        finally
-        {
-            isCheckingUsername = false;
-            StateHasChanged();
-        }
-    }
-
     private async Task HandleLogin()
     {
-        if (!CanSubmit) return;
+        if (string.IsNullOrWhiteSpace(loginModel.Username) || string.IsNullOrWhiteSpace(loginModel.Password))
+        {
+            errorMessage = "Please enter both username and password.";
+            return;
+        }
 
         isLoading = true;
         errorMessage = null;

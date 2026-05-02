@@ -107,36 +107,85 @@
                 <div class="form-section">
                     <h3 style="text-align: center; margin-bottom: 1rem;">👤 Step 3: Account Details</h3>
                     
-                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" class="login-form">
-                        <DataAnnotationsValidator />
-
+                    <div class="login-form">
                         <div class="form-group">
                             <label for="username">
-                                <span class="field-icon">�</span> Username
+                                <span class="field-icon">👤</span> Username
                             </label>
-                            <InputText id="username" @bind-Value="registerModel.Username"
-                                       class="form-input" placeholder="Choose a username"
+                            <div class="username-wrapper">
+                                <input id="username" type="text" @bind="registerModel.Username" @bind:event="oninput"
+                                       @onfocusout="CheckUsername"
+                                       class="form-input @usernameInputClass" placeholder="Choose a username (min 3 chars)"
                                        disabled="@isLoading" />
-                            <ValidationMessage For="@(() => registerModel.Username)" class="validation-msg" />
+                                @if (isCheckingUsername)
+                                {
+                                    <span class="username-status checking">⏳</span>
+                                }
+                                else if (usernameValid == true)
+                                {
+                                    <span class="username-status valid">✅</span>
+                                }
+                                else if (usernameValid == false)
+                                {
+                                    <span class="username-status invalid">❌</span>
+                                }
+                            </div>
+                            @if (usernameValid == false && !string.IsNullOrEmpty(usernameMessage))
+                            {
+                                <div class="field-msg field-error">@usernameMessage</div>
+                            }
+                            @if (usernameValid == true)
+                            {
+                                <div class="field-msg field-success">@usernameMessage</div>
+                            }
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group @(usernameValid != true ? "field-locked" : "")">
                             <label for="password">
                                 <span class="field-icon">🔒</span> Password
+                                @if (usernameValid != true)
+                                {
+                                    <span class="lock-hint">— Choose a valid username first</span>
+                                }
                             </label>
                             <div class="password-wrapper">
                                 <input id="password" type="@(showPassword ? "text" : "password")"
                                        @bind="registerModel.Password" @bind:event="oninput"
-                                       class="form-input" placeholder="Create a password (min 6 chars)"
-                                       disabled="@isLoading" />
-                                <button type="button" class="toggle-password" @onclick="TogglePassword" tabindex="-1">
+                                       class="form-input" placeholder="Create a password"
+                                       disabled="@(isLoading || usernameValid != true)" />
+                                <button type="button" class="toggle-password" @onclick="TogglePassword" 
+                                        tabindex="-1" disabled="@(usernameValid != true)">
                                     @(showPassword ? "🙈" : "👁️")
                                 </button>
                             </div>
-                            <ValidationMessage For="@(() => registerModel.Password)" class="validation-msg" />
+
+                            @if (usernameValid == true && !string.IsNullOrWhiteSpace(registerModel.Password))
+                            {
+                                <div class="pwd-policy">
+                                    <div class="pwd-policy-title">Password must contain:</div>
+                                    <div class="pwd-rule @(RegHasMinLength ? "pass" : "fail")">
+                                        <span class="pwd-icon">@(RegHasMinLength ? "✅" : "❌")</span> At least 8 characters
+                                    </div>
+                                    <div class="pwd-rule @(RegHasLowercase ? "pass" : "fail")">
+                                        <span class="pwd-icon">@(RegHasLowercase ? "✅" : "❌")</span> Lower case letters (a-z)
+                                    </div>
+                                    <div class="pwd-rule @(RegHasUppercase ? "pass" : "fail")">
+                                        <span class="pwd-icon">@(RegHasUppercase ? "✅" : "❌")</span> Upper case letters (A-Z)
+                                    </div>
+                                    <div class="pwd-rule @(RegHasDigit ? "pass" : "fail")">
+                                        <span class="pwd-icon">@(RegHasDigit ? "✅" : "❌")</span> Numbers (0-9)
+                                    </div>
+                                    <div class="pwd-rule @(RegHasSpecial ? "pass" : "fail")">
+                                        <span class="pwd-icon">@(RegHasSpecial ? "✅" : "❌")</span> Special characters (e.g. !@@#$%^&amp;)
+                                    </div>
+                                    <div class="pwd-rule @(RegNoRepeatingChars ? "pass" : "fail")">
+                                        <span class="pwd-icon">@(RegNoRepeatingChars ? "✅" : "❌")</span> No more than 2 identical characters in a row
+                                    </div>
+                                </div>
+                            }
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group @(usernameValid != true || !RegAllRulesPass ? "field-locked" : "")">
                             <label for="confirmPassword">
                                 <span class="field-icon">🔒</span> Confirm Password
                             </label>
@@ -144,15 +193,20 @@
                                 <input id="confirmPassword" type="@(showConfirmPassword ? "text" : "password")"
                                        @bind="registerModel.ConfirmPassword" @bind:event="oninput"
                                        class="form-input" placeholder="Confirm your password"
-                                       disabled="@isLoading" />
+                                       disabled="@(isLoading || usernameValid != true || !RegAllRulesPass)" />
                                 <button type="button" class="toggle-password" @onclick="ToggleConfirmPassword" tabindex="-1">
                                     @(showConfirmPassword ? "🙈" : "👁️")
                                 </button>
                             </div>
-                            <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="validation-msg" />
+                            @if (!string.IsNullOrWhiteSpace(registerModel.ConfirmPassword))
+                            {
+                                <div class="field-msg @(registerModel.Password == registerModel.ConfirmPassword ? "field-success" : "field-error")">
+                                    @(registerModel.Password == registerModel.ConfirmPassword ? "✅ Passwords match" : "❌ Passwords do not match")
+                                </div>
+                            }
                         </div>
 
-                        <button type="submit" class="login-btn" disabled="@isLoading">
+                        <button type="button" class="login-btn" @onclick="HandleRegister" disabled="@(!RegCanSubmit)">
                             @if (isLoading)
                             {
                                 <span class="spinner"></span>
@@ -163,7 +217,7 @@
                                 <span>📝 Complete Sign Up</span>
                             }
                         </button>
-                    </EditForm>
+                    </div>
 
                     <button type="button" class="login-btn" @onclick="() => { registrationStep = 2; errorMessage = null; }" 
                             disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
@@ -219,6 +273,32 @@
     private string? successMessage;
     private int registrationStep = 1; // 1: Email, 2: OTP, 3: Account Details
     private string otpCode = string.Empty;
+
+    // Username validation
+    private bool? usernameValid = null;
+    private string usernameMessage = "";
+    private bool isCheckingUsername = false;
+    private string lastCheckedUsername = "";
+    private string usernameInputClass => usernameValid == true ? "input-valid" : usernameValid == false ? "input-invalid" : "";
+
+    // Password policy
+    private bool RegHasMinLength => (registerModel.Password?.Length ?? 0) >= 8;
+    private bool RegHasLowercase => System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password ?? "", "[a-z]");
+    private bool RegHasUppercase => System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password ?? "", "[A-Z]");
+    private bool RegHasDigit => System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password ?? "", "[0-9]");
+    private bool RegHasSpecial => System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password ?? "", @"[!@#$%^&*()_+\-=\[\]{};':""\\|,.<>\/?]");
+    private bool RegNoRepeatingChars => !HasThreeConsecutiveIdentical(registerModel.Password ?? "");
+    private bool RegAllRulesPass => RegHasMinLength && RegHasLowercase && RegHasUppercase && RegHasDigit && RegHasSpecial && RegNoRepeatingChars;
+    private bool RegCanSubmit => usernameValid == true && RegAllRulesPass
+        && !string.IsNullOrWhiteSpace(registerModel.ConfirmPassword)
+        && registerModel.Password == registerModel.ConfirmPassword && !isLoading;
+
+    private static bool HasThreeConsecutiveIdentical(string s)
+    {
+        for (int i = 2; i < s.Length; i++)
+            if (s[i] == s[i - 1] && s[i] == s[i - 2]) return true;
+        return false;
+    }
 
     private async Task SendOtp()
     {
@@ -298,6 +378,8 @@
 
     private async Task HandleRegister()
     {
+        if (!RegCanSubmit) return;
+
         isLoading = true;
         errorMessage = null;
         successMessage = null;
@@ -329,6 +411,41 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CheckUsername()
+    {
+        var username = registerModel.Username?.Trim() ?? "";
+        if (username == lastCheckedUsername) return;
+        lastCheckedUsername = username;
+
+        if (username.Length < 3)
+        {
+            usernameValid = false;
+            usernameMessage = "Username must be at least 3 characters";
+            StateHasChanged();
+            return;
+        }
+
+        isCheckingUsername = true;
+        StateHasChanged();
+
+        try
+        {
+            var exists = await AuthService.CheckUsernameExistsAsync(username);
+            usernameValid = !exists;
+            usernameMessage = exists ? "Username is already taken" : "Username is available!";
+        }
+        catch
+        {
+            usernameValid = null;
+            usernameMessage = "Could not verify username";
+        }
+        finally
+        {
+            isCheckingUsername = false;
             StateHasChanged();
         }
     }
