@@ -285,7 +285,7 @@
                             disabled="@(string.IsNullOrEmpty(registerModel.Plan))" style="margin-top: 1rem;">
                         Continue →
                     </button>
-                    <button type="button" class="login-btn" @onclick="() => { registrationStep = 3; errorMessage = null; }"
+                    <button type="button" class="login-btn" @onclick="() => { registrationStep = FeatureFlagService.IsEnabled("phone_verification") ? 3 : 2; errorMessage = null; }"
                             disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
                         ← Back
                     </button>
@@ -575,7 +575,8 @@
             
             if (response?.Success == true)
             {
-                registrationStep = 3;
+                // Skip phone step if phone_verification flag is disabled
+                registrationStep = FeatureFlagService.IsEnabled("phone_verification") ? 3 : 4;
             }
             else
             {

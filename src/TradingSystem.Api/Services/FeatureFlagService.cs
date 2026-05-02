@@ -31,6 +31,7 @@ public class FeatureFlagService : IFeatureFlagService
         ("news", "News", "Access to News & Sentiment Dashboard"),
         ("backtest", "Backtest", "Access to Strategy Backtesting"),
         ("currency_change", "Currency Change", "Allow changing display currency"),
+        ("phone_verification", "Phone Verification", "Require phone OTP verification during signup (if disabled, phone step is skipped)"),
     };
 
     public FeatureFlagService(IServiceScopeFactory scopeFactory, ILogger<FeatureFlagService> logger)

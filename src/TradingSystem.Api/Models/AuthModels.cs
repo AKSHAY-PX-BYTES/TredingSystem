@@ -132,3 +132,26 @@ public class ChangePasswordResponse
     public string? Error { get; set; }
 }
 
+public class PhoneOtpRequest
+{
+    [Required(ErrorMessage = "Phone number is required")]
+    [StringLength(15, MinimumLength = 6, ErrorMessage = "Invalid phone number")]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Country code is required")]
+    public string CountryCode { get; set; } = "+91";
+}
+
+public class PhoneOtpVerifyRequest
+{
+    [Required(ErrorMessage = "Phone number is required")]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Country code is required")]
+    public string CountryCode { get; set; } = "+91";
+
+    [Required(ErrorMessage = "OTP code is required")]
+    [StringLength(6, MinimumLength = 6, ErrorMessage = "OTP must be 6 digits")]
+    public string Code { get; set; } = string.Empty;
+}
+

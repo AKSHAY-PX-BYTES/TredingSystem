@@ -151,6 +151,7 @@ builder.Services.AddScoped<IExportService, ExportService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IPhoneOtpService, PhoneOtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IActivityTrackingService, ActivityTrackingService>();

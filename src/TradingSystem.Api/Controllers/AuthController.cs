@@ -13,13 +13,15 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IOtpService _otpService;
+    private readonly IPhoneOtpService _phoneOtpService;
     private readonly IActivityTrackingService _activityTracker;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, IOtpService otpService, IActivityTrackingService activityTracker, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IOtpService otpService, IPhoneOtpService phoneOtpService, IActivityTrackingService activityTracker, ILogger<AuthController> logger)
     {
         _authService = authService;
         _otpService = otpService;
+        _phoneOtpService = phoneOtpService;
         _activityTracker = activityTracker;
         _logger = logger;
     }
@@ -308,6 +310,60 @@ public class AuthController : ControllerBase
             Username = username,
             IsSuccess = result.Success,
             Details = result.Success ? null : result.Error
+        });
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Send OTP to phone number via Fast2SMS (Indian numbers)
+    /// </summary>
+    [HttpPost("send-phone-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendPhoneOtp([FromBody] PhoneOtpRequest request)
+    {
+        _logger.LogInformation("POST /auth/send-phone-otp for phone: {CountryCode}***", request.CountryCode);
+
+        if (!ModelState.IsValid)
+            return BadRequest(new SendOtpResponse { Success = false, Error = "Invalid phone number" });
+
+        var result = await _phoneOtpService.SendPhoneOtpAsync(request.PhoneNumber, request.CountryCode);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = result.Success ? "PhoneOtpSent" : "PhoneOtpFailed",
+            Details = result.Success ? $"Phone OTP sent to {request.CountryCode}***" : result.Error,
+            IsSuccess = result.Success
+        });
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Verify phone OTP code
+    /// </summary>
+    [HttpPost("verify-phone-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyPhoneOtp([FromBody] PhoneOtpVerifyRequest request)
+    {
+        _logger.LogInformation("POST /auth/verify-phone-otp for phone: {CountryCode}***", request.CountryCode);
+
+        if (!ModelState.IsValid)
+            return BadRequest(new VerifyOtpResponse { Success = false, Error = "Invalid request" });
+
+        var result = await _phoneOtpService.VerifyPhoneOtpAsync(request.PhoneNumber, request.CountryCode, request.Code);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = result.Success ? "PhoneVerified" : "PhoneVerifyFailed",
+            Details = result.Success ? "Phone verified" : result.Error,
+            IsSuccess = result.Success
         });
 
         if (!result.Success)

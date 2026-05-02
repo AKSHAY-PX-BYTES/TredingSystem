@@ -17,6 +17,8 @@ public interface IAuthService
     Task<VerifyOtpResponse> VerifyOtpAsync(string email, string code);
     Task<ChangePasswordResponse> ChangePasswordAsync(ChangePasswordRequest request);
     Task<bool> CheckUsernameExistsAsync(string username);
+    Task<SendOtpResponse> SendPhoneOtpAsync(string phoneNumber, string countryCode);
+    Task<VerifyOtpResponse> VerifyPhoneOtpAsync(string phoneNumber, string countryCode, string code);
 }
 
 public class AuthService : IAuthService
@@ -202,6 +204,34 @@ public class AuthService : IAuthService
     private class UsernameCheckResponse
     {
         public bool Exists { get; set; }
+    }
+
+    public async Task<SendOtpResponse> SendPhoneOtpAsync(string phoneNumber, string countryCode)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/send-phone-otp", new { PhoneNumber = phoneNumber, CountryCode = countryCode });
+            var result = await response.Content.ReadFromJsonAsync<SendOtpResponse>();
+            return result ?? new SendOtpResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new SendOtpResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<VerifyOtpResponse> VerifyPhoneOtpAsync(string phoneNumber, string countryCode, string code)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/verify-phone-otp", new { PhoneNumber = phoneNumber, CountryCode = countryCode, Code = code });
+            var result = await response.Content.ReadFromJsonAsync<VerifyOtpResponse>();
+            return result ?? new VerifyOtpResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new VerifyOtpResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
     }
 }
 
