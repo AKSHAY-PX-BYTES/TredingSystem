@@ -161,7 +161,7 @@ public class MarketExchangeService : IMarketExchangeService
         _ => symbol.Replace("BRK.B", "BRK-B")
     };
 
-    public List<string> GetSupportedExchanges() => new() { "NSE", "BSE", "US", "GLOBAL" };
+    public List<string> GetSupportedExchanges() => new() { "NSE", "BSE", "US", "GLOBAL", "FNO" };
 
     public Task<MarketOverview> GetMarketOverviewAsync()
     {
@@ -212,7 +212,8 @@ public class MarketExchangeService : IMarketExchangeService
                 ["NSE"] = GenerateNSEData(),
                 ["BSE"] = GenerateBSEData(),
                 ["US"] = GenerateUSData(),
-                ["GLOBAL"] = GenerateGlobalData()
+                ["GLOBAL"] = GenerateGlobalData(),
+                ["FNO"] = GenerateFNOData()
             };
             _lastGenerated = DateTime.UtcNow;
         }
@@ -317,6 +318,244 @@ public class MarketExchangeService : IMarketExchangeService
             MostActive = stocks.OrderByDescending(s => s.Volume).Take(5).ToList(),
             AllStocks = stocks
         };
+    }
+
+    private static ExchangeData GenerateFNOData()
+    {
+        var rng = new Random((int)DateTime.UtcNow.Ticks ^ 5);
+        var signals = new[] { "Bullish", "Bearish", "Neutral" };
+
+        // Nearest expiry dates
+        var now = DateTime.UtcNow;
+        var nearExpiry = GetNextThursday(now).ToString("dd-MMM-yyyy");
+        var nextExpiry = GetNextThursday(now.AddDays(7)).ToString("dd-MMM-yyyy");
+        var monthExpiry = GetLastThursday(now.AddMonths(1)).ToString("dd-MMM-yyyy");
+
+        // ── Equity Futures ──
+        var equityFutSymbols = new (string Sym, string Name, decimal Price, decimal Lot)[]
+        {
+            ("NIFTY", "Nifty 50", 22480m, 25),
+            ("BANKNIFTY", "Bank Nifty", 47900m, 15),
+            ("RELIANCE", "Reliance Industries", 2450m, 250),
+            ("TCS", "TCS Ltd", 3820m, 150),
+            ("HDFCBANK", "HDFC Bank", 1620m, 550),
+            ("INFY", "Infosys", 1485m, 400),
+            ("ICICIBANK", "ICICI Bank", 1075m, 700),
+            ("SBIN", "State Bank of India", 780m, 750),
+            ("TATAMOTORS", "Tata Motors", 686m, 1400),
+            ("ITC", "ITC Ltd", 440m, 1600),
+            ("BAJFINANCE", "Bajaj Finance", 6850m, 125),
+            ("WIPRO", "Wipro Ltd", 485m, 1200),
+        };
+
+        var equityFutures = equityFutSymbols.Select(s =>
+        {
+            var chg = Math.Round((decimal)(rng.NextDouble() * 4 - 2), 2);
+            var price = Math.Round(s.Price * (1 + chg / 100) + (decimal)(rng.NextDouble() * 20 - 10), 2);
+            return new FnoContract
+            {
+                Symbol = $"{s.Sym}FUT",
+                UnderlyingName = s.Name,
+                Segment = "Equity",
+                InstrumentType = "FUT",
+                Expiry = nearExpiry,
+                StrikePrice = 0,
+                LastPrice = price,
+                Change = Math.Round(price - s.Price, 2),
+                ChangePercent = chg,
+                Volume = rng.Next(50000, 5000000),
+                OpenInterest = rng.Next(1000000, 50000000),
+                OIChange = rng.Next(-500000, 500000),
+                LotSize = s.Lot,
+                Signal = signals[rng.Next(3)],
+                ImpliedVolatility = Math.Round((decimal)(rng.NextDouble() * 20 + 10), 2)
+            };
+        }).ToList();
+
+        // ── Equity Options (Calls + Puts) ──
+        var optionUnderlying = new (string Sym, string Name, decimal Price, decimal Lot)[]
+        {
+            ("NIFTY", "Nifty 50", 22480m, 25),
+            ("BANKNIFTY", "Bank Nifty", 47900m, 15),
+            ("RELIANCE", "Reliance", 2450m, 250),
+            ("TCS", "TCS", 3820m, 150),
+            ("HDFCBANK", "HDFC Bank", 1620m, 550),
+            ("INFY", "Infosys", 1485m, 400),
+        };
+
+        var equityOptions = new List<FnoContract>();
+        foreach (var u in optionUnderlying)
+        {
+            // ATM Call
+            var atmStrike = Math.Round(u.Price / 50) * 50;
+            var cePremium = Math.Round((decimal)(rng.NextDouble() * 100 + 50), 2);
+            equityOptions.Add(new FnoContract
+            {
+                Symbol = $"{u.Sym} {atmStrike} CE",
+                UnderlyingName = u.Name,
+                Segment = "Equity",
+                InstrumentType = "CE",
+                Expiry = nearExpiry,
+                StrikePrice = atmStrike,
+                LastPrice = cePremium,
+                Change = Math.Round((decimal)(rng.NextDouble() * 30 - 15), 2),
+                ChangePercent = Math.Round((decimal)(rng.NextDouble() * 20 - 10), 2),
+                Volume = rng.Next(100000, 10000000),
+                OpenInterest = rng.Next(500000, 20000000),
+                OIChange = rng.Next(-200000, 200000),
+                LotSize = u.Lot,
+                Signal = signals[rng.Next(3)],
+                ImpliedVolatility = Math.Round((decimal)(rng.NextDouble() * 15 + 12), 2)
+            });
+            // ATM Put
+            var pePremium = Math.Round((decimal)(rng.NextDouble() * 100 + 40), 2);
+            equityOptions.Add(new FnoContract
+            {
+                Symbol = $"{u.Sym} {atmStrike} PE",
+                UnderlyingName = u.Name,
+                Segment = "Equity",
+                InstrumentType = "PE",
+                Expiry = nearExpiry,
+                StrikePrice = atmStrike,
+                LastPrice = pePremium,
+                Change = Math.Round((decimal)(rng.NextDouble() * 30 - 15), 2),
+                ChangePercent = Math.Round((decimal)(rng.NextDouble() * 20 - 10), 2),
+                Volume = rng.Next(100000, 8000000),
+                OpenInterest = rng.Next(500000, 18000000),
+                OIChange = rng.Next(-200000, 200000),
+                LotSize = u.Lot,
+                Signal = signals[rng.Next(3)],
+                ImpliedVolatility = Math.Round((decimal)(rng.NextDouble() * 15 + 12), 2)
+            });
+        }
+
+        // ── Commodity Futures ──
+        var commoditySymbols = new (string Sym, string Name, decimal Price, decimal Lot)[]
+        {
+            ("GOLD", "Gold", 72500m, 100),
+            ("GOLDM", "Gold Mini", 72500m, 10),
+            ("SILVER", "Silver", 85200m, 30),
+            ("SILVERM", "Silver Mini", 85200m, 5),
+            ("CRUDEOIL", "Crude Oil", 6850m, 100),
+            ("NATURALGAS", "Natural Gas", 185m, 1250),
+            ("COPPER", "Copper", 780m, 2500),
+            ("ALUMINIUM", "Aluminium", 210m, 5000),
+            ("ZINC", "Zinc", 255m, 5000),
+            ("LEAD", "Lead", 185m, 5000),
+            ("NICKEL", "Nickel", 1480m, 1500),
+            ("COTTON", "Cotton", 56800m, 25),
+        };
+
+        var commodityFutures = commoditySymbols.Select(s =>
+        {
+            var chg = Math.Round((decimal)(rng.NextDouble() * 3 - 1.5), 2);
+            var price = Math.Round(s.Price * (1 + chg / 100), 2);
+            return new FnoContract
+            {
+                Symbol = $"{s.Sym}FUT",
+                UnderlyingName = s.Name,
+                Segment = "Commodity",
+                InstrumentType = "FUT",
+                Expiry = monthExpiry,
+                StrikePrice = 0,
+                LastPrice = price,
+                Change = Math.Round(price - s.Price, 2),
+                ChangePercent = chg,
+                Volume = rng.Next(10000, 2000000),
+                OpenInterest = rng.Next(500000, 30000000),
+                OIChange = rng.Next(-300000, 300000),
+                LotSize = s.Lot,
+                Signal = signals[rng.Next(3)],
+                ImpliedVolatility = Math.Round((decimal)(rng.NextDouble() * 25 + 8), 2)
+            };
+        }).ToList();
+
+        // ── Commodity Options ──
+        var commodityOptionSymbols = new (string Sym, string Name, decimal Price, decimal Lot)[]
+        {
+            ("GOLD", "Gold", 72500m, 100),
+            ("SILVER", "Silver", 85200m, 30),
+            ("CRUDEOIL", "Crude Oil", 6850m, 100),
+            ("COPPER", "Copper", 780m, 2500),
+        };
+
+        var commodityOptions = new List<FnoContract>();
+        foreach (var c in commodityOptionSymbols)
+        {
+            var atmStrike = Math.Round(c.Price / 100) * 100;
+            commodityOptions.Add(new FnoContract
+            {
+                Symbol = $"{c.Sym} {atmStrike} CE",
+                UnderlyingName = c.Name,
+                Segment = "Commodity",
+                InstrumentType = "CE",
+                Expiry = monthExpiry,
+                StrikePrice = atmStrike,
+                LastPrice = Math.Round((decimal)(rng.NextDouble() * 200 + 50), 2),
+                Change = Math.Round((decimal)(rng.NextDouble() * 40 - 20), 2),
+                ChangePercent = Math.Round((decimal)(rng.NextDouble() * 15 - 7.5), 2),
+                Volume = rng.Next(5000, 500000),
+                OpenInterest = rng.Next(100000, 5000000),
+                OIChange = rng.Next(-50000, 50000),
+                LotSize = c.Lot,
+                Signal = signals[rng.Next(3)],
+                ImpliedVolatility = Math.Round((decimal)(rng.NextDouble() * 20 + 10), 2)
+            });
+            commodityOptions.Add(new FnoContract
+            {
+                Symbol = $"{c.Sym} {atmStrike} PE",
+                UnderlyingName = c.Name,
+                Segment = "Commodity",
+                InstrumentType = "PE",
+                Expiry = monthExpiry,
+                StrikePrice = atmStrike,
+                LastPrice = Math.Round((decimal)(rng.NextDouble() * 180 + 40), 2),
+                Change = Math.Round((decimal)(rng.NextDouble() * 40 - 20), 2),
+                ChangePercent = Math.Round((decimal)(rng.NextDouble() * 15 - 7.5), 2),
+                Volume = rng.Next(5000, 400000),
+                OpenInterest = rng.Next(100000, 4000000),
+                OIChange = rng.Next(-50000, 50000),
+                LotSize = c.Lot,
+                Signal = signals[rng.Next(3)],
+                ImpliedVolatility = Math.Round((decimal)(rng.NextDouble() * 20 + 10), 2)
+            });
+        }
+
+        return new ExchangeData
+        {
+            ExchangeName = "F&O Segment (NSE + MCX)",
+            ExchangeCode = "FNO",
+            Country = "India",
+            Flag = "📊",
+            Currency = "INR",
+            Status = GetMarketStatus("Asia/Kolkata", 9, 15, 15, 30),
+            Timezone = "IST (UTC+5:30)",
+            Indices = new List<MarketIndex>
+            {
+                GenerateIndex("NIFTY 50", "NIFTY50", Exchange.NSE, 22450.80m, rng),
+                GenerateIndex("NIFTY Bank", "BANKNIFTY", Exchange.NSE, 47850.30m, rng),
+                GenerateIndex("India VIX", "INDIAVIX", Exchange.NSE, 13.25m, rng),
+            },
+            EquityFutures = equityFutures,
+            EquityOptions = equityOptions,
+            CommodityFutures = commodityFutures,
+            CommodityOptions = commodityOptions,
+            AllStocks = new List<ExchangeStock>() // Not used for FNO
+        };
+    }
+
+    private static DateTime GetNextThursday(DateTime from)
+    {
+        var daysUntil = ((int)DayOfWeek.Thursday - (int)from.DayOfWeek + 7) % 7;
+        if (daysUntil == 0) daysUntil = 7;
+        return from.AddDays(daysUntil);
+    }
+
+    private static DateTime GetLastThursday(DateTime monthDate)
+    {
+        var lastDay = new DateTime(monthDate.Year, monthDate.Month, DateTime.DaysInMonth(monthDate.Year, monthDate.Month));
+        while (lastDay.DayOfWeek != DayOfWeek.Thursday) lastDay = lastDay.AddDays(-1);
+        return lastDay;
     }
 
     private static ExchangeStock GenerateExchangeStock(string symbol, string name, string sector, decimal basePrice, decimal mCap, Exchange exchange, Random rng)

@@ -100,6 +100,8 @@ else if (exchangeData != null)
     }
 
     <!-- Three-Column Cards: Gainers / Losers / Most Active -->
+    @if (activeExchange != "FNO")
+    {
     <div class="mkt-trio">
         <!-- Top Gainers -->
         <div class="mkt-trio-card">
@@ -271,6 +273,144 @@ else if (exchangeData != null)
             <span>Showing @GetFilteredStocks().Count of @(exchangeData?.AllStocks.Count ?? 0) stocks</span>
         </div>
     </div>
+    } @* end activeExchange != FNO *@
+}
+
+@* ── F&O Section (when FNO tab is active) ── *@
+@if (activeExchange == "FNO" && exchangeData != null)
+{
+    <div class="fno-container">
+        <!-- F&O Sub-tabs -->
+        <div class="fno-subtabs">
+            <button class="fno-subtab @(fnoActiveTab == "equity-fut" ? "fno-subtab-active" : "")"
+                    @onclick='() => fnoActiveTab = "equity-fut"'>
+                📈 Equity Futures
+            </button>
+            <button class="fno-subtab @(fnoActiveTab == "equity-opt" ? "fno-subtab-active" : "")"
+                    @onclick='() => fnoActiveTab = "equity-opt"'>
+                🎯 Equity Options
+            </button>
+            <button class="fno-subtab @(fnoActiveTab == "commodity-fut" ? "fno-subtab-active" : "")"
+                    @onclick='() => fnoActiveTab = "commodity-fut"'>
+                🛢️ Commodity Futures
+            </button>
+            <button class="fno-subtab @(fnoActiveTab == "commodity-opt" ? "fno-subtab-active" : "")"
+                    @onclick='() => fnoActiveTab = "commodity-opt"'>
+                💎 Commodity Options
+            </button>
+        </div>
+
+        <!-- F&O Data Table -->
+        <div class="fno-table-card">
+            <div class="fno-table-header">
+                <h3>@GetFnoTableTitle()</h3>
+                <div class="fno-legend">
+                    <span class="fno-signal-pill signal-bullish">🟢 Bullish</span>
+                    <span class="fno-signal-pill signal-bearish">🔴 Bearish</span>
+                    <span class="fno-signal-pill signal-neutral">⚪ Neutral</span>
+                </div>
+            </div>
+            <div class="mkt-table-scroll">
+                <table class="mkt-table fno-table">
+                    <thead>
+                        <tr>
+                            <th>Contract</th>
+                            <th>Underlying</th>
+                            @if (fnoActiveTab.Contains("opt"))
+                            {
+                                <th>Strike</th>
+                                <th>Type</th>
+                            }
+                            <th>Expiry</th>
+                            <th>LTP</th>
+                            <th>Change</th>
+                            <th>Volume</th>
+                            <th>OI</th>
+                            <th>OI Chg</th>
+                            <th>IV%</th>
+                            <th>Signal</th>
+                            <th>Lot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var contract in GetActiveFnoContracts())
+                        {
+                            <tr class="fno-row @GetSignalRowClass(contract.Signal)">
+                                <td class="fno-symbol">@contract.Symbol</td>
+                                <td>@contract.UnderlyingName</td>
+                                @if (fnoActiveTab.Contains("opt"))
+                                {
+                                    <td class="fno-strike">@Currency.FormatPrice(contract.StrikePrice, "INR")</td>
+                                    <td><span class="fno-type-badge @(contract.InstrumentType == "CE" ? "badge-ce" : "badge-pe")">@contract.InstrumentType</span></td>
+                                }
+                                <td class="fno-expiry">@contract.Expiry</td>
+                                <td class="fno-ltp">@Currency.FormatPrice(contract.LastPrice, "INR")</td>
+                                <td class="@(contract.ChangePercent >= 0 ? "pct-up" : "pct-down")">
+                                    @(contract.ChangePercent >= 0 ? "+" : "")@contract.ChangePercent.ToString("N2")%
+                                </td>
+                                <td>@FormatVolume(contract.Volume)</td>
+                                <td>@FormatVolume(contract.OpenInterest)</td>
+                                <td class="@(contract.OIChange >= 0 ? "pct-up" : "pct-down")">
+                                    @(contract.OIChange >= 0 ? "+" : "")@FormatVolume(contract.OIChange)
+                                </td>
+                                <td>@contract.ImpliedVolatility.ToString("N1")%</td>
+                                <td><span class="fno-signal-dot @GetSignalClass(contract.Signal)">@GetSignalIcon(contract.Signal)</span></td>
+                                <td class="fno-lot">@contract.LotSize</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- F&O Analysis Cards -->
+        <div class="fno-analysis-grid">
+            <div class="fno-analysis-card">
+                <h4>🔥 Top OI Buildup</h4>
+                @foreach (var c in GetTopOIBuildup().Take(5))
+                {
+                    <div class="fno-mini-row">
+                        <span class="fno-mini-sym">@c.Symbol</span>
+                        <span class="pct-up">+@FormatVolume(c.OIChange) OI</span>
+                        <span class="fno-signal-dot @GetSignalClass(c.Signal)">@GetSignalIcon(c.Signal)</span>
+                    </div>
+                }
+            </div>
+            <div class="fno-analysis-card">
+                <h4>📉 Top OI Unwinding</h4>
+                @foreach (var c in GetTopOIUnwinding().Take(5))
+                {
+                    <div class="fno-mini-row">
+                        <span class="fno-mini-sym">@c.Symbol</span>
+                        <span class="pct-down">@FormatVolume(c.OIChange) OI</span>
+                        <span class="fno-signal-dot @GetSignalClass(c.Signal)">@GetSignalIcon(c.Signal)</span>
+                    </div>
+                }
+            </div>
+            <div class="fno-analysis-card">
+                <h4>📊 High IV Contracts</h4>
+                @foreach (var c in GetHighIVContracts().Take(5))
+                {
+                    <div class="fno-mini-row">
+                        <span class="fno-mini-sym">@c.Symbol</span>
+                        <span class="fno-iv-val">IV: @c.ImpliedVolatility.ToString("N1")%</span>
+                        <span class="fno-signal-dot @GetSignalClass(c.Signal)">@GetSignalIcon(c.Signal)</span>
+                    </div>
+                }
+            </div>
+            <div class="fno-analysis-card">
+                <h4>🚀 Most Active (Volume)</h4>
+                @foreach (var c in GetMostActiveContracts().Take(5))
+                {
+                    <div class="fno-mini-row">
+                        <span class="fno-mini-sym">@c.Symbol</span>
+                        <span>Vol: @FormatVolume(c.Volume)</span>
+                        <span class="@(c.ChangePercent >= 0 ? "pct-up" : "pct-down")">@(c.ChangePercent >= 0 ? "+" : "")@c.ChangePercent.ToString("N2")%</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
 }
 </FeatureGate>
 
@@ -284,13 +424,15 @@ else if (exchangeData != null)
     private string sortBy = "symbol";
     private DateTime? lastRefresh;
     private System.Threading.Timer? _liveTimer;
+    private string fnoActiveTab = "equity-fut";
 
     private readonly List<(string Code, string Name, string Flag)> exchangeTabs = new()
     {
         ("NSE", "NSE", "🇮🇳"),
         ("BSE", "BSE", "🇮🇳"),
         ("US", "US Markets", "🇺🇸"),
-        ("GLOBAL", "Global", "🌍")
+        ("GLOBAL", "Global", "🌍"),
+        ("FNO", "F&O", "📊")
     };
 
     protected override async Task OnInitializedAsync()
@@ -444,4 +586,65 @@ else if (exchangeData != null)
         Currency.OnCurrencyChanged -= OnCurrencyChanged;
         _liveTimer?.Dispose();
     }
+
+    // ── F&O Helpers ──
+    private string GetFnoTableTitle() => fnoActiveTab switch
+    {
+        "equity-fut" => "Equity Futures",
+        "equity-opt" => "Equity Options (Calls & Puts)",
+        "commodity-fut" => "Commodity Futures (MCX)",
+        "commodity-opt" => "Commodity Options (MCX)",
+        _ => "F&O Contracts"
+    };
+
+    private List<FnoContract> GetActiveFnoContracts() => fnoActiveTab switch
+    {
+        "equity-fut" => exchangeData?.EquityFutures ?? new(),
+        "equity-opt" => exchangeData?.EquityOptions ?? new(),
+        "commodity-fut" => exchangeData?.CommodityFutures ?? new(),
+        "commodity-opt" => exchangeData?.CommodityOptions ?? new(),
+        _ => new()
+    };
+
+    private List<FnoContract> GetAllFnoContracts()
+    {
+        if (exchangeData == null) return new();
+        return exchangeData.EquityFutures
+            .Concat(exchangeData.EquityOptions)
+            .Concat(exchangeData.CommodityFutures)
+            .Concat(exchangeData.CommodityOptions).ToList();
+    }
+
+    private List<FnoContract> GetTopOIBuildup() =>
+        GetAllFnoContracts().Where(c => c.OIChange > 0).OrderByDescending(c => c.OIChange).ToList();
+
+    private List<FnoContract> GetTopOIUnwinding() =>
+        GetAllFnoContracts().Where(c => c.OIChange < 0).OrderBy(c => c.OIChange).ToList();
+
+    private List<FnoContract> GetHighIVContracts() =>
+        GetAllFnoContracts().OrderByDescending(c => c.ImpliedVolatility).ToList();
+
+    private List<FnoContract> GetMostActiveContracts() =>
+        GetAllFnoContracts().OrderByDescending(c => c.Volume).ToList();
+
+    private static string GetSignalClass(string signal) => signal switch
+    {
+        "Bullish" => "signal-bullish",
+        "Bearish" => "signal-bearish",
+        _ => "signal-neutral"
+    };
+
+    private static string GetSignalIcon(string signal) => signal switch
+    {
+        "Bullish" => "🟢",
+        "Bearish" => "🔴",
+        _ => "⚪"
+    };
+
+    private static string GetSignalRowClass(string signal) => signal switch
+    {
+        "Bullish" => "fno-row-bullish",
+        "Bearish" => "fno-row-bearish",
+        _ => ""
+    };
 }

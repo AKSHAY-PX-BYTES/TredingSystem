@@ -62,4 +62,28 @@ public class ExchangeData
     public List<ExchangeStock> MostActive { get; set; } = new();
     public List<ExchangeStock> AllStocks { get; set; } = new();
     public bool IsLive { get; set; }
+    // F&O specific data (only populated for FNO exchange)
+    public List<FnoContract> EquityFutures { get; set; } = new();
+    public List<FnoContract> EquityOptions { get; set; } = new();
+    public List<FnoContract> CommodityFutures { get; set; } = new();
+    public List<FnoContract> CommodityOptions { get; set; } = new();
+}
+
+public class FnoContract
+{
+    public string Symbol { get; set; } = string.Empty;
+    public string UnderlyingName { get; set; } = string.Empty;
+    public string Segment { get; set; } = string.Empty; // Equity, Commodity
+    public string InstrumentType { get; set; } = string.Empty; // FUT, CE, PE
+    public string Expiry { get; set; } = string.Empty;
+    public decimal StrikePrice { get; set; }
+    public decimal LastPrice { get; set; }
+    public decimal Change { get; set; }
+    public decimal ChangePercent { get; set; }
+    public long Volume { get; set; }
+    public long OpenInterest { get; set; }
+    public long OIChange { get; set; }
+    public decimal LotSize { get; set; }
+    public string Signal { get; set; } = string.Empty; // Bullish, Bearish, Neutral
+    public decimal ImpliedVolatility { get; set; }
 }

@@ -2032,6 +2032,143 @@ tbody tr:hover {
     color: var(--text-muted);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   F&O SECTION STYLES
+   ═══════════════════════════════════════════════════════════════ */
+.fno-container { margin-top: 1.5rem; }
+
+.fno-subtabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.fno-subtab {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.fno-subtab:hover { border-color: var(--groww-green); color: var(--groww-green); }
+.fno-subtab-active {
+    background: var(--groww-green);
+    color: #fff;
+    border-color: var(--groww-green);
+}
+
+.fno-table-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.fno-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.fno-table-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.fno-legend {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.fno-signal-pill {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: var(--bg-color);
+}
+
+.fno-table { width: 100%; }
+.fno-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.3px; }
+.fno-table td { font-size: 0.82rem; padding: 0.6rem 0.75rem; }
+
+.fno-symbol { font-weight: 600; color: var(--text-color); white-space: nowrap; }
+.fno-strike { font-weight: 500; }
+.fno-expiry { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+.fno-ltp { font-weight: 600; }
+.fno-lot { font-size: 0.75rem; color: var(--text-muted); }
+
+.fno-type-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.badge-ce { background: rgba(0, 200, 83, 0.15); color: #00c853; }
+.badge-pe { background: rgba(255, 82, 82, 0.15); color: #ff5252; }
+
+.fno-row-bullish { background: rgba(0, 200, 83, 0.03); }
+.fno-row-bearish { background: rgba(255, 82, 82, 0.03); }
+
+.fno-signal-dot { font-size: 0.9rem; }
+.signal-bullish { color: #00c853; }
+.signal-bearish { color: #ff5252; }
+.signal-neutral { color: var(--text-muted); }
+
+/* F&O Analysis Grid */
+.fno-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.fno-analysis-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.fno-analysis-card h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text-color);
+}
+
+.fno-mini-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.8rem;
+}
+
+.fno-mini-row:last-child { border-bottom: none; }
+.fno-mini-sym { font-weight: 600; color: var(--text-color); flex: 1; }
+.fno-iv-val { color: var(--text-muted); }
+
+@media (max-width: 768px) {
+    .fno-subtabs { gap: 0.3rem; }
+    .fno-subtab { padding: 0.5rem 0.8rem; font-size: 0.75rem; }
+    .fno-analysis-grid { grid-template-columns: 1fr; }
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .mkt-trio {
