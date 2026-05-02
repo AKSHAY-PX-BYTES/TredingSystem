@@ -90,7 +90,7 @@
                         <td class="metric-name">Current Price</td>
                         @foreach (var quote in quotes)
                         {
-                            <td class="metric-value price">@Currency.FormatPrice(quote.CurrentPrice)</td>
+                            <td class="metric-value price">@Currency.FormatPrice(quote.CurrentPrice, quote.PriceCurrency)</td>
                         }
                     </tr>
                     <tr>

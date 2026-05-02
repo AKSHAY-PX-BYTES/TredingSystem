@@ -119,7 +119,7 @@ else if (exchangeData != null)
                             <canvas id="spark-g-@SanitizeId(stock.Symbol)" width="60" height="24"></canvas>
                         </div>
                         <div class="mkt-stock-right">
-                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice)</span>
+                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice, exchangeData?.Currency ?? "USD")</span>
                             <span class="mkt-pct pct-up">+@Math.Abs(stock.ChangePercent).ToString("N2")%</span>
                         </div>
                     </div>
@@ -145,7 +145,7 @@ else if (exchangeData != null)
                             <canvas id="spark-l-@SanitizeId(stock.Symbol)" width="60" height="24"></canvas>
                         </div>
                         <div class="mkt-stock-right">
-                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice)</span>
+                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice, exchangeData?.Currency ?? "USD")</span>
                             <span class="mkt-pct pct-down">@stock.ChangePercent.ToString("N2")%</span>
                         </div>
                     </div>
@@ -171,7 +171,7 @@ else if (exchangeData != null)
                             <canvas id="spark-a-@SanitizeId(stock.Symbol)" width="60" height="24"></canvas>
                         </div>
                         <div class="mkt-stock-right">
-                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice)</span>
+                            <span class="mkt-price">@Currency.FormatPrice(stock.CurrentPrice, exchangeData?.Currency ?? "USD")</span>
                             <span class="mkt-pct @(stock.ChangePercent >= 0 ? "pct-up" : "pct-down")">
                                 @(stock.ChangePercent >= 0 ? "+" : "")@stock.ChangePercent.ToString("N2")%
                             </span>
@@ -232,22 +232,22 @@ else if (exchangeData != null)
                             <td><strong class="sym-link">@stock.Symbol</strong></td>
                             <td class="company-cell">@Truncate(stock.CompanyName, 20)</td>
                             <td><span class="mkt-sector-tag">@stock.Sector</span></td>
-                            <td class="price-cell">@Currency.FormatPrice(stock.CurrentPrice)</td>
+                            <td class="price-cell">@Currency.FormatPrice(stock.CurrentPrice, exchangeData?.Currency ?? "USD")</td>
                             <td class="range-cell">
                                 <div class="day-range">
-                                    <span class="range-lo">@Currency.FormatPrice(stock.DayLow)</span>
+                                    <span class="range-lo">@Currency.FormatPrice(stock.DayLow, exchangeData?.Currency ?? "USD")</span>
                                     <div class="range-bar">
                                         <div class="range-fill" style="width: @GetRangePercent(stock)%"></div>
                                         <div class="range-dot" style="left: @GetRangePercent(stock)%"></div>
                                     </div>
-                                    <span class="range-hi">@Currency.FormatPrice(stock.DayHigh)</span>
+                                    <span class="range-hi">@Currency.FormatPrice(stock.DayHigh, exchangeData?.Currency ?? "USD")</span>
                                 </div>
                             </td>
                             <td class="text-center">
                                 <canvas id="spark-t-@SanitizeId(stock.Symbol)" width="80" height="28"></canvas>
                             </td>
                             <td class="@(stock.ChangePercent >= 0 ? "val-up" : "val-down")">
-                                @(stock.Change >= 0 ? "+" : "")@Currency.FormatPrice(stock.Change)
+                                @(stock.Change >= 0 ? "+" : "")@Currency.FormatPrice(stock.Change, exchangeData?.Currency ?? "USD")
                             </td>
                             <td>
                                 <span class="mkt-pct-pill @(stock.ChangePercent >= 0 ? "pill-up" : "pill-down")">

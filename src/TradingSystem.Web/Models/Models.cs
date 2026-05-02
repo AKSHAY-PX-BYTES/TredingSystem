@@ -40,6 +40,10 @@ public class StockQuote
     public decimal Change { get; set; }
     public decimal ChangePercent { get; set; }
     public DateTime LastUpdated { get; set; }
+    /// <summary>
+    /// Native currency of the price from the exchange (e.g. "USD", "INR").
+    /// </summary>
+    public string PriceCurrency { get; set; } = "USD";
     public List<StockData> HistoricalData { get; set; } = new();
 }
 

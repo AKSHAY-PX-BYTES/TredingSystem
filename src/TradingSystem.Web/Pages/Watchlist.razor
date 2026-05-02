@@ -93,7 +93,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="price-cell">@Currency.FormatPrice(item.CurrentPrice)</td>
+                            <td class="price-cell">@Currency.FormatPrice(item.CurrentPrice, item.PriceCurrency)</td>
                             <td class="change-cell @(item.ChangePercent >= 0 ? "gain" : "loss")">
                                 @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
                             </td>

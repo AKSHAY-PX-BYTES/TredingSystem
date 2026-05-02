@@ -14,7 +14,15 @@ public interface ICurrencyService
     Task LoadCurrenciesAsync();
     Task SetCurrencyAsync(string currencyCode);
     string FormatPrice(decimal usdValue);
+    /// <summary>
+    /// Format a price that is in the given source currency, converting to the user's selected display currency.
+    /// </summary>
+    string FormatPrice(decimal value, string sourceCurrency);
     decimal ConvertFromUsd(decimal usdValue);
+    /// <summary>
+    /// Convert a value from the given source currency to the user's selected display currency.
+    /// </summary>
+    decimal Convert(decimal value, string sourceCurrency);
 }
 
 public class CurrencyService : ICurrencyService
@@ -103,8 +111,38 @@ public class CurrencyService : ICurrencyService
         return $"{CurrentCurrencySymbol}{converted:N2}";
     }
 
+    public string FormatPrice(decimal value, string sourceCurrency)
+    {
+        var converted = Convert(value, sourceCurrency);
+        return $"{CurrentCurrencySymbol}{converted:N2}";
+    }
+
     public decimal ConvertFromUsd(decimal usdValue)
     {
         return usdValue * CurrentRate;
+    }
+
+    public decimal Convert(decimal value, string sourceCurrency)
+    {
+        if (string.IsNullOrEmpty(sourceCurrency))
+            sourceCurrency = "USD";
+
+        // If source currency == display currency, no conversion needed
+        if (sourceCurrency.Equals(CurrentCurrencyCode, StringComparison.OrdinalIgnoreCase))
+            return value;
+
+        // Step 1: Convert source → USD (divide by source rate)
+        var sourceRate = GetRateForCurrency(sourceCurrency);
+        var valueInUsd = value / sourceRate;
+
+        // Step 2: Convert USD → target (multiply by target rate)
+        return valueInUsd * CurrentRate;
+    }
+
+    private decimal GetRateForCurrency(string currencyCode)
+    {
+        var currency = AvailableCurrencies.FirstOrDefault(c =>
+            c.Code.Equals(currencyCode, StringComparison.OrdinalIgnoreCase));
+        return currency?.RateFromUsd ?? 1.0m;
     }
 }

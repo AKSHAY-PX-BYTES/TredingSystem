@@ -34,9 +34,9 @@
                 </div>
             </div>
             <div class="stock-price-info">
-                <span class="current-price-lg">@Currency.FormatPrice(quote.CurrentPrice)</span>
+                <span class="current-price-lg">@Currency.FormatPrice(quote.CurrentPrice, quote.PriceCurrency)</span>
                 <span class="price-change-lg @(quote.ChangePercent >= 0 ? "gain" : "loss")">
-                    @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change)
+                    @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change, quote.PriceCurrency)
                     (@(quote.ChangePercent >= 0 ? "+" : "")@quote.ChangePercent.ToString("N2")%)
                 </span>
             </div>
@@ -265,10 +265,11 @@
         if (historicalData == null || !historicalData.Any()) return;
 
         var labels = historicalData.Select(d => d.Date.ToString("MMM dd")).ToArray();
-        var prices = historicalData.Select(d => Currency.ConvertFromUsd(d.Close)).ToArray();
-        var highs = historicalData.Select(d => Currency.ConvertFromUsd(d.High)).ToArray();
-        var lows = historicalData.Select(d => Currency.ConvertFromUsd(d.Low)).ToArray();
-        var opens = historicalData.Select(d => Currency.ConvertFromUsd(d.Open)).ToArray();
+        var sourceCurrency = quote?.PriceCurrency ?? "USD";
+        var prices = historicalData.Select(d => Currency.Convert(d.Close, sourceCurrency)).ToArray();
+        var highs = historicalData.Select(d => Currency.Convert(d.High, sourceCurrency)).ToArray();
+        var lows = historicalData.Select(d => Currency.Convert(d.Low, sourceCurrency)).ToArray();
+        var opens = historicalData.Select(d => Currency.Convert(d.Open, sourceCurrency)).ToArray();
 
         var chartData = new
         {

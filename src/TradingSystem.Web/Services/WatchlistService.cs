@@ -129,6 +129,7 @@ public class WatchlistItem
     public decimal ChangePercent => PreviousPrice > 0 ? (Change / PreviousPrice) * 100 : 0;
     public DateTime AddedAt { get; set; }
     public DateTime LastUpdated { get; set; }
+    public string PriceCurrency { get; set; } = "USD";
     public decimal? TargetPrice { get; set; }
     public decimal? StopLoss { get; set; }
     public int? Quantity { get; set; }

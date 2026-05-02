@@ -25,5 +25,10 @@ public class StockQuote
     public decimal Change => CurrentPrice - PreviousClose;
     public decimal ChangePercent => PreviousClose != 0 ? Math.Round((CurrentPrice - PreviousClose) / PreviousClose * 100, 2) : 0;
     public DateTime LastUpdated { get; set; }
+    /// <summary>
+    /// The native currency of the price data returned by the exchange (e.g. "USD", "INR").
+    /// This tells the frontend whether conversion is needed.
+    /// </summary>
+    public string PriceCurrency { get; set; } = "USD";
     public List<StockData> HistoricalData { get; set; } = new();
 }

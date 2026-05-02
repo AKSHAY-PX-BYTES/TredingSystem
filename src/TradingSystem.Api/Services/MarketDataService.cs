@@ -190,6 +190,11 @@ public class MarketDataService : IMarketDataService
             var volume = GetLong(meta, "regularMarketVolume");
             var name = _companyNames.GetValueOrDefault(symbol, symbol);
 
+            // Extract the native currency from Yahoo (e.g. "USD", "INR", "GBP")
+            var priceCurrency = "USD";
+            if (meta.TryGetProperty("currency", out var currProp) && currProp.ValueKind == JsonValueKind.String)
+                priceCurrency = currProp.GetString() ?? "USD";
+
             // Parse historical data for chart
             var history = ParseYahooChartToHistory(json, symbol) ?? new();
 
@@ -202,6 +207,7 @@ public class MarketDataService : IMarketDataService
                 DayHigh = high > 0 ? high : price,
                 DayLow = low > 0 ? low : price,
                 Volume = volume,
+                PriceCurrency = priceCurrency,
                 LastUpdated = DateTime.UtcNow,
                 HistoricalData = history.TakeLast(30).ToList()
             };
@@ -275,10 +281,7 @@ public class MarketDataService : IMarketDataService
     private static string MapToYahooSymbol(string symbol)
     {
         // Indian stocks — try NSE first
-        if (symbol is "RELIANCE" or "TCS" or "INFY" or "HDFCBANK" or "ICICIBANK" or "SBIN"
-            or "BHARTIARTL" or "ITC" or "KOTAKBANK" or "WIPRO" or "TATAMOTORS"
-            or "SUNPHARMA" or "MARUTI" or "LT" or "AXISBANK" or "BAJFINANCE"
-            or "HCLTECH" or "HINDUNILVR" or "TITAN" or "ASIANPAINT")
+        if (IsIndianStock(symbol))
             return $"{symbol}.NS";
 
         // Already has suffix
@@ -289,6 +292,14 @@ public class MarketDataService : IMarketDataService
 
         // US stocks (default)
         return symbol;
+    }
+
+    private static bool IsIndianStock(string symbol)
+    {
+        return symbol is "RELIANCE" or "TCS" or "INFY" or "HDFCBANK" or "ICICIBANK" or "SBIN"
+            or "BHARTIARTL" or "ITC" or "KOTAKBANK" or "WIPRO" or "TATAMOTORS"
+            or "SUNPHARMA" or "MARUTI" or "LT" or "AXISBANK" or "BAJFINANCE"
+            or "HCLTECH" or "HINDUNILVR" or "TITAN" or "ASIANPAINT";
     }
 
     // ── JSON helpers ────────────────────────────────────────────
@@ -339,6 +350,7 @@ public class MarketDataService : IMarketDataService
             DayHigh = latest.High,
             DayLow = latest.Low,
             Volume = latest.Volume,
+            PriceCurrency = IsIndianStock(symbol) ? "INR" : "USD",
             LastUpdated = DateTime.UtcNow,
             HistoricalData = history.TakeLast(30).ToList()
         };

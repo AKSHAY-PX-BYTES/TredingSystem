@@ -68,9 +68,9 @@ else if (quote != null)
                 </button>
                 <a href="/charts/@currentSymbol" class="chart-link-btn" title="View Charts">📈</a>
             </div>
-            <div class="stock-hero-price">@Currency.FormatPrice(quote.CurrentPrice)</div>
+            <div class="stock-hero-price">@Currency.FormatPrice(quote.CurrentPrice, quote.PriceCurrency)</div>
             <div class="stock-hero-change @(quote.ChangePercent >= 0 ? "chg-up" : "chg-down")">
-                @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change)
+                @(quote.ChangePercent >= 0 ? "+" : "")@Currency.FormatPrice(quote.Change, quote.PriceCurrency)
                 (@(quote.ChangePercent >= 0 ? "+" : "")@quote.ChangePercent.ToString("N2")%)
             </div>
         </div>
@@ -80,17 +80,17 @@ else if (quote != null)
     <div class="groww-metrics fade-in">
         <div class="metric-item">
             <span class="metric-label">Open</span>
-            <span class="metric-value">@Currency.FormatPrice(quote.PreviousClose)</span>
+            <span class="metric-value">@Currency.FormatPrice(quote.PreviousClose, quote.PriceCurrency)</span>
         </div>
         <div class="metric-divider"></div>
         <div class="metric-item">
             <span class="metric-label">Day High</span>
-            <span class="metric-value val-up">@Currency.FormatPrice(quote.DayHigh)</span>
+            <span class="metric-value val-up">@Currency.FormatPrice(quote.DayHigh, quote.PriceCurrency)</span>
         </div>
         <div class="metric-divider"></div>
         <div class="metric-item">
             <span class="metric-label">Day Low</span>
-            <span class="metric-value val-down">@Currency.FormatPrice(quote.DayLow)</span>
+            <span class="metric-value val-down">@Currency.FormatPrice(quote.DayLow, quote.PriceCurrency)</span>
         </div>
         <div class="metric-divider"></div>
         <div class="metric-item">
@@ -100,7 +100,7 @@ else if (quote != null)
         <div class="metric-divider"></div>
         <div class="metric-item">
             <span class="metric-label">Prev Close</span>
-            <span class="metric-value">@Currency.FormatPrice(quote.PreviousClose)</span>
+            <span class="metric-value">@Currency.FormatPrice(quote.PreviousClose, quote.PriceCurrency)</span>
         </div>
         @if (strategy != null)
         {
@@ -151,11 +151,11 @@ else if (quote != null)
                         <div class="target-row">
                             <div class="target-item">
                                 <span class="target-label">Target</span>
-                                <span class="target-val target-up">@Currency.FormatPrice(strategy.TargetPrice.Value)</span>
+                                <span class="target-val target-up">@Currency.FormatPrice(strategy.TargetPrice.Value, quote?.PriceCurrency ?? "USD")</span>
                             </div>
                             <div class="target-item">
                                 <span class="target-label">Stop Loss</span>
-                                <span class="target-val target-down">@Currency.FormatPrice(strategy.StopLoss.Value)</span>
+                                <span class="target-val target-down">@Currency.FormatPrice(strategy.StopLoss.Value, quote?.PriceCurrency ?? "USD")</span>
                             </div>
                         </div>
                     }
@@ -381,7 +381,8 @@ else if (quote != null)
     {
         if (quote?.HistoricalData == null || !quote.HistoricalData.Any()) return;
         var labels = quote.HistoricalData.Select(d => d.Date.ToString("MMM dd")).ToArray();
-        var closePrices = quote.HistoricalData.Select(d => (double)Currency.ConvertFromUsd(d.Close)).ToArray();
+        var sourceCurrency = quote.PriceCurrency ?? "USD";
+        var closePrices = quote.HistoricalData.Select(d => (double)Currency.Convert(d.Close, sourceCurrency)).ToArray();
         var isUp = closePrices.Last() >= closePrices.First();
         var color = isUp ? "rgb(0, 208, 156)" : "rgb(235, 77, 75)";
 
