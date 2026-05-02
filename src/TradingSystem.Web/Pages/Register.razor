@@ -285,7 +285,7 @@
                             disabled="@(string.IsNullOrEmpty(registerModel.Plan))" style="margin-top: 1rem;">
                         Continue →
                     </button>
-                    <button type="button" class="login-btn" @onclick="() => { registrationStep = FeatureFlagService.IsEnabled("phone_verification") ? 3 : 2; errorMessage = null; }"
+                    <button type="button" class="login-btn" @onclick="GoBackFromPlanStep"
                             disabled="@isLoading" style="background-color: var(--text-muted); margin-top: 0.5rem;">
                         ← Back
                     </button>
@@ -729,6 +729,12 @@
     {
         phoneNumber = string.Empty;
         registrationStep = 4;
+    }
+
+    private void GoBackFromPlanStep()
+    {
+        errorMessage = null;
+        registrationStep = FeatureFlagService.IsEnabled("phone_verification") ? 3 : 2;
     }
 
     private static string MaskPhone(string phone) =>
