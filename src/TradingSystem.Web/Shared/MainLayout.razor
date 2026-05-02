@@ -16,43 +16,43 @@
                     <span class="brand-icon">📈</span>
                     <span class="brand-text">AI Trader</span>
                 </NavLink>
-                <nav class="navbar-links">
-                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                        Explore
-                    </NavLink>
-                    @if (IsFeatureVisible("markets"))
-                    {
-                        <NavLink class="nav-link" href="markets">Markets</NavLink>
-                    }
-                    @if (IsFeatureVisible("watchlist"))
-                    {
-                        <NavLink class="nav-link" href="watchlist">Watchlist</NavLink>
-                    }
-                    @if (IsFeatureVisible("charts"))
-                    {
-                        <NavLink class="nav-link" href="charts">Charts</NavLink>
-                    }
-                    @if (IsFeatureVisible("compare"))
-                    {
-                        <NavLink class="nav-link" href="compare">Compare</NavLink>
-                    }
-                    @if (IsFeatureVisible("news"))
-                    {
-                        <NavLink class="nav-link" href="news">News</NavLink>
-                    }
-                    @if (IsFeatureVisible("backtest"))
-                    {
-                        <NavLink class="nav-link" href="backtest">Backtest</NavLink>
-                    }
-                    <AuthorizeView Roles="Admin">
-                        <Authorized>
-                            <NavLink class="nav-link admin-nav-link" href="admin">
-                                ⚙️ Admin
-                            </NavLink>
-                        </Authorized>
-                    </AuthorizeView>
-                </nav>
             </div>
+            <nav class="navbar-center">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    Explore
+                </NavLink>
+                @if (IsFeatureVisible("markets"))
+                {
+                    <NavLink class="nav-link" href="markets">Markets</NavLink>
+                }
+                @if (IsFeatureVisible("watchlist"))
+                {
+                    <NavLink class="nav-link" href="watchlist">Watchlist</NavLink>
+                }
+                @if (IsFeatureVisible("charts"))
+                {
+                    <NavLink class="nav-link" href="charts">Charts</NavLink>
+                }
+                @if (IsFeatureVisible("compare"))
+                {
+                    <NavLink class="nav-link" href="compare">Compare</NavLink>
+                }
+                @if (IsFeatureVisible("news"))
+                {
+                    <NavLink class="nav-link" href="news">News</NavLink>
+                }
+                @if (IsFeatureVisible("backtest"))
+                {
+                    <NavLink class="nav-link" href="backtest">Backtest</NavLink>
+                }
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <NavLink class="nav-link admin-nav-link" href="admin">
+                            ⚙️ Admin
+                        </NavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
             <div class="navbar-right">
                 <button class="theme-toggle" @onclick="ToggleTheme" title="Toggle Theme">
                     @(ThemeService.IsDarkMode ? "☀️" : "🌙")

@@ -113,10 +113,7 @@ body {
 .navbar-left {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 2rem;
-    flex: 1;
-    min-width: 0;
+    flex-shrink: 0;
 }
 
 .navbar-brand {
@@ -132,9 +129,12 @@ body {
 .brand-icon { font-size: 1.4rem; }
 .brand-text { letter-spacing: -0.02em; }
 
-.navbar-links {
+.navbar-center {
     display: flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.25rem;
+    flex: 1;
 }
 
 .nav-link {
@@ -162,6 +162,7 @@ body {
     align-items: center;
     justify-content: flex-end;
     gap: 0.75rem;
+    flex-shrink: 0;
     flex-wrap: nowrap;
 }
 
@@ -250,7 +251,7 @@ body {
 .mobile-nav-item.active { color: var(--groww-green); }
 
 @media (max-width: 768px) {
-    .navbar-links { display: none; }
+    .navbar-center { display: none; }
     .mobile-bottom-nav { display: flex; }
     .groww-main { padding-bottom: 60px; }
     .user-name-sm { display: none; }
