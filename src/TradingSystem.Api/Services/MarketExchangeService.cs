@@ -633,6 +633,14 @@ public class MarketExchangeService : IMarketExchangeService
 
             // Fetch all live quotes in parallel (throttled)
             var allYahooSymbols = stockYahooMap.Keys.Concat(indexYahooMap.Keys);
+
+            // For FNO, also include underlying equity and commodity Yahoo symbols
+            if (exchange == "FNO")
+            {
+                var fnoYahooSymbols = GetFnoYahooSymbols(baseData);
+                allYahooSymbols = allYahooSymbols.Concat(fnoYahooSymbols);
+            }
+
             var quotes = await _liveData.FetchBatchAsync(allYahooSymbols);
 
             if (quotes.Count == 0)
@@ -705,7 +713,11 @@ public class MarketExchangeService : IMarketExchangeService
                 TopGainers = enrichedStocks.OrderByDescending(s => s.ChangePercent).Take(5).ToList(),
                 TopLosers = enrichedStocks.OrderBy(s => s.ChangePercent).Take(5).ToList(),
                 MostActive = enrichedStocks.OrderByDescending(s => s.Volume).Take(5).ToList(),
-                IsLive = liveStockCount > 0
+                IsLive = liveStockCount > 0 || (exchange == "FNO" && quotes.Count > 0),
+                EquityFutures = exchange == "FNO" ? EnrichFnoContracts(baseData.EquityFutures, quotes) : baseData.EquityFutures,
+                EquityOptions = exchange == "FNO" ? EnrichFnoContracts(baseData.EquityOptions, quotes) : baseData.EquityOptions,
+                CommodityFutures = exchange == "FNO" ? EnrichFnoContracts(baseData.CommodityFutures, quotes) : baseData.CommodityFutures,
+                CommodityOptions = exchange == "FNO" ? EnrichFnoContracts(baseData.CommodityOptions, quotes) : baseData.CommodityOptions,
             };
         }
         catch (Exception ex)
@@ -726,5 +738,174 @@ public class MarketExchangeService : IMarketExchangeService
             return "Closed";
 
         return "Open"; // Simplified for demo
+    }
+
+    // ── F&O Live Enrichment Helpers ─────────────────────────────
+
+    // Map F&O underlying symbols to Yahoo Finance symbols
+    private static readonly Dictionary<string, string> _fnoYahooMap = new()
+    {
+        // Equity
+        ["NIFTY"] = "^NSEI",
+        ["BANKNIFTY"] = "^NSEBANK",
+        ["RELIANCE"] = "RELIANCE.NS",
+        ["TCS"] = "TCS.NS",
+        ["HDFCBANK"] = "HDFCBANK.NS",
+        ["INFY"] = "INFY.NS",
+        ["ICICIBANK"] = "ICICIBANK.NS",
+        ["SBIN"] = "SBIN.NS",
+        ["TATAMOTORS"] = "TATAMOTORS.NS",
+        ["ITC"] = "ITC.NS",
+        ["BAJFINANCE"] = "BAJFINANCE.NS",
+        ["WIPRO"] = "WIPRO.NS",
+        // Commodities (MCX → Yahoo equivalents)
+        ["GOLD"] = "GC=F",
+        ["GOLDM"] = "GC=F",
+        ["SILVER"] = "SI=F",
+        ["SILVERM"] = "SI=F",
+        ["CRUDEOIL"] = "CL=F",
+        ["NATURALGAS"] = "NG=F",
+        ["COPPER"] = "HG=F",
+        ["ALUMINIUM"] = "ALI=F",
+        ["ZINC"] = "ZN=F",
+        ["LEAD"] = "PB=F",
+        ["NICKEL"] = "NI=F",
+        ["COTTON"] = "CT=F",
+    };
+
+    // Conversion factors for international commodity prices to INR/MCX units
+    private static readonly Dictionary<string, (decimal Factor, decimal BaseINR)> _commodityConversion = new()
+    {
+        ["GOLD"] = (2400m, 72500m),       // USD/oz → INR/10g approx
+        ["GOLDM"] = (2400m, 72500m),
+        ["SILVER"] = (2800m, 85200m),      // USD/oz → INR/kg approx
+        ["SILVERM"] = (2800m, 85200m),
+        ["CRUDEOIL"] = (83m, 6850m),       // USD/barrel → INR/barrel approx
+        ["NATURALGAS"] = (83m, 185m),
+        ["COPPER"] = (780m, 780m),
+        ["ALUMINIUM"] = (210m, 210m),
+        ["ZINC"] = (255m, 255m),
+        ["LEAD"] = (185m, 185m),
+        ["NICKEL"] = (1480m, 1480m),
+        ["COTTON"] = (56800m, 56800m),
+    };
+
+    private static IEnumerable<string> GetFnoYahooSymbols(ExchangeData fnoData)
+    {
+        var symbols = new HashSet<string>();
+        var allContracts = fnoData.EquityFutures
+            .Concat(fnoData.EquityOptions)
+            .Concat(fnoData.CommodityFutures)
+            .Concat(fnoData.CommodityOptions);
+
+        foreach (var c in allContracts)
+        {
+            // Extract base symbol (e.g., "RELIANCE" from "RELIANCEFUT" or "RELIANCE 2450 CE")
+            var baseSym = c.Symbol.Replace("FUT", "").Split(' ')[0];
+            if (_fnoYahooMap.TryGetValue(baseSym, out var yahoo))
+                symbols.Add(yahoo);
+        }
+        return symbols;
+    }
+
+    private List<FnoContract> EnrichFnoContracts(List<FnoContract> contracts, Dictionary<string, LiveStockData> quotes)
+    {
+        var rng = new Random((int)DateTime.UtcNow.Ticks);
+        var signals = new[] { "Bullish", "Bearish", "Neutral" };
+
+        return contracts.Select(c =>
+        {
+            var baseSym = c.Symbol.Replace("FUT", "").Split(' ')[0];
+            if (!_fnoYahooMap.TryGetValue(baseSym, out var yahoo) || !quotes.TryGetValue(yahoo, out var live))
+                return c; // no live data, return as-is
+
+            var enriched = new FnoContract
+            {
+                Symbol = c.Symbol,
+                UnderlyingName = c.UnderlyingName,
+                Segment = c.Segment,
+                InstrumentType = c.InstrumentType,
+                Expiry = c.Expiry,
+                StrikePrice = c.StrikePrice,
+                LotSize = c.LotSize,
+                Volume = c.Volume,
+                OpenInterest = c.OpenInterest,
+                OIChange = c.OIChange,
+                ImpliedVolatility = c.ImpliedVolatility,
+                Signal = c.Signal,
+            };
+
+            if (c.Segment == "Equity")
+            {
+                // For equity: use live price directly (it's already in INR for .NS symbols or index value)
+                var livePrice = live.Price;
+                var prevClose = live.PreviousClose > 0 ? live.PreviousClose : livePrice;
+
+                if (c.InstrumentType == "FUT")
+                {
+                    // Futures trade at slight premium/discount to spot
+                    var premium = livePrice * 0.001m * (decimal)(rng.NextDouble() * 2 - 0.5);
+                    enriched.LastPrice = Math.Round(livePrice + premium, 2);
+                    enriched.Change = Math.Round(enriched.LastPrice - prevClose, 2);
+                    enriched.ChangePercent = prevClose != 0 ? Math.Round((enriched.LastPrice - prevClose) / prevClose * 100, 2) : 0;
+                }
+                else
+                {
+                    // Options: compute rough premium based on distance from strike
+                    var spot = livePrice;
+                    var strike = c.StrikePrice;
+                    var intrinsic = c.InstrumentType == "CE"
+                        ? Math.Max(0, spot - strike)
+                        : Math.Max(0, strike - spot);
+                    var timeValue = spot * 0.01m * (decimal)(rng.NextDouble() * 0.5 + 0.3);
+                    enriched.LastPrice = Math.Round(intrinsic + timeValue, 2);
+                    enriched.Change = Math.Round((decimal)(rng.NextDouble() * 30 - 15), 2);
+                    enriched.ChangePercent = enriched.LastPrice > 0
+                        ? Math.Round(enriched.Change / enriched.LastPrice * 100, 2) : 0;
+                    // Update strike to be ATM based on live price
+                    enriched.StrikePrice = Math.Round(spot / 50) * 50;
+                }
+
+                // Update signal based on price action
+                enriched.Signal = enriched.ChangePercent > 1 ? "Bullish" : enriched.ChangePercent < -1 ? "Bearish" : "Neutral";
+            }
+            else
+            {
+                // Commodity: convert international price to INR/MCX equivalent
+                if (_commodityConversion.TryGetValue(baseSym, out var conv))
+                {
+                    var intlPrice = live.Price;
+                    var intlPrev = live.PreviousClose > 0 ? live.PreviousClose : intlPrice;
+                    var chgPct = intlPrev != 0 ? (intlPrice - intlPrev) / intlPrev * 100 : 0;
+
+                    if (c.InstrumentType == "FUT")
+                    {
+                        // Scale the MCX base price by the international change %
+                        var mcxPrice = Math.Round(conv.BaseINR * (1 + chgPct / 100), 2);
+                        enriched.LastPrice = mcxPrice;
+                        enriched.Change = Math.Round(mcxPrice - conv.BaseINR, 2);
+                        enriched.ChangePercent = Math.Round(chgPct, 2);
+                    }
+                    else
+                    {
+                        // Commodity options: rough premium
+                        var mcxSpot = Math.Round(conv.BaseINR * (1 + chgPct / 100), 2);
+                        var strike = c.StrikePrice;
+                        var intrinsic = c.InstrumentType == "CE"
+                            ? Math.Max(0, mcxSpot - strike)
+                            : Math.Max(0, strike - mcxSpot);
+                        var timeValue = conv.BaseINR * 0.005m * (decimal)(rng.NextDouble() * 0.5 + 0.3);
+                        enriched.LastPrice = Math.Round(intrinsic + timeValue, 2);
+                        enriched.Change = Math.Round((decimal)(rng.NextDouble() * 40 - 20), 2);
+                        enriched.ChangePercent = enriched.LastPrice > 0
+                            ? Math.Round(enriched.Change / enriched.LastPrice * 100, 2) : 0;
+                    }
+
+                    enriched.Signal = enriched.ChangePercent > 0.5m ? "Bullish" : enriched.ChangePercent < -0.5m ? "Bearish" : "Neutral";
+                }
+            }
+
+            return enriched;
+        }).ToList();
     }
 }
