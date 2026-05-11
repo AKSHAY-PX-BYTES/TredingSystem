@@ -241,6 +241,10 @@ using (var scope = app.Services.CreateScope())
         // Add plan column to users table if not exists
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) NOT NULL DEFAULT 'Free'");
         
+        // Migrate old plan names to new ones
+        db.Database.ExecuteSqlRaw("UPDATE users SET plan = 'Enterprise' WHERE plan = 'Super'");
+        db.Database.ExecuteSqlRaw("UPDATE users SET plan = 'Free' WHERE plan = 'Basic'");
+        
         // Add phone columns to users table if not exists
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)");
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS country_code VARCHAR(5)");

@@ -138,6 +138,10 @@ public class SubscriptionService : ISubscriptionService
         if (user == null) return new SubscriptionInfo { HasAccess = false };
 
         var plan = user.Plan;
+        // Map legacy plan names
+        if (plan == "Super") plan = "Enterprise";
+        if (plan == "Basic") plan = "Free";
+        
         var trialEnds = user.TrialEndsAt;
         var now = DateTime.UtcNow;
         var isTrialActive = plan == "Free" && now < trialEnds;
@@ -172,12 +176,19 @@ public class SubscriptionService : ISubscriptionService
         var user = await db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
         if (user == null) return false;
 
+        // Admin users always have full access to all features
+        if (user.Role == "Admin") return true;
+
         var plan = user.Plan;
         if (plan == "Free")
         {
             var now = DateTime.UtcNow;
             if (now >= user.TrialEndsAt) return false; // trial expired
         }
+
+        // Map legacy plan names
+        if (plan == "Super") plan = "Enterprise";
+        if (plan == "Basic") plan = "Free";
 
         var planDef = PlanDefinitions.GetValueOrDefault(plan, PlanDefinitions["Free"]);
 
