@@ -2,6 +2,7 @@
 @using TradingSystem.Web.Models
 @using TradingSystem.Web.Services
 @inject IAuthService AuthService
+@inject ISubscriptionApiService SubscriptionApi
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -10,8 +11,23 @@
 <div class="plans-page">
     <div class="plans-hero">
         <h1 class="plans-title">Choose Your Trading Plan</h1>
-        <p class="plans-subtitle">Unlock powerful AI trading tools. Start free, upgrade anytime.</p>
+        <p class="plans-subtitle">Unlock powerful AI trading tools. Start with a 7-day free trial, upgrade anytime.</p>
     </div>
+
+    @if (isTrialExpired && currentPlan == "Free")
+    {
+        <div class="trial-expired-banner">
+            <span class="trial-icon">⚠️</span>
+            <span>Your 7-day free trial has expired. Upgrade now to regain full access.</span>
+        </div>
+    }
+    else if (isTrialActive && currentPlan == "Free")
+    {
+        <div class="trial-active-banner">
+            <span class="trial-icon">⏳</span>
+            <span>Free trial: <strong>@daysRemaining days remaining</strong></span>
+        </div>
+    }
 
     <div class="plans-toggle">
         <span class="@(isAnnual ? "" : "toggle-active")">Monthly</span>
@@ -22,37 +38,25 @@
         <span class="@(isAnnual ? "toggle-active" : "")">Annual <span class="save-badge">Save 20%</span></span>
     </div>
 
-    <div class="plans-grid">
-        <!-- Basic -->
-        <div class="plan-card basic-card @(currentPlan == "Basic" ? "plan-current" : "")">
+    <div class="plans-grid plans-grid-4">
+        <!-- Free -->
+        <div class="plan-card free-card @(currentPlan == "Free" ? "plan-current" : "")">
             <div class="plan-card-header">
                 <span class="plan-card-icon">🆓</span>
-                <h2 class="plan-card-name">Basic</h2>
-                <div class="plan-card-price">
-                    <span class="price-amount">Free</span>
-                </div>
-                <p class="plan-card-desc">Perfect for getting started with market tracking.</p>
+                <h2 class="plan-card-name">Free</h2>
+                <div class="plan-card-price"><span class="price-amount">$0</span><span class="price-period">/mo</span></div>
+                <p class="plan-card-desc">7-day trial only</p>
             </div>
             <ul class="plan-card-features">
-                <li class="included"><span class="feat-icon">✅</span> Real-time market data</li>
-                <li class="included"><span class="feat-icon">✅</span> Basic charts & indicators</li>
-                <li class="included"><span class="feat-icon">✅</span> Watchlist (up to 10 stocks)</li>
-                <li class="included"><span class="feat-icon">✅</span> Daily news digest</li>
-                <li class="included"><span class="feat-icon">✅</span> Email alerts (5/day)</li>
-                <li class="excluded"><span class="feat-icon">❌</span> AI predictions</li>
-                <li class="excluded"><span class="feat-icon">❌</span> Backtesting engine</li>
-                <li class="excluded"><span class="feat-icon">❌</span> Portfolio analytics</li>
+                <li class="included"><span class="feat-icon">✅</span> 5 watchlist items</li>
+                <li class="included"><span class="feat-icon">✅</span> Basic charts (5 years)</li>
+                <li class="included"><span class="feat-icon">⏳</span> 7-day access only</li>
+                <li class="excluded"><span class="feat-icon">❌</span> LIVE quotes</li>
+                <li class="excluded"><span class="feat-icon">❌</span> AI signals</li>
                 <li class="excluded"><span class="feat-icon">❌</span> API access</li>
             </ul>
             <div class="plan-card-footer">
-                @if (currentPlan == "Basic")
-                {
-                    <button class="plan-btn plan-btn-current" disabled>Current Plan</button>
-                }
-                else
-                {
-                    <button class="plan-btn plan-btn-basic">Downgrade</button>
-                }
+                @if (currentPlan == "Free") { <button class="plan-btn plan-btn-current" disabled>Current Plan</button> }
             </div>
         </div>
 
@@ -62,75 +66,101 @@
             <div class="plan-card-header">
                 <span class="plan-card-icon">⚡</span>
                 <h2 class="plan-card-name">Pro</h2>
-                <div class="plan-card-price">
-                    <span class="price-amount">$@(isAnnual ? "23" : "29")</span>
-                    <span class="price-period">/month</span>
-                </div>
-                @if (isAnnual)
-                {
-                    <div class="plan-annual-note">Billed $276/year</div>
-                }
-                <p class="plan-card-desc">Advanced tools for serious traders.</p>
+                <div class="plan-card-price"><span class="price-amount">$@(isAnnual ? "7.99" : "9.99")</span><span class="price-period">/mo</span></div>
+                @if (isAnnual) { <div class="plan-annual-note">Billed $95.88/year</div> }
+                <p class="plan-card-desc">Real-time data for serious traders</p>
             </div>
             <ul class="plan-card-features">
-                <li class="included"><span class="feat-icon">✅</span> Everything in Basic</li>
-                <li class="included highlight"><span class="feat-icon">⚡</span> Advanced AI predictions</li>
+                <li class="included highlight"><span class="feat-icon">⚡</span> LIVE quotes (real-time)</li>
                 <li class="included"><span class="feat-icon">✅</span> Unlimited watchlists</li>
-                <li class="included highlight"><span class="feat-icon">⚡</span> Backtesting engine</li>
-                <li class="included"><span class="feat-icon">✅</span> Email alerts (unlimited)</li>
-                <li class="included"><span class="feat-icon">✅</span> Compare tool</li>
-                <li class="included"><span class="feat-icon">✅</span> Priority support</li>
-                <li class="excluded"><span class="feat-icon">❌</span> Portfolio analytics</li>
-                <li class="excluded"><span class="feat-icon">❌</span> API access</li>
+                <li class="included"><span class="feat-icon">✅</span> Advanced charting</li>
+                <li class="included"><span class="feat-icon">✅</span> Portfolio analysis + alerts</li>
+                <li class="included"><span class="feat-icon">✅</span> No ads</li>
+                <li class="included"><span class="feat-icon">✅</span> Email notifications</li>
+                <li class="excluded"><span class="feat-icon">❌</span> AI signals</li>
             </ul>
             <div class="plan-card-footer">
-                @if (currentPlan == "Pro")
-                {
-                    <button class="plan-btn plan-btn-current" disabled>Current Plan</button>
-                }
-                else
-                {
-                    <button class="plan-btn plan-btn-pro">@(currentPlan == "Super" ? "Downgrade to Pro" : "Upgrade to Pro")</button>
-                }
+                @if (currentPlan == "Pro") { <button class="plan-btn plan-btn-current" disabled>Current Plan</button> }
+                else { <button class="plan-btn plan-btn-pro" @onclick='() => HandleUpgrade("Pro")' disabled="@isUpgrading">Upgrade to Pro</button> }
             </div>
         </div>
 
-        <!-- Super -->
-        <div class="plan-card super-card @(currentPlan == "Super" ? "plan-current" : "")">
+        <!-- Premium -->
+        <div class="plan-card premium-card @(currentPlan == "Premium" ? "plan-current" : "")">
             <div class="plan-card-header">
-                <span class="plan-card-icon">👑</span>
-                <h2 class="plan-card-name">Super</h2>
-                <div class="plan-card-price">
-                    <span class="price-amount">$@(isAnnual ? "63" : "79")</span>
-                    <span class="price-period">/month</span>
-                </div>
-                @if (isAnnual)
-                {
-                    <div class="plan-annual-note">Billed $756/year</div>
-                }
-                <p class="plan-card-desc">Ultimate power for professional traders.</p>
+                <span class="plan-card-icon">�</span>
+                <h2 class="plan-card-name">Premium</h2>
+                <div class="plan-card-price"><span class="price-amount">$@(isAnnual ? "15.99" : "19.99")</span><span class="price-period">/mo</span></div>
+                @if (isAnnual) { <div class="plan-annual-note">Billed $191.88/year</div> }
+                <p class="plan-card-desc">AI-powered trading suite</p>
             </div>
             <ul class="plan-card-features">
                 <li class="included"><span class="feat-icon">✅</span> Everything in Pro</li>
-                <li class="included highlight"><span class="feat-icon">👑</span> Real-time AI signals</li>
-                <li class="included highlight"><span class="feat-icon">👑</span> Portfolio analytics</li>
-                <li class="included highlight"><span class="feat-icon">👑</span> API access</li>
-                <li class="included"><span class="feat-icon">✅</span> Dedicated account manager</li>
-                <li class="included"><span class="feat-icon">✅</span> Custom alerts & webhooks</li>
-                <li class="included"><span class="feat-icon">✅</span> White-glove onboarding</li>
-                <li class="included"><span class="feat-icon">✅</span> Early access to features</li>
-                <li class="included"><span class="feat-icon">✅</span> SLA guarantee</li>
+                <li class="included highlight"><span class="feat-icon">🤖</span> AI trading signals</li>
+                <li class="included highlight"><span class="feat-icon">�</span> Strategy backtesting</li>
+                <li class="included"><span class="feat-icon">✅</span> Options analysis</li>
+                <li class="included"><span class="feat-icon">✅</span> API access (100/day)</li>
+                <li class="included"><span class="feat-icon">✅</span> Priority support</li>
             </ul>
             <div class="plan-card-footer">
-                @if (currentPlan == "Super")
-                {
-                    <button class="plan-btn plan-btn-current" disabled>Current Plan</button>
-                }
-                else
-                {
-                    <button class="plan-btn plan-btn-super">Upgrade to Super</button>
-                }
+                @if (currentPlan == "Premium") { <button class="plan-btn plan-btn-current" disabled>Current Plan</button> }
+                else { <button class="plan-btn plan-btn-premium" @onclick='() => HandleUpgrade("Premium")' disabled="@isUpgrading">Upgrade to Premium</button> }
             </div>
+        </div>
+
+        <!-- Enterprise -->
+        <div class="plan-card enterprise-card @(currentPlan == "Enterprise" ? "plan-current" : "")">
+            <div class="plan-card-header">
+                <span class="plan-card-icon">🏢</span>
+                <h2 class="plan-card-name">Enterprise</h2>
+                <div class="plan-card-price"><span class="price-amount">$499</span><span class="price-period">/mo</span></div>
+                <p class="plan-card-desc">Dedicated infrastructure</p>
+            </div>
+            <ul class="plan-card-features">
+                <li class="included"><span class="feat-icon">✅</span> Dedicated API</li>
+                <li class="included"><span class="feat-icon">✅</span> White-label capability</li>
+                <li class="included"><span class="feat-icon">✅</span> Custom integrations</li>
+                <li class="included"><span class="feat-icon">✅</span> Unlimited API requests</li>
+                <li class="included"><span class="feat-icon">✅</span> Custom data feeds</li>
+                <li class="included"><span class="feat-icon">✅</span> Account manager</li>
+            </ul>
+            <div class="plan-card-footer">
+                @if (currentPlan == "Enterprise") { <button class="plan-btn plan-btn-current" disabled>Current Plan</button> }
+                else { <button class="plan-btn plan-btn-enterprise" @onclick='() => HandleUpgrade("Enterprise")' disabled="@isUpgrading">Contact Sales</button> }
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(upgradeMessage))
+    {
+        <div class="plans-message @(upgradeSuccess ? "msg-success" : "msg-error")">@upgradeMessage</div>
+    }
+
+    <!-- Comparison Table -->
+    <div class="plans-comparison">
+        <h2>Feature Comparison</h2>
+        <div class="comparison-table-wrapper">
+            <table class="comparison-table">
+                <thead><tr><th class="sticky-col">Feature</th><th>Free</th><th class="highlight-col">Pro</th><th>Premium</th><th>Enterprise</th></tr></thead>
+                <tbody>
+                    <tr><td class="sticky-col">Access Duration</td><td>7 days</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+                    <tr><td class="sticky-col">Watchlist Items</td><td>5</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+                    <tr><td class="sticky-col">Live Quotes</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+                    <tr><td class="sticky-col">AI Trading Signals</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+                    <tr><td class="sticky-col">AI Chatbot</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+                    <tr><td class="sticky-col">Backtesting</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+                    <tr><td class="sticky-col">API Access</td><td>❌</td><td>❌</td><td>100/day</td><td>Unlimited</td></tr>
+                    <tr><td class="sticky-col">White Label</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Payment Methods -->
+    <div class="plans-payment-methods">
+        <h3>Accepted Payment Methods</h3>
+        <div class="payment-icons">
+            <span>💳 Visa/MC</span><span>🅿️ PayPal</span><span>🇮🇳 UPI</span><span>🇵🇭 GCash</span><span>🇰🇪 M-Pesa</span><span>₿ Crypto</span>
         </div>
     </div>
 
@@ -139,28 +169,34 @@
         <h2>Frequently Asked Questions</h2>
         <div class="faq-grid">
             <div class="faq-item">
-                <h4>Can I switch plans anytime?</h4>
-                <p>Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
+                <h4>What happens after 7 days?</h4>
+                <p>Free users lose all access after 7 days. You must upgrade to Pro ($9.99/mo) or higher to continue.</p>
             </div>
             <div class="faq-item">
-                <h4>Is there a free trial for Pro/Super?</h4>
-                <p>All new Pro and Super users get a 7-day free trial. No credit card required to start.</p>
+                <h4>Can I cancel anytime?</h4>
+                <p>Yes! Cancel anytime with no penalties. You'll retain access until the end of your billing period.</p>
             </div>
             <div class="faq-item">
-                <h4>What payment methods are accepted?</h4>
-                <p>We accept all major credit cards, PayPal, and bank transfers for annual plans.</p>
+                <h4>Multi-language support?</h4>
+                <p>Yes! 15+ languages: Hindi, Spanish, Portuguese, Arabic, Chinese, Japanese, and more.</p>
             </div>
             <div class="faq-item">
-                <h4>Can I cancel my subscription?</h4>
-                <p>Absolutely. Cancel anytime with no penalties. You'll retain access until the end of your billing period.</p>
+                <h4>Which exchanges are supported?</h4>
+                <p>NYSE, NASDAQ, LSE, Euronext, DAX, HKEX, NSE/BSE, MCX, Binance, Bybit, and emerging markets.</p>
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    private string currentPlan = "Basic";
+    private string currentPlan = "Free";
     private bool isAnnual = false;
+    private bool isUpgrading = false;
+    private bool isTrialActive = false;
+    private bool isTrialExpired = false;
+    private int daysRemaining = 0;
+    private string? upgradeMessage;
+    private bool upgradeSuccess;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -173,11 +209,58 @@
                 {
                     var user = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson,
                         new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    currentPlan = user?.Plan ?? "Basic";
+                    currentPlan = user?.Plan ?? "Free";
+                    isTrialExpired = user?.IsTrialExpired ?? false;
+                    if (user?.TrialEndsAt != null && currentPlan == "Free")
+                    {
+                        var remaining = (user.TrialEndsAt.Value - DateTime.UtcNow).TotalDays;
+                        daysRemaining = Math.Max(0, (int)remaining);
+                        isTrialActive = remaining > 0;
+                        isTrialExpired = remaining <= 0;
+                    }
                     StateHasChanged();
                 }
             }
             catch { }
         }
+    }
+
+    private async Task HandleUpgrade(string plan)
+    {
+        isUpgrading = true;
+        upgradeMessage = null;
+        StateHasChanged();
+
+        var result = await SubscriptionApi.UpgradeAsync(new UpgradeRequest { Plan = plan });
+        if (result?.Success == true)
+        {
+            upgradeSuccess = true;
+            upgradeMessage = $"🎉 Successfully upgraded to {plan}!";
+            currentPlan = plan;
+            isTrialExpired = false;
+            isTrialActive = false;
+
+            var userJson = await JS.InvokeAsync<string?>("localStorage.getItem", "authUser");
+            if (!string.IsNullOrEmpty(userJson))
+            {
+                var user = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (user != null)
+                {
+                    user.Plan = plan;
+                    user.HasAccess = true;
+                    user.IsTrialExpired = false;
+                    await JS.InvokeVoidAsync("localStorage.setItem", "authUser",
+                        System.Text.Json.JsonSerializer.Serialize(user));
+                }
+            }
+        }
+        else
+        {
+            upgradeSuccess = false;
+            upgradeMessage = result?.Error ?? "Upgrade failed. Please try again.";
+        }
+        isUpgrading = false;
+        StateHasChanged();
     }
 }

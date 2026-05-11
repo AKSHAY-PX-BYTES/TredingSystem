@@ -4,6 +4,7 @@
 @inject ICurrencyService CurrencyService
 @inject IThemeService ThemeService
 @inject IFeatureFlagService FeatureFlagService
+@inject INotificationApiService NotificationApi
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -46,6 +47,20 @@
                     <NavLink class="nav-link" href="backtest">Backtest</NavLink>
                 }
                 <NavLink class="nav-link" href="plans">Plans</NavLink>
+                @if (IsFeatureVisible("notifications"))
+                {
+                    <NavLink class="nav-link" href="notifications">
+                        🔔 @if(unreadNotifications > 0){<span class="nav-badge">@unreadNotifications</span>}
+                    </NavLink>
+                }
+                @if (IsFeatureVisible("ai_signals"))
+                {
+                    <NavLink class="nav-link" href="signals">Signals</NavLink>
+                }
+                @if (IsFeatureVisible("ai_chat"))
+                {
+                    <NavLink class="nav-link" href="chat">AI Chat</NavLink>
+                }
                 <AuthorizeView Roles="Admin">
                     <Authorized>
                         <NavLink class="nav-link admin-nav-link" href="admin">
@@ -263,7 +278,11 @@
                     var user = System.Text.Json.JsonSerializer.Deserialize<TradingSystem.Web.Models.UserInfo>(userJson,
                         new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     isAdmin = user?.Role == "Admin";
-                    userPlan = user?.Plan ?? "Basic";
+                    userPlan = user?.Plan ?? "Free";
+
+                    // Load unread notifications count
+                    try { unreadNotifications = await NotificationApi.GetUnreadCountAsync(); } catch { }
+
                     StateHasChanged();
                 }
             }
@@ -362,10 +381,13 @@
 
     private static string GetPlanBadge(string plan) => plan switch
     {
-        "Super" => "👑 SUPER",
+        "Enterprise" => "🏢 ENTERPRISE",
+        "Premium" => "� PREMIUM",
         "Pro" => "⚡ PRO",
-        _ => "🆓 BASIC"
+        _ => "🆓 FREE"
     };
+
+    private int unreadNotifications = 0;
 
     public void Dispose()
     {

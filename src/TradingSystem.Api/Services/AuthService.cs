@@ -60,7 +60,7 @@ public class AuthService : IAuthService
                 PasswordHash = HashPassword("Admin@123"),
                 DisplayName = "Admin User",
                 Role = "Admin",
-                Plan = "Super",
+                Plan = "Enterprise",
                 Email = "admin@tradingsystem.com",
                 CreatedAt = DateTime.UtcNow
             },
@@ -80,7 +80,7 @@ public class AuthService : IAuthService
                 PasswordHash = HashPassword("Demo@123"),
                 DisplayName = "Demo User",
                 Role = "Viewer",
-                Plan = "Basic",
+                Plan = "Free",
                 Email = "demo@tradingsystem.com",
                 CreatedAt = DateTime.UtcNow
             }
@@ -131,7 +131,10 @@ public class AuthService : IAuthService
                 DisplayName = user.DisplayName,
                 Role = user.Role,
                 Email = user.Email,
-                Plan = user.Plan
+                Plan = user.Plan,
+                TrialEndsAt = user.TrialEndsAt,
+                IsTrialExpired = user.Plan == "Free" && DateTime.UtcNow >= user.TrialEndsAt,
+                HasAccess = user.Plan != "Free" || DateTime.UtcNow < user.TrialEndsAt
             }
         };
     }
@@ -150,7 +153,10 @@ public class AuthService : IAuthService
             DisplayName = user.DisplayName,
             Role = user.Role,
             Email = user.Email,
-            Plan = user.Plan
+            Plan = user.Plan,
+            TrialEndsAt = user.TrialEndsAt,
+            IsTrialExpired = user.Plan == "Free" && DateTime.UtcNow >= user.TrialEndsAt,
+            HasAccess = user.Plan != "Free" || DateTime.UtcNow < user.TrialEndsAt
         };
     }
 
@@ -176,8 +182,8 @@ public class AuthService : IAuthService
             return new RegisterResponse { Success = false, Error = "Email already registered" };
         }
 
-        var validPlans = new[] { "Basic", "Pro", "Super" };
-        var plan = validPlans.Contains(request.Plan) ? request.Plan : "Basic";
+        var validPlans = new[] { "Free", "Pro", "Premium", "Enterprise" };
+        var plan = validPlans.Contains(request.Plan) ? request.Plan : "Free";
 
         var newUser = new UserEntity
         {
@@ -232,7 +238,10 @@ public class AuthService : IAuthService
                 DisplayName = user.DisplayName,
                 Role = user.Role,
                 Email = user.Email,
-                Plan = user.Plan
+                Plan = user.Plan,
+                TrialEndsAt = user.TrialEndsAt,
+                IsTrialExpired = user.Plan == "Free" && DateTime.UtcNow >= user.TrialEndsAt,
+                HasAccess = user.Plan != "Free" || DateTime.UtcNow < user.TrialEndsAt
             }
         };
     }

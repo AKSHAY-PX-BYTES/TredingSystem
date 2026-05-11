@@ -155,6 +155,11 @@ builder.Services.AddScoped<IPhoneOtpService, PhoneOtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IActivityTrackingService, ActivityTrackingService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAiSignalService, AiSignalService>();
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
+builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
 builder.Services.AddHttpContextAccessor();
 
 // Yahoo Finance live market data
@@ -171,6 +176,7 @@ builder.Services.AddSingleton<IMarketExchangeService, MarketExchangeService>();
 
 // Background service for real-time updates
 builder.Services.AddHostedService<MarketDataBroadcaster>();
+builder.Services.AddHostedService<NotificationBroadcaster>();
 
 // Logging
 builder.Logging.ClearProviders();
@@ -233,12 +239,96 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_activity_logs_country ON activity_logs(country_code)");
         
         // Add plan column to users table if not exists
-        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) NOT NULL DEFAULT 'Basic'");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) NOT NULL DEFAULT 'Free'");
         
         // Add phone columns to users table if not exists
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)");
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS country_code VARCHAR(5)");
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_phone_verified BOOLEAN DEFAULT false");
+        
+        // Add subscription/trial columns
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP DEFAULT NOW() + INTERVAL '7 days'");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_trial_used BOOLEAN DEFAULT false");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(10) DEFAULT 'en'");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10) DEFAULT 'USD'");
+
+        // Create subscriptions table
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                plan VARCHAR(20) NOT NULL DEFAULT 'Free',
+                start_date TIMESTAMP NOT NULL DEFAULT NOW(),
+                end_date TIMESTAMP,
+                trial_ends_at TIMESTAMP DEFAULT NOW() + INTERVAL '7 days',
+                is_trial_used BOOLEAN DEFAULT false,
+                is_active BOOLEAN DEFAULT true,
+                price_per_month DECIMAL(10,2) DEFAULT 0,
+                payment_method VARCHAR(50),
+                transaction_id VARCHAR(200),
+                auto_renew BOOLEAN DEFAULT true,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                cancelled_at TIMESTAMP
+            )");
+
+        // Create notifications table
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS notifications (
+                id BIGSERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                type VARCHAR(50) NOT NULL,
+                title VARCHAR(200) NOT NULL,
+                message VARCHAR(2000) NOT NULL,
+                symbol VARCHAR(20),
+                data TEXT,
+                is_read BOOLEAN DEFAULT false,
+                is_emailed BOOLEAN DEFAULT false,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                read_at TIMESTAMP
+            )");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_notifications_user_read ON notifications(user_id, is_read)");
+
+        // Create price_alerts table
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS price_alerts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                symbol VARCHAR(20) NOT NULL,
+                target_price DECIMAL(18,4) NOT NULL,
+                threshold_percent DECIMAL(5,2) DEFAULT 5.0,
+                direction VARCHAR(10) DEFAULT 'Above',
+                is_triggered BOOLEAN DEFAULT false,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                triggered_at TIMESTAMP
+            )");
+
+        // Create ai_signals table
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS ai_signals (
+                id BIGSERIAL PRIMARY KEY,
+                symbol VARCHAR(20) NOT NULL,
+                signal_type VARCHAR(20) NOT NULL,
+                confidence DECIMAL(5,2),
+                source VARCHAR(50) NOT NULL,
+                analysis TEXT,
+                metadata TEXT,
+                generated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                expires_at TIMESTAMP
+            )");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_ai_signals_symbol ON ai_signals(symbol)");
+
+        // Create chat_messages table
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id BIGSERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                session_id VARCHAR(100) NOT NULL,
+                role VARCHAR(20) NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_chat_messages_user_session ON chat_messages(user_id, session_id)");
         
         logger.LogInformation("Table check done.");
 
@@ -271,6 +361,7 @@ app.UseCors("AllowFrontend");
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<SubscriptionAccessMiddleware>();
 
 app.MapControllers();
 app.MapHub<TradingHub>("/hubs/trading");

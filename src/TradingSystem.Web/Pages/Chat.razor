@@ -1,0 +1,164 @@
+@page "/chat"
+@using TradingSystem.Web.Models
+@using TradingSystem.Web.Services
+@inject IAiApiService AiApi
+@inject IJSRuntime JS
+
+<PageTitle>AI Chat - Trading System</PageTitle>
+
+<div class="chat-page">
+    <div class="chat-container">
+        <!-- Chat Header -->
+        <div class="chat-header">
+            <h2>🤖 AI Trading Assistant</h2>
+            <p>Ask about stocks, earnings, options strategies, and more</p>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="chat-messages" @ref="chatContainer">
+            @if (!messages.Any())
+            {
+                <div class="chat-welcome">
+                    <div class="welcome-icon">🤖</div>
+                    <h3>Welcome to AI Trading Chat</h3>
+                    <p>I can help with stock analysis, earnings explanations, and trading strategies.</p>
+                    <div class="suggestion-chips">
+                        <button class="chip" @onclick='() => SendSuggestion("What stocks should I buy?")'>What stocks should I buy?</button>
+                        <button class="chip" @onclick='() => SendSuggestion("Explain this earnings report")'>Explain earnings</button>
+                        <button class="chip" @onclick='() => SendSuggestion("Options strategy recommendations")'>Options strategies</button>
+                        <button class="chip" @onclick='() => SendSuggestion("Show me AI signals for AAPL")'>AI signals for AAPL</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @foreach (var msg in messages)
+                {
+                    <div class="chat-message @(msg.IsUser ? "user-message" : "assistant-message")">
+                        <div class="message-avatar">@(msg.IsUser ? "👤" : "🤖")</div>
+                        <div class="message-bubble">
+                            <div class="message-content">@((MarkupString)FormatMessage(msg.Content))</div>
+                            @if (msg.Suggestions?.Any() == true)
+                            {
+                                <div class="message-suggestions">
+                                    @foreach (var s in msg.Suggestions)
+                                    {
+                                        <button class="chip" @onclick="() => SendSuggestion(s)">@s</button>
+                                    }
+                                </div>
+                            }
+                            @if (msg.Signals?.Any() == true)
+                            {
+                                <div class="message-signals">
+                                    @foreach (var sig in msg.Signals)
+                                    {
+                                        <div class="mini-signal signal-badge-@sig.SignalType.ToLower()">
+                                            <strong>@sig.Symbol</strong> @sig.SignalType (@sig.Confidence%)
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (isTyping)
+                {
+                    <div class="chat-message assistant-message">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-bubble typing">
+                            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-area">
+            <input type="text" @bind="inputMessage" @bind:event="oninput"
+                   @onkeypress="HandleKeyPress" placeholder="Ask about stocks, strategies, earnings..."
+                   class="chat-input" disabled="@isTyping" />
+            <button class="chat-send-btn" @onclick="SendMessage" disabled="@(isTyping || string.IsNullOrWhiteSpace(inputMessage))">
+                ➤
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ChatMsg> messages = new();
+    private string inputMessage = "";
+    private string? sessionId;
+    private bool isTyping = false;
+    private ElementReference chatContainer;
+
+    private class ChatMsg
+    {
+        public bool IsUser { get; set; }
+        public string Content { get; set; } = "";
+        public List<string>? Suggestions { get; set; }
+        public List<AiSignalDto>? Signals { get; set; }
+    }
+
+    private async Task HandleKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SendMessage();
+    }
+
+    private async Task SendSuggestion(string text)
+    {
+        inputMessage = text;
+        await SendMessage();
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(inputMessage) || isTyping) return;
+
+        var userMsg = inputMessage.Trim();
+        inputMessage = "";
+        messages.Add(new ChatMsg { IsUser = true, Content = userMsg });
+        isTyping = true;
+        StateHasChanged();
+
+        await Task.Delay(50); // allow re-render
+        await ScrollToBottom();
+
+        var response = await AiApi.SendChatAsync(new ChatRequest { Message = userMsg, SessionId = sessionId });
+
+        isTyping = false;
+        if (response != null)
+        {
+            sessionId = response.SessionId;
+            messages.Add(new ChatMsg
+            {
+                IsUser = false,
+                Content = response.Response,
+                Suggestions = response.Suggestions,
+                Signals = response.RelatedSignals
+            });
+        }
+        else
+        {
+            messages.Add(new ChatMsg { IsUser = false, Content = "Sorry, I encountered an error. Please try again." });
+        }
+
+        StateHasChanged();
+        await ScrollToBottom();
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try { await JS.InvokeVoidAsync("eval", "document.querySelector('.chat-messages')?.scrollTo(0, 999999)"); } catch { }
+    }
+
+    private static string FormatMessage(string content)
+    {
+        // Simple markdown-like formatting
+        return content
+            .Replace("**", "<strong>").Replace("**", "</strong>")
+            .Replace("\n\n", "<br/><br/>")
+            .Replace("\n", "<br/>")
+            .Replace("• ", "• ");
+    }
+}

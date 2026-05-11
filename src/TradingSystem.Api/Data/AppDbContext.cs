@@ -11,6 +11,11 @@ public class AppDbContext : DbContext
     public DbSet<FeatureFlagEntity> FeatureFlags => Set<FeatureFlagEntity>();
     public DbSet<OtpEntity> Otps => Set<OtpEntity>();
     public DbSet<ActivityLogEntity> ActivityLogs => Set<ActivityLogEntity>();
+    public DbSet<SubscriptionEntity> Subscriptions => Set<SubscriptionEntity>();
+    public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
+    public DbSet<PriceAlertEntity> PriceAlerts => Set<PriceAlertEntity>();
+    public DbSet<AiSignalEntity> AiSignals => Set<AiSignalEntity>();
+    public DbSet<ChatMessageEntity> ChatMessages => Set<ChatMessageEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,12 +29,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PasswordHash).HasColumnName("password_hash").IsRequired();
             entity.Property(e => e.DisplayName).HasColumnName("display_name").IsRequired().HasMaxLength(100);
             entity.Property(e => e.Role).HasColumnName("role").IsRequired().HasMaxLength(20);
-            entity.Property(e => e.Plan).HasColumnName("plan").IsRequired().HasMaxLength(20).HasDefaultValue("Basic");
+            entity.Property(e => e.Plan).HasColumnName("plan").IsRequired().HasMaxLength(20).HasDefaultValue("Free");
             entity.Property(e => e.PhoneNumber).HasColumnName("phone_number").HasMaxLength(20);
             entity.Property(e => e.CountryCode).HasColumnName("country_code").HasMaxLength(5);
             entity.Property(e => e.IsPhoneVerified).HasColumnName("is_phone_verified").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            entity.Property(e => e.TrialEndsAt).HasColumnName("trial_ends_at");
+            entity.Property(e => e.IsTrialUsed).HasColumnName("is_trial_used").HasDefaultValue(false);
+            entity.Property(e => e.PreferredLanguage).HasColumnName("preferred_language").HasMaxLength(10).HasDefaultValue("en");
+            entity.Property(e => e.PreferredCurrency).HasColumnName("preferred_currency").HasMaxLength(10).HasDefaultValue("USD");
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
         });
@@ -97,6 +106,62 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.IpAddress);
             entity.HasIndex(e => e.CountryCode);
+        });
+
+        modelBuilder.Entity<SubscriptionEntity>(entity =>
+        {
+            entity.ToTable("subscriptions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Plan).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.PricePerMonth).HasColumnType("decimal(10,2)");
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasIndex(e => e.UserId);
+        });
+
+        modelBuilder.Entity<NotificationEntity>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.Symbol).HasMaxLength(20);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.IsRead });
+            entity.HasIndex(e => e.CreatedAt);
+        });
+
+        modelBuilder.Entity<PriceAlertEntity>(entity =>
+        {
+            entity.ToTable("price_alerts");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.TargetPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.ThresholdPercent).HasColumnType("decimal(5,2)");
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.IsActive });
+        });
+
+        modelBuilder.Entity<AiSignalEntity>(entity =>
+        {
+            entity.ToTable("ai_signals");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SignalType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Confidence).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.GeneratedAt);
+        });
+
+        modelBuilder.Entity<ChatMessageEntity>(entity =>
+        {
+            entity.ToTable("chat_messages");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(20);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.SessionId });
         });
     }
 }

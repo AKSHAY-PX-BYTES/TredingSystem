@@ -1,0 +1,196 @@
+@page "/notifications"
+@using TradingSystem.Web.Models
+@using TradingSystem.Web.Services
+@inject INotificationApiService NotificationApi
+@inject IJSRuntime JS
+
+<PageTitle>Notifications - Trading System</PageTitle>
+
+<div class="notifications-page">
+    <div class="page-header">
+        <h1>🔔 Notifications</h1>
+        <div class="header-actions">
+            <button class="btn-secondary" @onclick="MarkAllRead" disabled="@(unreadCount == 0)">Mark All Read</button>
+            <button class="btn-primary" @onclick="() => showAlertForm = true">+ Price Alert</button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="notification-tabs">
+        <button class="tab-btn @(activeTab == "all" ? "active" : "")" @onclick='() => activeTab = "all"'>
+            All @if(unreadCount > 0){<span class="badge">@unreadCount</span>}
+        </button>
+        <button class="tab-btn @(activeTab == "alerts" ? "active" : "")" @onclick='() => activeTab = "alerts"'>Price Alerts</button>
+        <button class="tab-btn @(activeTab == "earnings" ? "active" : "")" @onclick='() => activeTab = "earnings"'>Earnings</button>
+        <button class="tab-btn @(activeTab == "dividends" ? "active" : "")" @onclick='() => activeTab = "dividends"'>Dividends</button>
+        <button class="tab-btn @(activeTab == "news" ? "active" : "")" @onclick='() => activeTab = "news"'>Breaking News</button>
+    </div>
+
+    <!-- Notification List -->
+    <div class="notification-list">
+        @if (isLoading)
+        {
+            <div class="loading-state"><div class="loading-spinner"></div> Loading notifications...</div>
+        }
+        else if (!filteredNotifications.Any())
+        {
+            <div class="empty-state">
+                <span class="empty-icon">🔕</span>
+                <p>No notifications yet</p>
+                <p class="empty-sub">Set up price alerts to get started</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var n in filteredNotifications)
+            {
+                <div class="notification-item @(n.IsRead ? "" : "unread")" @onclick="() => MarkRead(n.Id)">
+                    <div class="notification-icon">@GetTypeIcon(n.Type)</div>
+                    <div class="notification-content">
+                        <h4>@n.Title</h4>
+                        <p>@n.Message</p>
+                        <span class="notification-time">@FormatTime(n.CreatedAt)</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(n.Symbol))
+                    {
+                        <span class="notification-symbol">@n.Symbol</span>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Price Alerts Section -->
+    <div class="alerts-section">
+        <h2>⚡ Active Price Alerts</h2>
+        @if (alerts.Any())
+        {
+            <div class="alerts-grid">
+                @foreach (var alert in alerts.Where(a => a.IsActive))
+                {
+                    <div class="alert-card">
+                        <div class="alert-symbol">@alert.Symbol</div>
+                        <div class="alert-details">
+                            <span class="alert-direction">@alert.Direction $@alert.TargetPrice</span>
+                            <span class="alert-threshold">±@alert.ThresholdPercent%</span>
+                        </div>
+                        <button class="btn-icon-danger" @onclick="() => DeleteAlert(alert.Id)">🗑️</button>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No active alerts. Create one to get notified when prices move.</p>
+        }
+    </div>
+
+    <!-- Create Alert Modal -->
+    @if (showAlertForm)
+    {
+        <div class="modal-overlay" @onclick="() => showAlertForm = false">
+            <div class="modal-content" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h3>Create Price Alert</h3>
+                    <button class="modal-close" @onclick="() => showAlertForm = false">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Symbol</label>
+                        <input type="text" @bind="newAlert.Symbol" placeholder="e.g. AAPL" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>Target Price ($)</label>
+                        <input type="number" @bind="newAlert.TargetPrice" step="0.01" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>Threshold (%)</label>
+                        <input type="number" @bind="newAlert.ThresholdPercent" step="0.5" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>Direction</label>
+                        <select @bind="newAlert.Direction" class="form-input">
+                            <option value="Above">Above</option>
+                            <option value="Below">Below</option>
+                            <option value="Both">Both</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary full-width" @onclick="CreateAlert">Create Alert</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationDto> notifications = new();
+    private List<PriceAlertDto> alerts = new();
+    private int unreadCount = 0;
+    private string activeTab = "all";
+    private bool isLoading = true;
+    private bool showAlertForm = false;
+    private CreatePriceAlertRequest newAlert = new();
+
+    private List<NotificationDto> filteredNotifications => activeTab switch
+    {
+        "alerts" => notifications.Where(n => n.Type == "PriceAlert").ToList(),
+        "earnings" => notifications.Where(n => n.Type == "Earnings").ToList(),
+        "dividends" => notifications.Where(n => n.Type == "Dividend").ToList(),
+        "news" => notifications.Where(n => n.Type == "BreakingNews").ToList(),
+        _ => notifications
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) { await LoadData(); StateHasChanged(); }
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        notifications = await NotificationApi.GetNotificationsAsync();
+        unreadCount = await NotificationApi.GetUnreadCountAsync();
+        alerts = await NotificationApi.GetAlertsAsync();
+        isLoading = false;
+    }
+
+    private async Task MarkRead(long id)
+    {
+        await NotificationApi.MarkAsReadAsync(id);
+        var n = notifications.FirstOrDefault(x => x.Id == id);
+        if (n != null) { n.IsRead = true; unreadCount = Math.Max(0, unreadCount - 1); }
+    }
+
+    private async Task MarkAllRead()
+    {
+        await NotificationApi.MarkAllAsReadAsync();
+        notifications.ForEach(n => n.IsRead = true);
+        unreadCount = 0;
+    }
+
+    private async Task CreateAlert()
+    {
+        var result = await NotificationApi.CreateAlertAsync(newAlert);
+        if (result != null) { alerts.Insert(0, result); showAlertForm = false; newAlert = new(); }
+    }
+
+    private async Task DeleteAlert(int id)
+    {
+        await NotificationApi.DeleteAlertAsync(id);
+        alerts.RemoveAll(a => a.Id == id);
+    }
+
+    private static string GetTypeIcon(string type) => type switch
+    {
+        "PriceAlert" => "📈", "Earnings" => "📊", "Dividend" => "💰",
+        "OptionsExpiry" => "📋", "BreakingNews" => "📰", _ => "🔔"
+    };
+
+    private static string FormatTime(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        return dt.ToString("MMM dd, yyyy");
+    }
+}

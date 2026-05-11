@@ -41,5 +41,8 @@ builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
 builder.Services.AddScoped<IActivityApiService, ActivityApiService>();
+builder.Services.AddScoped<ISubscriptionApiService, SubscriptionApiService>();
+builder.Services.AddScoped<INotificationApiService, NotificationApiService>();
+builder.Services.AddScoped<IAiApiService, AiApiService>();
 
 await builder.Build().RunAsync();

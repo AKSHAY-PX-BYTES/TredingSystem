@@ -213,7 +213,19 @@ public class MarketExchangeService : IMarketExchangeService
                 ["BSE"] = GenerateBSEData(),
                 ["US"] = GenerateUSData(),
                 ["GLOBAL"] = GenerateGlobalData(),
-                ["FNO"] = GenerateFNOData()
+                ["FNO"] = GenerateFNOData(),
+                ["LSE"] = GenerateExchangeByTemplate("London Stock Exchange", "LSE", "UK", "🇬🇧", "GBP", "Europe/London"),
+                ["EURONEXT"] = GenerateExchangeByTemplate("Euronext", "EURONEXT", "EU", "🇪🇺", "EUR", "Europe/Paris"),
+                ["DAX"] = GenerateExchangeByTemplate("Deutsche Börse (DAX)", "DAX", "Germany", "🇩🇪", "EUR", "Europe/Berlin"),
+                ["HKEX"] = GenerateExchangeByTemplate("Hong Kong Stock Exchange", "HKEX", "Hong Kong", "🇭🇰", "HKD", "Asia/Hong_Kong"),
+                ["SGX"] = GenerateExchangeByTemplate("Singapore Exchange", "SGX", "Singapore", "🇸🇬", "SGD", "Asia/Singapore"),
+                ["TWSE"] = GenerateExchangeByTemplate("Taiwan Stock Exchange", "TWSE", "Taiwan", "🇹🇼", "TWD", "Asia/Taipei"),
+                ["MCX"] = GenerateExchangeByTemplate("MCX Commodities", "MCX", "India", "🇮🇳", "INR", "Asia/Kolkata"),
+                ["BINANCE"] = GenerateExchangeByTemplate("Binance (Crypto)", "BINANCE", "Global", "₿", "USDT", "UTC"),
+                ["BYBIT"] = GenerateExchangeByTemplate("Bybit (Crypto)", "BYBIT", "Global", "₿", "USDT", "UTC"),
+                ["EGX"] = GenerateExchangeByTemplate("Egyptian Exchange", "EGX", "Egypt", "🇪🇬", "EGP", "Africa/Cairo"),
+                ["NGX"] = GenerateExchangeByTemplate("Nigerian Exchange", "NGX", "Nigeria", "🇳🇬", "NGN", "Africa/Lagos"),
+                ["HOSE"] = GenerateExchangeByTemplate("Ho Chi Minh Stock Exchange", "HOSE", "Vietnam", "🇻🇳", "VND", "Asia/Ho_Chi_Minh")
             };
             _lastGenerated = DateTime.UtcNow;
         }
@@ -907,5 +919,57 @@ public class MarketExchangeService : IMarketExchangeService
 
             return enriched;
         }).ToList();
+    }
+
+    private static ExchangeData GenerateExchangeByTemplate(string name, string code, string country, string flag, string currency, string timezone)
+    {
+        var rng = new Random((int)DateTime.UtcNow.Ticks ^ code.GetHashCode());
+        var sampleStocks = new List<ExchangeStock>();
+        var symbols = code switch
+        {
+            "LSE" => new[] { ("VOD.L", "Vodafone", 98m), ("BP.L", "BP plc", 485m), ("HSBA.L", "HSBC", 632m), ("AZN.L", "AstraZeneca", 10500m), ("SHEL.L", "Shell", 2450m) },
+            "EURONEXT" => new[] { ("ASML.AS", "ASML", 680m), ("MC.PA", "LVMH", 740m), ("OR.PA", "L'Oreal", 420m), ("SAF.PA", "Safran", 165m), ("AI.PA", "Air Liquide", 175m) },
+            "DAX" => new[] { ("SAP.DE", "SAP", 175m), ("SIE.DE", "Siemens", 162m), ("ALV.DE", "Allianz", 248m), ("DTE.DE", "Deutsche Telekom", 22m), ("BAS.DE", "BASF", 45m) },
+            "HKEX" => new[] { ("0700.HK", "Tencent", 360m), ("9988.HK", "Alibaba", 82m), ("1299.HK", "AIA Group", 65m), ("0005.HK", "HSBC HK", 56m), ("2318.HK", "Ping An", 42m) },
+            "SGX" => new[] { ("D05.SI", "DBS Group", 35m), ("O39.SI", "OCBC Bank", 13m), ("U11.SI", "UOB", 30m), ("Z74.SI", "Singtel", 2.5m), ("C6L.SI", "SIA", 6.2m) },
+            "TWSE" => new[] { ("2330.TW", "TSMC", 580m), ("2317.TW", "Hon Hai", 105m), ("2454.TW", "MediaTek", 850m), ("2882.TW", "Cathay FHC", 45m), ("1301.TW", "Formosa", 80m) },
+            "BINANCE" => new[] { ("BTCUSDT", "Bitcoin", 67500m), ("ETHUSDT", "Ethereum", 3420m), ("BNBUSDT", "BNB", 580m), ("SOLUSDT", "Solana", 142m), ("XRPUSDT", "XRP", 0.52m) },
+            "BYBIT" => new[] { ("BTC-PERP", "BTC Perp", 67480m), ("ETH-PERP", "ETH Perp", 3415m), ("SOL-PERP", "SOL Perp", 141m), ("DOGE-PERP", "DOGE Perp", 0.15m), ("AVAX-PERP", "AVAX Perp", 35m) },
+            _ => new[] { ("SYM1", "Stock 1", 100m), ("SYM2", "Stock 2", 50m), ("SYM3", "Stock 3", 75m), ("SYM4", "Stock 4", 200m), ("SYM5", "Stock 5", 120m) }
+        };
+
+        foreach (var (sym, cname, basePrice) in symbols)
+        {
+            var change = (decimal)(rng.NextDouble() * 6 - 3);
+            var price = basePrice * (1 + change / 100);
+            sampleStocks.Add(new ExchangeStock
+            {
+                Symbol = sym,
+                CompanyName = cname,
+                Exchange = code,
+                CurrentPrice = Math.Round(price, 2),
+                PreviousClose = basePrice,
+                Change = Math.Round(price - basePrice, 2),
+                ChangePercent = Math.Round(change, 2),
+                Volume = rng.Next(100000, 50000000),
+                MarketCap = basePrice * rng.Next(100, 5000) * 1000000
+            });
+        }
+
+        return new ExchangeData
+        {
+            ExchangeName = name,
+            ExchangeCode = code,
+            Country = country,
+            Flag = flag,
+            Currency = currency,
+            Timezone = timezone,
+            Status = "Open",
+            IsLive = true,
+            TopGainers = sampleStocks.OrderByDescending(s => s.ChangePercent).Take(3).ToList(),
+            TopLosers = sampleStocks.OrderBy(s => s.ChangePercent).Take(3).ToList(),
+            MostActive = sampleStocks.OrderByDescending(s => s.Volume).Take(3).ToList(),
+            AllStocks = sampleStocks
+        };
     }
 }

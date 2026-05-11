@@ -28,7 +28,10 @@ public class UserInfo
     public string DisplayName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    public string Plan { get; set; } = "Basic";
+    public string Plan { get; set; } = "Free";
+    public DateTime? TrialEndsAt { get; set; }
+    public bool IsTrialExpired { get; set; }
+    public bool HasAccess { get; set; } = true;
 }
 
 public class UserRecord

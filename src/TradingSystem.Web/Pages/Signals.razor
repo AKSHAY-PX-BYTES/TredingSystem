@@ -1,0 +1,117 @@
+@page "/signals"
+@using TradingSystem.Web.Models
+@using TradingSystem.Web.Services
+@inject IAiApiService AiApi
+@inject IJSRuntime JS
+
+<PageTitle>AI Trading Signals - Trading System</PageTitle>
+
+<div class="signals-page">
+    <div class="page-header">
+        <h1>🤖 AI Trading Signals</h1>
+        <p class="page-subtitle">ML-powered signals using RSI, MACD, Volume clustering, Sentiment & more</p>
+    </div>
+
+    <!-- Signal Sources -->
+    <div class="signal-sources">
+        <button class="source-btn @(activeSource == "" ? "active" : "")" @onclick='() => activeSource = ""'>All</button>
+        <button class="source-btn @(activeSource == "RSI_MACD" ? "active" : "")" @onclick='() => activeSource = "RSI_MACD"'>📊 RSI+MACD</button>
+        <button class="source-btn @(activeSource == "Sentiment" ? "active" : "")" @onclick='() => activeSource = "Sentiment"'>💬 Sentiment</button>
+        <button class="source-btn @(activeSource == "Earnings" ? "active" : "")" @onclick='() => activeSource = "Earnings"'>📈 Earnings</button>
+        <button class="source-btn @(activeSource == "Insider" ? "active" : "")" @onclick='() => activeSource = "Insider"'>🕵️ Insider</button>
+        <button class="source-btn @(activeSource == "Correlation" ? "active" : "")" @onclick='() => activeSource = "Correlation"'>🔗 Correlation</button>
+    </div>
+
+    <!-- Generate Signal -->
+    <div class="signal-generate">
+        <input type="text" @bind="symbolInput" placeholder="Enter symbol (e.g. AAPL)" class="form-input" />
+        <button class="btn-primary" @onclick="GenerateSignal" disabled="@isGenerating">
+            @(isGenerating ? "Generating..." : "🤖 Generate Signal")
+        </button>
+    </div>
+
+    <!-- Signals Grid -->
+    <div class="signals-grid">
+        @if (isLoading)
+        {
+            <div class="loading-state"><div class="loading-spinner"></div> Loading signals...</div>
+        }
+        else if (!filteredSignals.Any())
+        {
+            <div class="empty-state">
+                <span class="empty-icon">🤖</span>
+                <p>No signals yet</p>
+                <p class="empty-sub">Generate a signal for any stock symbol above</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var signal in filteredSignals)
+            {
+                <div class="signal-card signal-@signal.SignalType.ToLower()">
+                    <div class="signal-header">
+                        <span class="signal-symbol">@signal.Symbol</span>
+                        <span class="signal-badge signal-badge-@signal.SignalType.ToLower()">@signal.SignalType</span>
+                    </div>
+                    <div class="signal-confidence">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: @signal.Confidence%"></div>
+                        </div>
+                        <span class="confidence-text">@signal.Confidence% confidence</span>
+                    </div>
+                    <div class="signal-source">
+                        <span class="source-tag">@GetSourceIcon(signal.Source) @signal.Source</span>
+                    </div>
+                    <p class="signal-analysis">@signal.Analysis</p>
+                    <div class="signal-footer">
+                        <span class="signal-time">@signal.GeneratedAt.ToString("MMM dd, HH:mm")</span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<AiSignalDto> signals = new();
+    private string activeSource = "";
+    private string symbolInput = "";
+    private bool isLoading = true;
+    private bool isGenerating = false;
+
+    private List<AiSignalDto> filteredSignals => string.IsNullOrEmpty(activeSource)
+        ? signals
+        : signals.Where(s => s.Source == activeSource).ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) { await LoadSignals(); StateHasChanged(); }
+    }
+
+    private async Task LoadSignals()
+    {
+        isLoading = true;
+        signals = await AiApi.GetSignalsAsync();
+        isLoading = false;
+    }
+
+    private async Task GenerateSignal()
+    {
+        if (string.IsNullOrWhiteSpace(symbolInput)) return;
+        isGenerating = true;
+        StateHasChanged();
+
+        var signal = await AiApi.GenerateSignalAsync(symbolInput.Trim().ToUpper());
+        if (signal != null) signals.Insert(0, signal);
+
+        isGenerating = false;
+        symbolInput = "";
+        StateHasChanged();
+    }
+
+    private static string GetSourceIcon(string source) => source switch
+    {
+        "RSI_MACD" => "📊", "Sentiment" => "💬", "Earnings" => "📈",
+        "Insider" => "🕵️", "Correlation" => "🔗", _ => "🤖"
+    };
+}

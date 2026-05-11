@@ -1,0 +1,65 @@
+@page "/trial-expired"
+@inject NavigationManager Navigation
+
+<PageTitle>Trial Expired - Trading System</PageTitle>
+
+<div class="trial-expired-page">
+    <div class="expired-card">
+        <div class="expired-icon">⏰</div>
+        <h1>Your Free Trial Has Expired</h1>
+        <p>Your 7-day free access has ended. To continue using AI Trader's powerful tools, please upgrade to a paid plan.</p>
+
+        <div class="expired-plans-preview">
+            <div class="mini-plan">
+                <h3>⚡ Pro — $9.99/mo</h3>
+                <p>Live quotes, unlimited watchlists, advanced charting</p>
+            </div>
+            <div class="mini-plan recommended">
+                <h3>💎 Premium — $19.99/mo</h3>
+                <p>AI signals, backtesting, options analysis, API access</p>
+            </div>
+            <div class="mini-plan">
+                <h3>🏢 Enterprise — $499/mo</h3>
+                <p>Dedicated API, white-label, unlimited everything</p>
+            </div>
+        </div>
+
+        <button class="btn-primary" @onclick="GoToPlans">View Plans & Upgrade</button>
+    </div>
+</div>
+
+<style>
+    .trial-expired-page {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 120px);
+        padding: 24px;
+    }
+    .expired-card {
+        text-align: center;
+        max-width: 600px;
+        padding: 48px 32px;
+        background: var(--bg-card);
+        border-radius: var(--radius);
+        border: 1px solid var(--border-color);
+    }
+    .expired-icon { font-size: 4rem; margin-bottom: 16px; }
+    .expired-card h1 { color: var(--text-primary); margin-bottom: 12px; font-size: 1.5rem; }
+    .expired-card > p { color: var(--text-secondary); margin-bottom: 32px; line-height: 1.6; }
+    .expired-plans-preview { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .mini-plan {
+        padding: 16px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-color);
+        text-align: left;
+    }
+    .mini-plan.recommended { border-color: var(--accent-purple); background: rgba(188,140,255,0.05); }
+    .mini-plan h3 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 4px; }
+    .mini-plan p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+</style>
+
+@code {
+    private void GoToPlans() => Navigation.NavigateTo("/plans");
+}

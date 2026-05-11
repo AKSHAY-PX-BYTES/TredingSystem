@@ -200,7 +200,10 @@ public class UserInfo
     public string DisplayName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? Email { get; set; }
-    public string Plan { get; set; } = "Basic";
+    public string Plan { get; set; } = "Free";
+    public DateTime? TrialEndsAt { get; set; }
+    public bool IsTrialExpired { get; set; }
+    public bool HasAccess { get; set; } = true;
 }
 
 public class RegisterRequest
@@ -354,4 +357,106 @@ public class FnoContract
     public decimal LotSize { get; set; }
     public string Signal { get; set; } = string.Empty;
     public decimal ImpliedVolatility { get; set; }
+}
+
+// Subscription Models
+public class SubscriptionInfo
+{
+    public string Plan { get; set; } = "Free";
+    public decimal PricePerMonth { get; set; }
+    public DateTime? TrialEndsAt { get; set; }
+    public bool IsTrialActive { get; set; }
+    public bool IsTrialExpired { get; set; }
+    public bool HasAccess { get; set; }
+    public int DaysRemaining { get; set; }
+    public List<string> Features { get; set; } = new();
+}
+
+public class PlanTier
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal MonthlyPrice { get; set; }
+    public decimal AnnualPrice { get; set; }
+    public List<string> Features { get; set; } = new();
+    public bool IsPopular { get; set; }
+}
+
+public class UpgradeRequest
+{
+    public string Plan { get; set; } = string.Empty;
+    public string? PaymentMethod { get; set; }
+}
+
+public class UpgradeResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+    public SubscriptionInfo? Subscription { get; set; }
+}
+
+// Notification Models
+public class NotificationDto
+{
+    public long Id { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string? Symbol { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class PriceAlertDto
+{
+    public int Id { get; set; }
+    public string Symbol { get; set; } = string.Empty;
+    public decimal TargetPrice { get; set; }
+    public decimal ThresholdPercent { get; set; }
+    public string Direction { get; set; } = string.Empty;
+    public bool IsTriggered { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreatePriceAlertRequest
+{
+    public string Symbol { get; set; } = string.Empty;
+    public decimal TargetPrice { get; set; }
+    public decimal ThresholdPercent { get; set; } = 5.0m;
+    public string Direction { get; set; } = "Above";
+}
+
+// AI Models
+public class AiSignalDto
+{
+    public long Id { get; set; }
+    public string Symbol { get; set; } = string.Empty;
+    public string SignalType { get; set; } = string.Empty;
+    public decimal Confidence { get; set; }
+    public string Source { get; set; } = string.Empty;
+    public string Analysis { get; set; } = string.Empty;
+    public DateTime GeneratedAt { get; set; }
+}
+
+public class ChatRequest
+{
+    public string Message { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
+}
+
+public class ChatResponse
+{
+    public string Response { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
+    public List<string>? Suggestions { get; set; }
+    public List<AiSignalDto>? RelatedSignals { get; set; }
+}
+
+public class LocaleInfo
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string NativeName { get; set; } = string.Empty;
+    public string Direction { get; set; } = "ltr";
 }
