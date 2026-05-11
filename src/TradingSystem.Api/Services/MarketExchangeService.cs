@@ -940,17 +940,15 @@ public class MarketExchangeService : IMarketExchangeService
 
         foreach (var (sym, cname, basePrice) in symbols)
         {
-            var change = (decimal)(rng.NextDouble() * 6 - 3);
-            var price = basePrice * (1 + change / 100);
+            var changePct = (decimal)(rng.NextDouble() * 6 - 3);
+            var price = basePrice * (1 + changePct / 100);
             sampleStocks.Add(new ExchangeStock
             {
                 Symbol = sym,
                 CompanyName = cname,
-                Exchange = code,
+                Exchange = Exchange.NYSE, // default for non-enum exchanges
                 CurrentPrice = Math.Round(price, 2),
                 PreviousClose = basePrice,
-                Change = Math.Round(price - basePrice, 2),
-                ChangePercent = Math.Round(change, 2),
                 Volume = rng.Next(100000, 50000000),
                 MarketCap = basePrice * rng.Next(100, 5000) * 1000000
             });

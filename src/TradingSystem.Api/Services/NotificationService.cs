@@ -177,10 +177,9 @@ public class NotificationService : INotificationService
         return true;
     }
 
-    public async Task CheckAndTriggerPriceAlertsAsync()
+    public Task CheckAndTriggerPriceAlertsAsync()
     {
-        // This would be called by a background service to check current prices
-        // against active alerts and trigger notifications
         _logger.LogDebug("Price alert check cycle");
+        return Task.CompletedTask;
     }
 }
