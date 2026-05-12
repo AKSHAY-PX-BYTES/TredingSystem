@@ -6,7 +6,7 @@ services:
     name: trading-system-angular
     env: static
     buildCommand: cd src/TradingSystem.Angular && npm ci && npm run build -- --configuration=production
-    staticPublishPath: src/TradingSystem.Angular/dist/trading-system-angular/browser
+    staticPublishPath: src/TradingSystem.Angular/dist/trading-system/browser
     routes:
       - type: rewrite
         source: /api/*

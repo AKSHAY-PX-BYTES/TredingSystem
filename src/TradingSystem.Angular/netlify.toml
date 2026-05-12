@@ -1,7 +1,6 @@
 [build]
-  base = "src/TradingSystem.Angular"
   command = "npm ci && npm run build -- --configuration=production"
-  publish = "dist/trading-system-angular/browser"
+  publish = "dist/trading-system/browser"
 
 [[redirects]]
   from = "/api/*"
