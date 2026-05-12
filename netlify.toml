@@ -7,8 +7,68 @@
   NODE_VERSION = "20"
 
 [[redirects]]
-  from = "/api/*"
-  to = "https://tredingsystem-api.onrender.com/api/:splat"
+  from = "/auth/*"
+  to = "https://tredingsystem-api.onrender.com/auth/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/market/*"
+  to = "https://tredingsystem-api.onrender.com/market/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/predict/*"
+  to = "https://tredingsystem-api.onrender.com/predict/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/strategy/*"
+  to = "https://tredingsystem-api.onrender.com/strategy/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/news/*"
+  to = "https://tredingsystem-api.onrender.com/news/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/backtest/*"
+  to = "https://tredingsystem-api.onrender.com/backtest/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/exchange/*"
+  to = "https://tredingsystem-api.onrender.com/exchange/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/currency/*"
+  to = "https://tredingsystem-api.onrender.com/currency/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/subscription/*"
+  to = "https://tredingsystem-api.onrender.com/subscription/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/notifications/*"
+  to = "https://tredingsystem-api.onrender.com/notifications/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/ai/*"
+  to = "https://tredingsystem-api.onrender.com/ai/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "https://tredingsystem-api.onrender.com/admin/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/activity/*"
+  to = "https://tredingsystem-api.onrender.com/activity/:splat"
   status = 200
 
 [[redirects]]
