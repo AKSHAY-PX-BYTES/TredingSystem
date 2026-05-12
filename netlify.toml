@@ -1,10 +1,15 @@
+# ============================================
+# Reads FRONTEND from frontend.config automatically
+# Change frontend.config to switch: angular / blazor
+# ============================================
+
 [build]
-  base = "src/TradingSystem.Angular"
-  command = "npm ci && npm run build -- --configuration=production"
-  publish = "dist/trading-system/browser"
+  command = "chmod +x build.sh && ./build.sh"
+  publish = "build_output"
 
 [build.environment]
   NODE_VERSION = "20"
+  DOTNET_VERSION = "8.0"
 
 [[redirects]]
   from = "/auth/*"

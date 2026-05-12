@@ -10,3 +10,4 @@ obj/
 node_modules/
 wwwroot/_framework/
 appsettings.Development.json
+build_output/
