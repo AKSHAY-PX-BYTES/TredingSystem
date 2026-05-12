@@ -1,0 +1,129 @@
+<div class="explore-search-section">
+  <h1 class="explore-title">Explore Stocks</h1>
+  <p class="explore-subtitle">AI-powered analysis with live market data from Yahoo Finance</p>
+  <div class="explore-search-bar">
+    <span class="search-icon-lg">🔍</span>
+    <input class="explore-input" [(ngModel)]="symbolInput" (keydown)="handleKeyDown($event)"
+           placeholder="Search stocks e.g. AAPL, MSFT, RELIANCE" [disabled]="!exploreEnabled" />
+    <button class="explore-btn" (click)="loadData()" [disabled]="isLoading || !exploreEnabled">
+      <span *ngIf="isLoading" class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span>
+      <span *ngIf="!isLoading && !exploreEnabled">🚫 Disabled</span>
+      <span *ngIf="!isLoading && exploreEnabled">Analyze</span>
+    </button>
+  </div>
+  <div class="explore-chips">
+    <button *ngFor="let s of popularSymbols" class="explore-chip" [class.explore-chip-active]="s === currentSymbol" (click)="selectSymbol(s)">{{s}}</button>
+  </div>
+</div>
+
+<div class="groww-error fade-in" *ngIf="error">⚠️ {{error}}</div>
+
+<ng-container *ngIf="quote">
+  <!-- Stock Header Card -->
+  <div class="stock-hero fade-in">
+    <div class="stock-hero-left">
+      <div class="stock-avatar">
+        <img [src]="'https://assets.parqet.com/logos/symbol/' + getCleanSymbol(currentSymbol)"
+             [alt]="currentSymbol" class="stock-logo-img"
+             (error)="$any($event.target).style.display='none'" />
+        <span class="stock-initial">{{currentSymbol[0]}}</span>
+      </div>
+      <div>
+        <h2 class="stock-name">{{quote.companyName}}</h2>
+        <span class="stock-symbol-tag">{{currentSymbol}}</span>
+        <span class="stock-live-badge"><span class="live-dot"></span> LIVE</span>
+      </div>
+    </div>
+    <div class="stock-hero-right">
+      <div class="stock-hero-actions">
+        <button class="watchlist-btn" [class.in-watchlist]="isInWatchlist" (click)="toggleWatchlist()" [title]="isInWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'">
+          {{isInWatchlist ? '❤️' : '🤍'}}
+        </button>
+        <a [routerLink]="'/charts/' + currentSymbol" class="chart-link-btn" title="View Charts">📈</a>
+      </div>
+      <div class="stock-hero-price">{{currencyService.formatPrice(quote.currentPrice, quote.priceCurrency)}}</div>
+      <div class="stock-hero-change" [class.chg-up]="quote.changePercent >= 0" [class.chg-down]="quote.changePercent < 0">
+        {{quote.changePercent >= 0 ? '+' : ''}}{{currencyService.formatPrice(quote.change, quote.priceCurrency)}}
+        ({{quote.changePercent >= 0 ? '+' : ''}}{{quote.changePercent.toFixed(2)}}%)
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Metrics -->
+  <div class="groww-metrics fade-in">
+    <div class="metric-item"><span class="metric-label">Open</span><span class="metric-value">{{currencyService.formatPrice(quote.previousClose, quote.priceCurrency)}}</span></div>
+    <div class="metric-divider"></div>
+    <div class="metric-item"><span class="metric-label">Day High</span><span class="metric-value val-up">{{currencyService.formatPrice(quote.dayHigh, quote.priceCurrency)}}</span></div>
+    <div class="metric-divider"></div>
+    <div class="metric-item"><span class="metric-label">Day Low</span><span class="metric-value val-down">{{currencyService.formatPrice(quote.dayLow, quote.priceCurrency)}}</span></div>
+    <div class="metric-divider"></div>
+    <div class="metric-item"><span class="metric-label">Volume</span><span class="metric-value">{{formatVolume(quote.volume)}}</span></div>
+    <div class="metric-divider"></div>
+    <div class="metric-item"><span class="metric-label">Prev Close</span><span class="metric-value">{{currencyService.formatPrice(quote.previousClose, quote.priceCurrency)}}</span></div>
+    <div class="metric-divider" *ngIf="strategy"></div>
+    <div class="metric-item" *ngIf="strategy"><span class="metric-label">AI Signal</span><span class="metric-signal" [class]="getSignalClass(strategy.signal)">{{strategy.signal}}</span></div>
+  </div>
+
+  <!-- Chart + Strategy Grid -->
+  <div class="groww-grid-2 fade-in">
+    <div class="groww-card">
+      <div class="groww-card-header"><h3>Performance</h3><span class="card-tag">30 Days</span></div>
+      <div class="chart-container tall"><canvas id="priceChart"></canvas></div>
+    </div>
+    <div class="groww-card">
+      <div class="groww-card-header">
+        <h3>AI Strategy</h3>
+        <span *ngIf="strategy" class="signal-pill" [class]="getSignalClass(strategy.signal)">{{strategy.signal}}</span>
+      </div>
+      <div *ngIf="strategy" class="strategy-body">
+        <div class="confidence-section">
+          <div class="confidence-row"><span>Confidence</span><span class="confidence-pct">{{(strategy.confidence * 100).toFixed(0)}}%</span></div>
+          <div class="groww-progress">
+            <div class="groww-progress-fill" [class]="getConfidenceClass(strategy.confidence)" [style.width.%]="strategy.confidence * 100"></div>
+          </div>
+        </div>
+        <p class="strategy-explanation">{{strategy.explanation}}</p>
+        <div class="target-row" *ngIf="strategy.targetPrice && strategy.stopLoss">
+          <div class="target-item"><span class="target-label">Target</span><span class="target-val target-up">{{currencyService.formatPrice(strategy.targetPrice!, quote.priceCurrency)}}</span></div>
+          <div class="target-item"><span class="target-label">Stop Loss</span><span class="target-val target-down">{{currencyService.formatPrice(strategy.stopLoss!, quote.priceCurrency)}}</span></div>
+        </div>
+      </div>
+      <div *ngIf="!strategy" class="loading-container"><div class="loading-spinner"></div><span>Analyzing...</span></div>
+    </div>
+  </div>
+
+  <!-- Indicators & Analysis -->
+  <div class="groww-grid-2 fade-in" *ngIf="strategy?.indicators">
+    <div class="groww-card">
+      <div class="groww-card-header"><h3>Technical Indicators</h3></div>
+      <div class="indicator-grid">
+        <div class="ind-row"><span class="ind-name">RSI (14)</span><span class="ind-val">{{strategy!.indicators!.rsi.toFixed(1)}}</span>
+          <span class="ind-signal" [class.ind-bullish]="strategy!.indicators!.rsi < 30" [class.ind-bearish]="strategy!.indicators!.rsi > 70" [class.ind-neutral]="strategy!.indicators!.rsi >= 30 && strategy!.indicators!.rsi <= 70">
+            {{strategy!.indicators!.rsi < 30 ? 'Oversold' : strategy!.indicators!.rsi > 70 ? 'Overbought' : 'Neutral'}}
+          </span>
+        </div>
+        <div class="ind-row"><span class="ind-name">SMA 20</span><span class="ind-val">{{currencyService.formatPrice(strategy!.indicators!.sma20)}}</span>
+          <span class="ind-signal" [class.ind-bullish]="strategy!.indicators!.currentPrice > strategy!.indicators!.sma20" [class.ind-bearish]="strategy!.indicators!.currentPrice <= strategy!.indicators!.sma20">
+            {{strategy!.indicators!.currentPrice > strategy!.indicators!.sma20 ? 'Above ▲' : 'Below ▼'}}
+          </span>
+        </div>
+        <div class="ind-row"><span class="ind-name">MACD</span><span class="ind-val">{{strategy!.indicators!.macd.toFixed(2)}}</span>
+          <span class="ind-signal" [class.ind-bullish]="strategy!.indicators!.macd > 0" [class.ind-bearish]="strategy!.indicators!.macd <= 0">
+            {{strategy!.indicators!.macd > 0 ? 'Bullish ▲' : 'Bearish ▼'}}
+          </span>
+        </div>
+        <div class="ind-row"><span class="ind-name">Trend</span><span class="ind-val">{{strategy!.indicators!.trend}}</span>
+          <span class="ind-signal" [class]="getTrendClass(strategy!.indicators!.trend)">{{strategy!.indicators!.trend}}</span>
+        </div>
+      </div>
+    </div>
+    <div class="groww-card">
+      <div class="groww-card-header"><h3>Analysis Breakdown</h3></div>
+      <div class="reasons-list" *ngIf="strategy?.reasons?.length">
+        <div class="reason-item" *ngFor="let reason of strategy!.reasons">
+          <span class="reason-dot"></span><span>{{reason}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-container>

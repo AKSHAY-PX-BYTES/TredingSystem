@@ -1,0 +1,44 @@
+<div class="markets-page">
+  <h1>📊 Global Markets</h1>
+  <div class="exchange-tabs">
+    <button *ngFor="let ex of exchanges" class="exchange-tab" [class.active]="ex === selectedExchange" (click)="selectExchange(ex)">{{ex}}</button>
+  </div>
+  <div *ngIf="isLoading" class="loading-container"><div class="loading-spinner"></div><span>Loading {{selectedExchange}}...</span></div>
+  <ng-container *ngIf="!isLoading && exchangeData">
+    <div class="exchange-header">
+      <h2>{{exchangeData.flag}} {{exchangeData.exchangeName}}</h2>
+      <span class="exchange-status" [class.live]="exchangeData.isLive">{{exchangeData.status}}</span>
+    </div>
+    <div class="tab-bar">
+      <button [class.active]="activeTab === 'overview'" (click)="activeTab = 'overview'">Overview</button>
+      <button [class.active]="activeTab === 'gainers'" (click)="activeTab = 'gainers'">Top Gainers</button>
+      <button [class.active]="activeTab === 'losers'" (click)="activeTab = 'losers'">Top Losers</button>
+      <button [class.active]="activeTab === 'active'" (click)="activeTab = 'active'">Most Active</button>
+    </div>
+    <!-- Indices -->
+    <div *ngIf="activeTab === 'overview'" class="indices-grid">
+      <div *ngFor="let idx of exchangeData.indices" class="index-card">
+        <div class="index-name">{{idx.name}}</div>
+        <div class="index-value">{{idx.currentValue.toFixed(2)}}</div>
+        <div class="index-change" [class.chg-up]="idx.changePercent >= 0" [class.chg-down]="idx.changePercent < 0">
+          {{idx.changePercent >= 0 ? '+' : ''}}{{idx.changePercent.toFixed(2)}}%
+        </div>
+      </div>
+    </div>
+    <!-- Gainers/Losers/Active tables -->
+    <div *ngIf="activeTab !== 'overview'" class="stock-table">
+      <table>
+        <thead><tr><th>Symbol</th><th>Company</th><th>Price</th><th>Change %</th><th>Volume</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let s of (activeTab === 'gainers' ? exchangeData.topGainers : activeTab === 'losers' ? exchangeData.topLosers : exchangeData.mostActive)">
+            <td><strong>{{s.symbol}}</strong></td>
+            <td>{{s.companyName}}</td>
+            <td>{{currencyService.formatPrice(s.currentPrice, exchangeData.currency)}}</td>
+            <td [class.chg-up]="s.changePercent >= 0" [class.chg-down]="s.changePercent < 0">{{s.changePercent >= 0 ? '+' : ''}}{{s.changePercent.toFixed(2)}}%</td>
+            <td>{{s.volume | number}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+</div>

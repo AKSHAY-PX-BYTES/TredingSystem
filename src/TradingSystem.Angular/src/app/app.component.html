@@ -1,0 +1,125 @@
+<div class="groww-app" [attr.data-theme]="themeService.currentTheme">
+  <!-- Top Navbar (only show when logged in) -->
+  <header class="groww-navbar" *ngIf="showLayout">
+    <div class="navbar-inner">
+      <div class="navbar-left">
+        <a class="navbar-brand" routerLink="/">
+          <span class="brand-icon">📈</span>
+          <span class="brand-text">AI Trader</span>
+        </a>
+      </div>
+      <nav class="navbar-center">
+        <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Explore</a>
+        <a class="nav-link" routerLink="/markets" routerLinkActive="active" *ngIf="isFeatureVisible('markets')">Markets</a>
+        <a class="nav-link" routerLink="/watchlist" routerLinkActive="active" *ngIf="isFeatureVisible('watchlist')">Watchlist</a>
+        <a class="nav-link" routerLink="/charts" routerLinkActive="active" *ngIf="isFeatureVisible('charts')">Charts</a>
+        <a class="nav-link" routerLink="/compare" routerLinkActive="active" *ngIf="isFeatureVisible('compare')">Compare</a>
+        <a class="nav-link" routerLink="/news" routerLinkActive="active" *ngIf="isFeatureVisible('news')">News</a>
+        <a class="nav-link" routerLink="/backtest" routerLinkActive="active" *ngIf="isFeatureVisible('backtest')">Backtest</a>
+        <a class="nav-link" routerLink="/plans" routerLinkActive="active">Plans</a>
+        <a class="nav-link" routerLink="/notifications" routerLinkActive="active" *ngIf="isFeatureVisible('notifications')">
+          🔔 <span class="nav-badge" *ngIf="unreadNotifications > 0">{{unreadNotifications}}</span>
+        </a>
+        <a class="nav-link" routerLink="/signals" routerLinkActive="active" *ngIf="isFeatureVisible('ai_signals')">Signals</a>
+        <a class="nav-link" routerLink="/chat" routerLinkActive="active" *ngIf="isFeatureVisible('ai_chat')">AI Chat</a>
+        <a class="nav-link admin-nav-link" routerLink="/admin" routerLinkActive="active" *ngIf="isAdmin">⚙️ Admin</a>
+      </nav>
+      <div class="navbar-right">
+        <button class="theme-toggle" (click)="toggleTheme()" title="Toggle Theme">
+          {{themeService.isDarkMode ? '☀️' : '🌙'}}
+        </button>
+        <select class="currency-pill" [value]="currencyService.currentCode" (change)="onCurrencyChange($event)" *ngIf="isFeatureVisible('currency_change')">
+          <option *ngFor="let c of currencyService.availableCurrencies" [value]="c.code">{{c.symbol}} {{c.code}}</option>
+        </select>
+        <ng-container *ngIf="user">
+          <div class="user-pill">
+            <span class="user-avatar-sm">{{user.username[0] | uppercase}}</span>
+            <span class="user-name-sm">{{user.username}}</span>
+            <span class="plan-badge plan-badge-{{userPlan | lowercase}}">{{getPlanBadge(userPlan)}}</span>
+          </div>
+          <a class="nav-link plan-info-link" routerLink="/plans" title="View Plans">🏷️</a>
+          <button class="change-pwd-pill" (click)="showChangePassword = true" title="Change Password">🔑</button>
+          <button class="logout-pill" (click)="logout()" title="Sign Out">Sign Out</button>
+        </ng-container>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main [class]="showLayout ? 'groww-main' : ''">
+    <router-outlet></router-outlet>
+  </main>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-bottom-nav" *ngIf="showLayout">
+    <a class="mobile-nav-item" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">
+      <span>🏠</span><span>Explore</span>
+    </a>
+    <a class="mobile-nav-item" routerLink="/markets" routerLinkActive="active" *ngIf="isFeatureVisible('markets')">
+      <span>📊</span><span>Markets</span>
+    </a>
+    <a class="mobile-nav-item" routerLink="/watchlist" routerLinkActive="active" *ngIf="isFeatureVisible('watchlist')">
+      <span>⭐</span><span>Watchlist</span>
+    </a>
+    <a class="mobile-nav-item" routerLink="/charts" routerLinkActive="active" *ngIf="isFeatureVisible('charts')">
+      <span>📈</span><span>Charts</span>
+    </a>
+    <a class="mobile-nav-item" routerLink="/compare" routerLinkActive="active" *ngIf="isFeatureVisible('compare')">
+      <span>⚖️</span><span>Compare</span>
+    </a>
+  </nav>
+
+  <!-- Change Password Modal -->
+  <div class="modal-overlay" *ngIf="showChangePassword" (click)="showChangePassword = false">
+    <div class="modal-content change-pwd-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🔑 Change Password</h3>
+        <button class="modal-close" (click)="showChangePassword = false">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="pwd-success" *ngIf="pwdSuccessMessage">✅ {{pwdSuccessMessage}}</div>
+        <div class="pwd-error" *ngIf="pwdErrorMessage">❌ {{pwdErrorMessage}}</div>
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" [(ngModel)]="currentPassword" placeholder="Enter current password" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" [(ngModel)]="newPassword" placeholder="Enter new password" class="form-input" />
+          <div class="pwd-policy" *ngIf="newPassword">
+            <div class="pwd-policy-title">Password must contain:</div>
+            <div class="pwd-rule" [class.pass]="cpHasMinLength" [class.fail]="!cpHasMinLength">
+              <span class="pwd-icon">{{cpHasMinLength ? '✅' : '❌'}}</span> At least 8 characters
+            </div>
+            <div class="pwd-rule" [class.pass]="cpHasLowercase" [class.fail]="!cpHasLowercase">
+              <span class="pwd-icon">{{cpHasLowercase ? '✅' : '❌'}}</span> Lower case letters (a-z)
+            </div>
+            <div class="pwd-rule" [class.pass]="cpHasUppercase" [class.fail]="!cpHasUppercase">
+              <span class="pwd-icon">{{cpHasUppercase ? '✅' : '❌'}}</span> Upper case letters (A-Z)
+            </div>
+            <div class="pwd-rule" [class.pass]="cpHasDigit" [class.fail]="!cpHasDigit">
+              <span class="pwd-icon">{{cpHasDigit ? '✅' : '❌'}}</span> Numbers (0-9)
+            </div>
+            <div class="pwd-rule" [class.pass]="cpHasSpecial" [class.fail]="!cpHasSpecial">
+              <span class="pwd-icon">{{cpHasSpecial ? '✅' : '❌'}}</span> Special characters
+            </div>
+            <div class="pwd-rule" [class.pass]="cpNoRepeatingChars" [class.fail]="!cpNoRepeatingChars">
+              <span class="pwd-icon">{{cpNoRepeatingChars ? '✅' : '❌'}}</span> No more than 2 identical characters in a row
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" [(ngModel)]="confirmNewPassword" placeholder="Confirm new password" class="form-input" />
+          <div *ngIf="confirmNewPassword" [class.field-success]="newPassword === confirmNewPassword" [class.field-error]="newPassword !== confirmNewPassword" class="field-msg">
+            {{newPassword === confirmNewPassword ? '✅ Passwords match' : '❌ Passwords do not match'}}
+          </div>
+        </div>
+        <button class="pwd-submit-btn" (click)="handleChangePassword()" [disabled]="!cpCanSubmit">
+          <span *ngIf="isChangingPassword" class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span>
+          <span *ngIf="!isChangingPassword">Change Password</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

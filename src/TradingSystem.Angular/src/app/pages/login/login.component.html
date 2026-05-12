@@ -1,0 +1,67 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo">
+        <span class="logo-icon">📈</span>
+        <h1>Trading System</h1>
+        <p class="login-subtitle">AI-Based Strategy Predictor</p>
+      </div>
+    </div>
+    <div class="login-body">
+      <div class="login-warning" *ngIf="showTimeoutMessage">
+        <span class="warning-icon">⏰</span>
+        <span>You were logged out due to inactivity</span>
+      </div>
+      <div class="login-warning" *ngIf="showExpiredMessage">
+        <span class="warning-icon">🔑</span>
+        <span>Your session token expired. Please login again.</span>
+      </div>
+      <div class="login-error" *ngIf="errorMessage">
+        <span class="error-icon">⚠️</span>
+        <span>{{errorMessage}}</span>
+      </div>
+      <form (ngSubmit)="handleLogin()" class="login-form">
+        <div class="form-group">
+          <label for="username"><span class="field-icon">👤</span> Username</label>
+          <input id="username" [(ngModel)]="loginModel.username" name="username" class="form-input" placeholder="Enter your username" [disabled]="isLoading" />
+        </div>
+        <div class="form-group">
+          <label for="password"><span class="field-icon">🔒</span> Password</label>
+          <div class="password-wrapper">
+            <input id="password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="loginModel.password" name="password" class="form-input" placeholder="Enter your password" [disabled]="isLoading" />
+            <button type="button" class="toggle-password" (click)="togglePassword()" tabindex="-1">
+              {{showPassword ? '🙈' : '👁️'}}
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="login-btn" [disabled]="isLoading">
+          <span *ngIf="isLoading" class="spinner"></span>
+          <span *ngIf="isLoading">Signing in...</span>
+          <span *ngIf="!isLoading">🔐 Sign In</span>
+        </button>
+      </form>
+      <div class="register-link" *ngIf="signupEnabled" style="text-align: center; margin-top: 1.5rem;">
+        <span style="color: var(--text-muted);">Don't have an account?</span>
+        <a routerLink="/register" style="color: var(--groww-green); font-weight: 600; margin-left: 0.5rem;">Sign Up</a>
+      </div>
+    </div>
+    <div class="login-footer">
+      <p>© 2026 Trading System • Powered by AI & ML.NET</p>
+      <div class="developer-info" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          <strong style="color: var(--groww-green);">Designed & Developed by Akshay Patil</strong>
+        </p>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem;">
+          <a href="https://wa.me/919850706564" target="_blank" rel="noopener" style="color: #25D366; text-decoration: none;">📱 WhatsApp: +91 9850706564</a>
+          <a href="mailto:apakshay582@gmail.com" style="color: var(--groww-green); text-decoration: none;">✉️ apakshay582&#64;gmail.com</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="login-features">
+    <div class="feature-item"><span class="feature-icon">🤖</span><h3>AI Predictions</h3><p>ML-powered stock price predictions with confidence scoring</p></div>
+    <div class="feature-item"><span class="feature-icon">📊</span><h3>Technical Analysis</h3><p>Real-time indicators: SMA, EMA, RSI, MACD, Bollinger Bands</p></div>
+    <div class="feature-item"><span class="feature-icon">📰</span><h3>Sentiment Analysis</h3><p>News-based sentiment scoring for informed trading decisions</p></div>
+    <div class="feature-item"><span class="feature-icon">🔄</span><h3>Backtesting</h3><p>Validate strategies against historical data with equity curves</p></div>
+  </div>
+</div>

@@ -1,0 +1,64 @@
+{
+  "/api": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "pathRewrite": { "^/api": "" }
+  },
+  "/auth": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/market": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/predict": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/strategy": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/news": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/backtest": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/exchange": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/currency": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/subscription": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/notifications": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/ai": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/admin": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/localization": {
+    "target": "http://localhost:5000",
+    "secure": false
+  },
+  "/hubs": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "ws": true
+  }
+}
