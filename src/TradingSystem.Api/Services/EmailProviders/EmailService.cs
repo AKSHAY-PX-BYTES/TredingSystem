@@ -316,6 +316,7 @@ public class ResendEmailProvider : IEmailProvider
 public interface IEmailService
 {
     Task SendOtpEmailAsync(string toEmail, string code);
+    Task SendEmailAsync(string toEmail, string subject, string htmlBody);
 }
 
 public class EmailService : IEmailService
@@ -350,6 +351,11 @@ public class EmailService : IEmailService
         var subject = "🔐 Your OTP Verification Code - TredingSystem";
         var htmlBody = GenerateOtpEmailBody(code);
 
+        await _provider.SendEmailAsync(toEmail, subject, htmlBody);
+    }
+
+    public async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
+    {
         await _provider.SendEmailAsync(toEmail, subject, htmlBody);
     }
 

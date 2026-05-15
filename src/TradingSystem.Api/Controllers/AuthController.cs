@@ -409,7 +409,7 @@ public class AuthController : ControllerBase
             // Send the email
             try
             {
-                var emailService = HttpContext.RequestServices.GetRequiredService<Services.EmailProviders.IEmailProvider>();
+                var emailService = HttpContext.RequestServices.GetRequiredService<Services.EmailProviders.IEmailService>();
                 var htmlBody = $@"
                     <div style='font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem; background: #161b22; border-radius: 12px; border: 1px solid #30363d;'>
                         <h2 style='color: #e6edf3; text-align: center;'>🔐 Password Reset</h2>
