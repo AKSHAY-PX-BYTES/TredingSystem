@@ -333,6 +333,17 @@ using (var scope = app.Services.CreateScope())
                 created_at TIMESTAMP NOT NULL DEFAULT NOW()
             )");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_chat_messages_user_session ON chat_messages(user_id, session_id)");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(100) NOT NULL,
+                token VARCHAR(200) NOT NULL UNIQUE,
+                expires_at TIMESTAMP NOT NULL,
+                is_used BOOLEAN NOT NULL DEFAULT false,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_email ON password_reset_tokens(email)");
         
         logger.LogInformation("Table check done.");
 

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradingSystem.Api.Models;
 using TradingSystem.Api.Services;
+using TradingSystem.Api.Services.EmailProviders;
 
 namespace TradingSystem.Api.Controllers;
 
@@ -364,6 +365,111 @@ public class AuthController : ControllerBase
             EventType = result.Success ? "PhoneVerified" : "PhoneVerifyFailed",
             Details = result.Success ? "Phone verified" : result.Error,
             IsSuccess = result.Success
+        });
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Request a password reset link via email
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ForgotPasswordResponse), 200)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        _logger.LogInformation("POST /auth/forgot-password for email: {Email}", request.Email);
+
+        if (!ModelState.IsValid)
+            return BadRequest(new ForgotPasswordResponse { Success = false, Error = "Please provide a valid email address." });
+
+        // Check feature flag
+        var featureFlagService = HttpContext.RequestServices.GetRequiredService<IFeatureFlagService>();
+        var isEnabled = await featureFlagService.IsFeatureEnabledAsync("forgot_password");
+        if (!isEnabled)
+            return BadRequest(new ForgotPasswordResponse { Success = false, Error = "Password reset is currently disabled." });
+
+        // Get the base URL for the reset link
+        var scheme = Request.Scheme;
+        var host = Request.Headers["Origin"].FirstOrDefault()
+                   ?? Request.Headers["Referer"].FirstOrDefault()?.TrimEnd('/')
+                   ?? $"{scheme}://{Request.Host}";
+
+        var result = await _authService.ForgotPasswordAsync(request.Email, host);
+
+        if (result.Success && !string.IsNullOrEmpty(result.Error))
+        {
+            // result.Error contains the token (internal use)
+            var token = result.Error;
+            var resetLink = $"{host}/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(request.Email)}";
+
+            // Send the email
+            try
+            {
+                var emailService = HttpContext.RequestServices.GetRequiredService<Services.EmailProviders.IEmailProvider>();
+                var htmlBody = $@"
+                    <div style='font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem; background: #161b22; border-radius: 12px; border: 1px solid #30363d;'>
+                        <h2 style='color: #e6edf3; text-align: center;'>🔐 Password Reset</h2>
+                        <p style='color: #8b949e; text-align: center;'>You requested a password reset for your Trading System account.</p>
+                        <div style='text-align: center; margin: 2rem 0;'>
+                            <a href='{resetLink}' style='background: #00d09c; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem;'>Reset Password</a>
+                        </div>
+                        <p style='color: #6e7681; font-size: 0.8rem; text-align: center;'>This link expires in 30 minutes. If you didn't request this, ignore this email.</p>
+                        <hr style='border-color: #30363d; margin: 1.5rem 0;' />
+                        <p style='color: #6e7681; font-size: 0.75rem; text-align: center;'>© 2026 Trading System • AI-Based Strategy Predictor</p>
+                    </div>";
+
+                await emailService.SendEmailAsync(request.Email, "Password Reset - Trading System", htmlBody);
+                _logger.LogInformation("Password reset email sent to: {Email}", request.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send password reset email to: {Email}", request.Email);
+                return Ok(new ForgotPasswordResponse { Success = false, Error = "Failed to send reset email. Please try again later." });
+            }
+
+            // Clear the token from response (don't expose to client)
+            result.Error = null;
+        }
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "ForgotPassword",
+            Email = request.Email,
+            IsSuccess = true,
+            Details = "Password reset link requested"
+        });
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Reset password using the token from the email link
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ResetPasswordResponse), 200)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        _logger.LogInformation("POST /auth/reset-password for email: {Email}", request.Email);
+
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+            return BadRequest(new ResetPasswordResponse { Success = false, Error = string.Join("; ", errors) });
+        }
+
+        var result = await _authService.ResetPasswordAsync(request);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "PasswordReset",
+            Email = request.Email,
+            IsSuccess = result.Success,
+            Details = result.Success ? "Password reset completed" : result.Error
         });
 
         if (!result.Success)

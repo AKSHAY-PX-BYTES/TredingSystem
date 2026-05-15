@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<PriceAlertEntity> PriceAlerts => Set<PriceAlertEntity>();
     public DbSet<AiSignalEntity> AiSignals => Set<AiSignalEntity>();
     public DbSet<ChatMessageEntity> ChatMessages => Set<ChatMessageEntity>();
+    public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -162,6 +163,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Role).IsRequired().HasMaxLength(20);
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
             entity.HasIndex(e => new { e.UserId, e.SessionId });
+        });
+
+        modelBuilder.Entity<PasswordResetTokenEntity>(entity =>
+        {
+            entity.ToTable("password_reset_tokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Email).HasColumnName("email").IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Token).HasColumnName("token").IsRequired().HasMaxLength(200);
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.IsUsed).HasColumnName("is_used").HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => e.Email);
         });
     }
 }

@@ -19,6 +19,8 @@ public interface IAuthService
     Task<bool> CheckUsernameExistsAsync(string username);
     Task<SendOtpResponse> SendPhoneOtpAsync(string phoneNumber, string countryCode);
     Task<VerifyOtpResponse> VerifyPhoneOtpAsync(string phoneNumber, string countryCode, string code);
+    Task<ForgotPasswordResponse> ForgotPasswordAsync(string email);
+    Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request);
 }
 
 public class AuthService : IAuthService
@@ -231,6 +233,34 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             return new VerifyOtpResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<ForgotPasswordResponse> ForgotPasswordAsync(string email)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/forgot-password", new ForgotPasswordRequest { Email = email });
+            var result = await response.Content.ReadFromJsonAsync<ForgotPasswordResponse>();
+            return result ?? new ForgotPasswordResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new ForgotPasswordResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/auth/reset-password", request);
+            var result = await response.Content.ReadFromJsonAsync<ResetPasswordResponse>();
+            return result ?? new ResetPasswordResponse { Success = false, Error = "Invalid response from server" };
+        }
+        catch (Exception ex)
+        {
+            return new ResetPasswordResponse { Success = false, Error = $"Connection failed: {ex.Message}" };
         }
     }
 }

@@ -273,6 +273,33 @@ public class ChangePasswordResponse
     public string? Error { get; set; }
 }
 
+public class ForgotPasswordRequest
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ForgotPasswordResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+}
+
+public class ResetPasswordRequest
+{
+    public string Token { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class ResetPasswordResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+}
+
 // Currency Models
 public class CurrencyInfo
 {

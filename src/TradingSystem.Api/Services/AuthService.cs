@@ -18,6 +18,8 @@ public interface IAuthService
     Task<LoginResponse> RefreshTokenAsync(string username);
     Task<ChangePasswordResponse> ChangePasswordAsync(string username, ChangePasswordRequest request);
     Task<bool> UsernameExistsAsync(string username);
+    Task<ForgotPasswordResponse> ForgotPasswordAsync(string email, string resetBaseUrl);
+    Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request);
     Task SeedDefaultUsersAsync();
 }
 
@@ -302,5 +304,85 @@ public class AuthService : IAuthService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password + "_TradingSalt2026"));
         return Convert.ToBase64String(bytes);
+    }
+
+    public async Task<ForgotPasswordResponse> ForgotPasswordAsync(string email, string resetBaseUrl)
+    {
+        using var db = CreateDbContext();
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+        if (user == null)
+        {
+            // Don't reveal that email doesn't exist (security best practice)
+            return new ForgotPasswordResponse { Success = true, Message = "If this email is registered, a password reset link has been sent." };
+        }
+
+        // Generate a secure token
+        var tokenBytes = new byte[32];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(tokenBytes);
+        }
+        var token = Convert.ToBase64String(tokenBytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+
+        // Save token to DB
+        var resetToken = new Data.Entities.PasswordResetTokenEntity
+        {
+            Email = user.Email,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+            IsUsed = false,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.PasswordResetTokens.Add(resetToken);
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Password reset token generated for: {Email}", email);
+
+        return new ForgotPasswordResponse
+        {
+            Success = true,
+            Message = "If this email is registered, a password reset link has been sent.",
+            // Return token info for the controller to send the email
+            Error = token // Reusing Error field to pass token back to controller (not shown to user)
+        };
+    }
+
+    public async Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        using var db = CreateDbContext();
+
+        var resetToken = await db.PasswordResetTokens
+            .FirstOrDefaultAsync(t => t.Token == request.Token && t.Email.ToLower() == request.Email.ToLower());
+
+        if (resetToken == null)
+        {
+            return new ResetPasswordResponse { Success = false, Error = "Invalid or expired reset link." };
+        }
+
+        if (resetToken.IsUsed)
+        {
+            return new ResetPasswordResponse { Success = false, Error = "This reset link has already been used." };
+        }
+
+        if (resetToken.ExpiresAt < DateTime.UtcNow)
+        {
+            return new ResetPasswordResponse { Success = false, Error = "This reset link has expired. Please request a new one." };
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
+        if (user == null)
+        {
+            return new ResetPasswordResponse { Success = false, Error = "User not found." };
+        }
+
+        // Update password
+        user.PasswordHash = HashPassword(request.NewPassword);
+        resetToken.IsUsed = true;
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Password reset successful for: {Email}", request.Email);
+
+        return new ResetPasswordResponse { Success = true, Message = "Password has been reset successfully. You can now login with your new password." };
     }
 }

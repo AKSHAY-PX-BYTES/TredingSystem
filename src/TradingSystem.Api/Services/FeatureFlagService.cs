@@ -32,6 +32,7 @@ public class FeatureFlagService : IFeatureFlagService
         ("backtest", "Backtest", "Access to Strategy Backtesting"),
         ("currency_change", "Currency Change", "Allow changing display currency"),
         ("phone_verification", "Phone Verification", "Require phone OTP verification during signup (if disabled, phone step is skipped)"),
+        ("forgot_password", "Forgot Password", "Allow users to reset their password via email link"),
     };
 
     public FeatureFlagService(IServiceScopeFactory scopeFactory, ILogger<FeatureFlagService> logger)

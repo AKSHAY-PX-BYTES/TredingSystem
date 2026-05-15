@@ -88,6 +88,51 @@
                 </button>
             </EditForm>
 
+            @if (forgotPasswordEnabled)
+            {
+                <div style="text-align: center; margin-top: 1rem;">
+                    <button type="button" class="forgot-pwd-link" @onclick="ShowForgotPassword">
+                        Forgot Password?
+                    </button>
+                </div>
+            }
+
+            @if (showForgotForm)
+            {
+                <div class="forgot-password-section">
+                    <div class="forgot-header">
+                        <h3>🔑 Reset Password</h3>
+                        <button type="button" class="modal-close" @onclick="() => showForgotForm = false">✕</button>
+                    </div>
+                    <p class="forgot-desc">Enter your registered email address. We'll send you a link to reset your password.</p>
+
+                    @if (!string.IsNullOrEmpty(forgotSuccessMessage))
+                    {
+                        <div class="pwd-success">✅ @forgotSuccessMessage</div>
+                    }
+                    @if (!string.IsNullOrEmpty(forgotErrorMessage))
+                    {
+                        <div class="pwd-error">⚠️ @forgotErrorMessage</div>
+                    }
+
+                    <div class="form-group">
+                        <label><span class="field-icon">✉️</span> Email Address</label>
+                        <input type="email" class="form-input" @bind="forgotEmail" placeholder="Enter your email" disabled="@forgotLoading" />
+                    </div>
+                    <button type="button" class="login-btn" @onclick="HandleForgotPassword" disabled="@forgotLoading">
+                        @if (forgotLoading)
+                        {
+                            <span class="spinner"></span>
+                            <span>Sending...</span>
+                        }
+                        else
+                        {
+                            <span>📧 Send Reset Link</span>
+                        }
+                    </button>
+                </div>
+            }
+
             @if (signupEnabled)
             {
                 <div class="register-link" style="text-align: center; margin-top: 1.5rem;">
@@ -147,11 +192,18 @@
     private bool showTimeoutMessage;
     private bool showExpiredMessage;
     private bool signupEnabled = true;
+    private bool forgotPasswordEnabled = true;
+    private bool showForgotForm;
+    private string forgotEmail = string.Empty;
+    private string? forgotSuccessMessage;
+    private string? forgotErrorMessage;
+    private bool forgotLoading;
 
     protected override async Task OnInitializedAsync()
     {
         await FeatureFlagService.LoadFlagsAsync();
         signupEnabled = FeatureFlagService.IsEnabled("signup");
+        forgotPasswordEnabled = FeatureFlagService.IsEnabled("forgot_password");
 
         var uri = new Uri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -205,5 +257,51 @@
     private void TogglePassword()
     {
         showPassword = !showPassword;
+    }
+
+    private void ShowForgotPassword()
+    {
+        showForgotForm = !showForgotForm;
+        forgotEmail = string.Empty;
+        forgotSuccessMessage = null;
+        forgotErrorMessage = null;
+    }
+
+    private async Task HandleForgotPassword()
+    {
+        forgotSuccessMessage = null;
+        forgotErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(forgotEmail) || !forgotEmail.Contains("@"))
+        {
+            forgotErrorMessage = "Please enter a valid email address.";
+            return;
+        }
+
+        forgotLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.ForgotPasswordAsync(forgotEmail);
+            if (result.Success)
+            {
+                forgotSuccessMessage = result.Message ?? "Reset link sent! Check your email.";
+                forgotEmail = string.Empty;
+            }
+            else
+            {
+                forgotErrorMessage = result.Error ?? "Failed to send reset link.";
+            }
+        }
+        catch (Exception ex)
+        {
+            forgotErrorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            forgotLoading = false;
+            StateHasChanged();
+        }
     }
 }
