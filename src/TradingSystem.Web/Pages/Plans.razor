@@ -45,7 +45,7 @@
             <div class="plan-card-header">
                 <span class="plan-card-icon">🆓</span>
                 <h2 class="plan-card-name">Free</h2>
-                <div class="plan-card-price"><span class="price-amount">$0</span><span class="price-period">/mo</span></div>
+                <div class="plan-card-price"><span class="price-amount">₹0</span><span class="price-period">/mo</span></div>
                 <p class="plan-card-desc">7-day trial only</p>
             </div>
             <ul class="plan-card-features">
@@ -67,8 +67,8 @@
             <div class="plan-card-header">
                 <span class="plan-card-icon">⚡</span>
                 <h2 class="plan-card-name">Pro</h2>
-                <div class="plan-card-price"><span class="price-amount">$@(isAnnual ? "7.99" : "9.99")</span><span class="price-period">/mo</span></div>
-                @if (isAnnual) { <div class="plan-annual-note">Billed $95.88/year</div> }
+                <div class="plan-card-price"><span class="price-amount">₹@(isAnnual ? "533" : "799")</span><span class="price-period">/mo</span></div>
+                @if (isAnnual) { <div class="plan-annual-note">Billed ₹6,399/year</div> }
                 <p class="plan-card-desc">Real-time data for serious traders</p>
             </div>
             <ul class="plan-card-features">
@@ -89,16 +89,16 @@
         <!-- Premium -->
         <div class="plan-card premium-card @(currentPlan == "Premium" ? "plan-current" : "")">
             <div class="plan-card-header">
-                <span class="plan-card-icon">�</span>
+                <span class="plan-card-icon">👑</span>
                 <h2 class="plan-card-name">Premium</h2>
-                <div class="plan-card-price"><span class="price-amount">$@(isAnnual ? "15.99" : "19.99")</span><span class="price-period">/mo</span></div>
-                @if (isAnnual) { <div class="plan-annual-note">Billed $191.88/year</div> }
+                <div class="plan-card-price"><span class="price-amount">₹@(isAnnual ? "1,067" : "1,599")</span><span class="price-period">/mo</span></div>
+                @if (isAnnual) { <div class="plan-annual-note">Billed ₹12,799/year</div> }
                 <p class="plan-card-desc">AI-powered trading suite</p>
             </div>
             <ul class="plan-card-features">
                 <li class="included"><span class="feat-icon">✅</span> Everything in Pro</li>
                 <li class="included highlight"><span class="feat-icon">🤖</span> AI trading signals</li>
-                <li class="included highlight"><span class="feat-icon">�</span> Strategy backtesting</li>
+                <li class="included highlight"><span class="feat-icon">📊</span> Strategy backtesting</li>
                 <li class="included"><span class="feat-icon">✅</span> Options analysis</li>
                 <li class="included"><span class="feat-icon">✅</span> API access (100/day)</li>
                 <li class="included"><span class="feat-icon">✅</span> Priority support</li>
@@ -114,7 +114,8 @@
             <div class="plan-card-header">
                 <span class="plan-card-icon">🏢</span>
                 <h2 class="plan-card-name">Enterprise</h2>
-                <div class="plan-card-price"><span class="price-amount">$499</span><span class="price-period">/mo</span></div>
+                <div class="plan-card-price"><span class="price-amount">₹@(isAnnual ? "33,333" : "39,999")</span><span class="price-period">/mo</span></div>
+                @if (isAnnual) { <div class="plan-annual-note">Billed ₹3,99,999/year</div> }
                 <p class="plan-card-desc">Dedicated infrastructure</p>
             </div>
             <ul class="plan-card-features">
@@ -127,7 +128,7 @@
             </ul>
             <div class="plan-card-footer">
                 @if (currentPlan == "Enterprise") { <button class="plan-btn plan-btn-current" disabled>Current Plan</button> }
-                else { <button class="plan-btn plan-btn-enterprise" @onclick='() => HandleUpgrade("Enterprise")' disabled="@isUpgrading">Contact Sales</button> }
+                else { <button class="plan-btn plan-btn-enterprise" @onclick='() => HandleUpgrade("Enterprise")' disabled="@isUpgrading">Upgrade to Enterprise</button> }
             </div>
         </div>
     </div>
@@ -161,7 +162,7 @@
     <div class="plans-payment-methods">
         <h3>Accepted Payment Methods</h3>
         <div class="payment-icons">
-            <span>💳 Visa/MC</span><span>🅿️ PayPal</span><span>🇮🇳 UPI</span><span>🇵🇭 GCash</span><span>🇰🇪 M-Pesa</span><span>₿ Crypto</span>
+            <span>💳 Credit/Debit Card</span><span>� Net Banking</span><span>🇮🇳 UPI</span><span>📱 Wallets</span><span>� EMI</span>
         </div>
     </div>
 
@@ -171,7 +172,7 @@
         <div class="faq-grid">
             <div class="faq-item">
                 <h4>What happens after 7 days?</h4>
-                <p>Free users lose all access after 7 days. You must upgrade to Pro ($9.99/mo) or higher to continue.</p>
+                <p>Free users lose all access after 7 days. You must upgrade to Pro (₹799/mo) or higher to continue.</p>
             </div>
             <div class="faq-item">
                 <h4>Can I cancel anytime?</h4>

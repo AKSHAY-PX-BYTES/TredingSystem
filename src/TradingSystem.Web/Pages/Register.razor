@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IConfiguration Configuration
+@inject IPaymentService PaymentService
 
 <FeatureGate FeatureKey="signup">
 <PageTitle>Sign Up - Trading System</PageTitle>
@@ -264,7 +265,7 @@
                                     }
                                     else
                                     {
-                                        <span class="plan-price-amount">$@plan.Price</span><span class="plan-price-period">/mo</span>
+                                        <span class="plan-price-amount">₹@plan.Price</span><span class="plan-price-period">/mo</span>
                                     }
                                 </div>
                                 <ul class="plan-select-features">
@@ -478,9 +479,10 @@
     // Plan options
     private readonly List<PlanOption> availablePlans = new()
     {
-        new PlanOption { Name = "Basic", Icon = "🆓", Price = 0, Highlights = new[] { "Real-time market data", "Basic charts & indicators", "Watchlist (up to 10)", "Daily news digest" } },
-        new PlanOption { Name = "Pro", Icon = "⚡", Price = 29, Highlights = new[] { "Everything in Basic", "Advanced AI predictions", "Unlimited watchlists", "Backtesting engine", "Priority support" } },
-        new PlanOption { Name = "Super", Icon = "👑", Price = 79, Highlights = new[] { "Everything in Pro", "Real-time AI signals", "Portfolio analytics", "API access", "Dedicated account manager" } }
+        new PlanOption { Name = "Free", Icon = "🆓", Price = 0, Highlights = new[] { "7-day trial access", "5 watchlist items", "Basic charts (5 years)", "Daily news digest" } },
+        new PlanOption { Name = "Pro", Icon = "⚡", Price = 799, Highlights = new[] { "LIVE real-time quotes", "Unlimited watchlists", "Advanced charting", "Portfolio analysis + alerts", "Email notifications" } },
+        new PlanOption { Name = "Premium", Icon = "👑", Price = 1599, Highlights = new[] { "Everything in Pro", "AI trading signals", "Strategy backtesting", "Options analysis", "API access (100/day)" } },
+        new PlanOption { Name = "Enterprise", Icon = "🏢", Price = 39999, Highlights = new[] { "Everything in Premium", "Dedicated API", "White-label capability", "Unlimited API requests", "Account manager" } }
     };
 
     private class PlanOption
@@ -771,13 +773,41 @@
 
             if (result.Success)
             {
-                successMessage = result.Message ?? "Account created successfully!";
-                registerModel = new RegisterRequest(); // Clear form
-                StateHasChanged();
+                // If paid plan selected, trigger Razorpay payment
+                if (registerModel.Plan != "Free" && !string.IsNullOrEmpty(registerModel.Plan))
+                {
+                    successMessage = "Account created! Proceeding to payment...";
+                    StateHasChanged();
 
-                // Redirect to login after 2 seconds
-                await Task.Delay(2000);
-                Navigation.NavigateTo("/login");
+                    // Auto-login to get JWT for payment API call
+                    var loginResult = await AuthService.LoginAsync(new LoginRequest
+                    {
+                        Username = registerModel.Email,
+                        Password = registerModel.Password
+                    });
+
+                    if (loginResult.Success)
+                    {
+                        await StartPaymentFlow(registerModel.Plan);
+                        return; // Don't redirect yet — payment callback will handle it
+                    }
+                    else
+                    {
+                        // Login failed, redirect to login page — user can pay from Plans page later
+                        successMessage = "Account created! Please log in and upgrade from Plans page.";
+                        StateHasChanged();
+                        await Task.Delay(2000);
+                        Navigation.NavigateTo("/login");
+                    }
+                }
+                else
+                {
+                    successMessage = result.Message ?? "Account created successfully!";
+                    registerModel = new RegisterRequest();
+                    StateHasChanged();
+                    await Task.Delay(2000);
+                    Navigation.NavigateTo("/login");
+                }
             }
             else
             {
@@ -793,6 +823,99 @@
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private string _signupPendingPlan = "";
+
+    private async Task StartPaymentFlow(string plan)
+    {
+        try
+        {
+            var orderResult = await PaymentService.CreateOrderAsync(new CreatePaymentOrderRequest
+            {
+                Plan = plan,
+                IsAnnual = false
+            });
+
+            if (orderResult?.Success != true || orderResult.Data == null)
+            {
+                errorMessage = orderResult?.Error ?? "Failed to create payment order. You can pay later from Plans page.";
+                StateHasChanged();
+                await Task.Delay(3000);
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var order = orderResult.Data;
+            var options = new
+            {
+                keyId = order.KeyId,
+                amount = (int)(order.Amount * 100),
+                currency = order.Currency,
+                companyName = order.CompanyName,
+                description = order.Description,
+                orderId = order.OrderId,
+                email = registerModel.Email,
+                phone = ""
+            };
+
+            _signupPendingPlan = plan;
+            var dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("openRazorpayCheckout", options, dotnetRef);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Payment setup failed: {ex.Message}. You can upgrade from Plans page after login.";
+            StateHasChanged();
+            await Task.Delay(3000);
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnPaymentSuccess(string orderId, string paymentId, string signature)
+    {
+        var verifyResult = await PaymentService.VerifyPaymentAsync(new VerifyPaymentRequest
+        {
+            OrderId = orderId,
+            PaymentId = paymentId,
+            Signature = signature
+        });
+
+        if (verifyResult?.Success == true && verifyResult.Data?.Verified == true)
+        {
+            successMessage = $"🎉 Payment successful! Your {_signupPendingPlan} plan is now active!";
+            errorMessage = null;
+        }
+        else
+        {
+            successMessage = "Account created but payment verification failed. Contact support.";
+        }
+
+        StateHasChanged();
+        await Task.Delay(2500);
+        Navigation.NavigateTo("/dashboard");
+    }
+
+    [JSInvokable]
+    public async Task OnPaymentCancelled()
+    {
+        successMessage = "Account created! You can upgrade anytime from the Plans page.";
+        errorMessage = null;
+        isLoading = false;
+        StateHasChanged();
+        await Task.Delay(2000);
+        Navigation.NavigateTo("/login");
+    }
+
+    [JSInvokable]
+    public async Task OnPaymentFailed(string errorDescription)
+    {
+        errorMessage = $"Payment failed: {errorDescription}. You can retry from Plans page.";
+        isLoading = false;
+        StateHasChanged();
+        await Task.Delay(3000);
+        Navigation.NavigateTo("/login");
     }
 
     private async Task CheckUsername()
