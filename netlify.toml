@@ -77,6 +77,11 @@
   status = 200
 
 [[redirects]]
+  from = "/payment/*"
+  to = "https://tredingsystem-api.onrender.com/payment/:splat"
+  status = 200
+
+[[redirects]]
   from = "/hubs/*"
   to = "https://tredingsystem-api.onrender.com/hubs/:splat"
   status = 200

@@ -162,6 +162,10 @@ builder.Services.AddScoped<IChatbotService, ChatbotService>();
 builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
 builder.Services.AddHttpContextAccessor();
 
+// Payment service (Razorpay)
+builder.Services.AddHttpClient("Razorpay");
+builder.Services.AddScoped<IPaymentService, RazorpayPaymentService>();
+
 // Yahoo Finance live market data
 builder.Services.AddHttpClient("YahooFinance", client =>
 {
@@ -344,6 +348,26 @@ using (var scope = app.Services.CreateScope())
                 created_at TIMESTAMP NOT NULL DEFAULT NOW()
             )");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_email ON password_reset_tokens(email)");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS payments (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                order_id VARCHAR(100) NOT NULL UNIQUE,
+                payment_id VARCHAR(100),
+                plan VARCHAR(20) NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                currency VARCHAR(10) DEFAULT 'INR',
+                status VARCHAR(20) NOT NULL DEFAULT 'created',
+                payment_method VARCHAR(50),
+                signature VARCHAR(500),
+                is_annual BOOLEAN DEFAULT false,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                paid_at TIMESTAMP,
+                raw_response TEXT
+            )");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_payments_user_id ON payments(user_id)");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_payments_payment_id ON payments(payment_id)");
         
         logger.LogInformation("Table check done.");
 

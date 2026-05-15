@@ -1,0 +1,115 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using TradingSystem.Api.Models;
+using TradingSystem.Api.Services;
+
+namespace TradingSystem.Api.Controllers;
+
+[Authorize]
+[ApiController]
+[Route("payment")]
+[Produces("application/json")]
+public class PaymentController : ControllerBase
+{
+    private readonly IPaymentService _paymentService;
+    private readonly IActivityTrackingService _activityTracker;
+    private readonly ILogger<PaymentController> _logger;
+
+    public PaymentController(IPaymentService paymentService, IActivityTrackingService activityTracker, ILogger<PaymentController> logger)
+    {
+        _paymentService = paymentService;
+        _activityTracker = activityTracker;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Create a Razorpay payment order for plan upgrade
+    /// </summary>
+    [HttpPost("create-order")]
+    [ProducesResponseType(typeof(CreatePaymentOrderResponse), 200)]
+    public async Task<IActionResult> CreateOrder([FromBody] CreatePaymentOrderRequest request)
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+            return Unauthorized(new CreatePaymentOrderResponse { Success = false, Error = "Not authenticated" });
+
+        _logger.LogInformation("POST /payment/create-order for user {Username}, plan {Plan}", username, request.Plan);
+
+        if (!ModelState.IsValid)
+            return BadRequest(new CreatePaymentOrderResponse { Success = false, Error = "Invalid request" });
+
+        var result = await _paymentService.CreateOrderAsync(username, request);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = "PaymentOrderCreated",
+            Username = username,
+            IsSuccess = result.Success,
+            Details = result.Success ? $"Order {result.OrderId} for {request.Plan}" : result.Error
+        });
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Verify payment after Razorpay checkout completion
+    /// </summary>
+    [HttpPost("verify")]
+    [ProducesResponseType(typeof(VerifyPaymentResponse), 200)]
+    public async Task<IActionResult> VerifyPayment([FromBody] VerifyPaymentRequest request)
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+            return Unauthorized(new VerifyPaymentResponse { Success = false, Error = "Not authenticated" });
+
+        _logger.LogInformation("POST /payment/verify for user {Username}, order {OrderId}", username, request.RazorpayOrderId);
+
+        if (!ModelState.IsValid)
+            return BadRequest(new VerifyPaymentResponse { Success = false, Error = "Invalid request" });
+
+        var result = await _paymentService.VerifyPaymentAsync(username, request);
+
+        await _activityTracker.TrackAsync(new ActivityEvent
+        {
+            EventType = result.Success ? "PaymentSuccess" : "PaymentFailed",
+            Username = username,
+            IsSuccess = result.Success,
+            Details = result.Success ? $"Paid for {request.Plan} - {result.TransactionId}" : result.Error
+        });
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get payment history for the authenticated user
+    /// </summary>
+    [HttpGet("history")]
+    [ProducesResponseType(typeof(ApiResponse<List<PaymentHistoryItem>>), 200)]
+    public async Task<IActionResult> GetHistory()
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+            return Unauthorized(ApiResponse<List<PaymentHistoryItem>>.Fail("Not authenticated"));
+
+        var history = await _paymentService.GetPaymentHistoryAsync(username);
+        return Ok(ApiResponse<List<PaymentHistoryItem>>.Ok(history));
+    }
+
+    /// <summary>
+    /// Razorpay webhook endpoint (server-to-server, no auth required)
+    /// </summary>
+    [HttpPost("webhook")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Webhook()
+    {
+        using var reader = new StreamReader(Request.Body);
+        var payload = await reader.ReadToEndAsync();
+        var signature = Request.Headers["X-Razorpay-Signature"].FirstOrDefault() ?? "";
+
+        _logger.LogInformation("Razorpay webhook received");
+
+        var success = await _paymentService.HandleWebhookAsync(payload, signature);
+
+        return success ? Ok("OK") : BadRequest("Invalid signature");
+    }
+}

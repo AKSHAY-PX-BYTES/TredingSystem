@@ -487,3 +487,46 @@ public class LocaleInfo
     public string NativeName { get; set; } = string.Empty;
     public string Direction { get; set; } = "ltr";
 }
+
+// Payment Models
+public class CreatePaymentOrderRequest
+{
+    public string Plan { get; set; } = string.Empty;
+    public bool IsAnnual { get; set; }
+}
+
+public class CreatePaymentOrderResponse
+{
+    public string OrderId { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "INR";
+    public string KeyId { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+
+public class VerifyPaymentRequest
+{
+    public string OrderId { get; set; } = string.Empty;
+    public string PaymentId { get; set; } = string.Empty;
+    public string Signature { get; set; } = string.Empty;
+}
+
+public class VerifyPaymentResponse
+{
+    public bool Verified { get; set; }
+    public string Plan { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}
+
+public class PaymentHistoryItem
+{
+    public string OrderId { get; set; } = string.Empty;
+    public string PaymentId { get; set; } = string.Empty;
+    public string Plan { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? PaidAt { get; set; }
+}

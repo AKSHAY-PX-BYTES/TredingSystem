@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<AiSignalEntity> AiSignals => Set<AiSignalEntity>();
     public DbSet<ChatMessageEntity> ChatMessages => Set<ChatMessageEntity>();
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
+    public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -177,6 +178,30 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.HasIndex(e => e.Token).IsUnique();
             entity.HasIndex(e => e.Email);
+        });
+
+        modelBuilder.Entity<PaymentEntity>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.OrderId).HasColumnName("order_id").IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PaymentId).HasColumnName("payment_id").HasMaxLength(100);
+            entity.Property(e => e.Plan).HasColumnName("plan").IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("decimal(10,2)");
+            entity.Property(e => e.Currency).HasColumnName("currency").HasMaxLength(10);
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired().HasMaxLength(20);
+            entity.Property(e => e.PaymentMethod).HasColumnName("payment_method").HasMaxLength(50);
+            entity.Property(e => e.Signature).HasColumnName("signature").HasMaxLength(500);
+            entity.Property(e => e.IsAnnual).HasColumnName("is_annual").HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.PaidAt).HasColumnName("paid_at");
+            entity.Property(e => e.RawResponse).HasColumnName("raw_response");
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasIndex(e => e.OrderId).IsUnique();
+            entity.HasIndex(e => e.PaymentId);
+            entity.HasIndex(e => e.UserId);
         });
     }
 }

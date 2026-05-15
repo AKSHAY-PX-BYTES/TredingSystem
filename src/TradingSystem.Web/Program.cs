@@ -44,5 +44,6 @@ builder.Services.AddScoped<IActivityApiService, ActivityApiService>();
 builder.Services.AddScoped<ISubscriptionApiService, SubscriptionApiService>();
 builder.Services.AddScoped<INotificationApiService, NotificationApiService>();
 builder.Services.AddScoped<IAiApiService, AiApiService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 await builder.Build().RunAsync();

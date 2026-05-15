@@ -3,6 +3,7 @@
 @using TradingSystem.Web.Services
 @inject IAuthService AuthService
 @inject ISubscriptionApiService SubscriptionApi
+@inject IPaymentService PaymentService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -231,12 +232,79 @@
         upgradeMessage = null;
         StateHasChanged();
 
-        var result = await SubscriptionApi.UpgradeAsync(new UpgradeRequest { Plan = plan });
-        if (result?.Success == true)
+        try
+        {
+            // Step 1: Create Razorpay order
+            var orderResult = await PaymentService.CreateOrderAsync(new CreatePaymentOrderRequest
+            {
+                Plan = plan,
+                IsAnnual = isAnnual
+            });
+
+            if (orderResult?.Success != true || orderResult.Data == null)
+            {
+                upgradeSuccess = false;
+                upgradeMessage = orderResult?.Error ?? "Failed to create payment order.";
+                isUpgrading = false;
+                StateHasChanged();
+                return;
+            }
+
+            var order = orderResult.Data;
+
+            // Get user email for prefill
+            var userJson = await JS.InvokeAsync<string?>("localStorage.getItem", "authUser");
+            var email = "";
+            if (!string.IsNullOrEmpty(userJson))
+            {
+                var user = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                email = user?.Email ?? "";
+            }
+
+            // Step 2: Open Razorpay checkout
+            var options = new
+            {
+                keyId = order.KeyId,
+                amount = (int)(order.Amount * 100), // Razorpay expects paise
+                currency = order.Currency,
+                companyName = order.CompanyName,
+                description = order.Description,
+                orderId = order.OrderId,
+                email = email,
+                phone = ""
+            };
+
+            _pendingPlan = plan;
+            var dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("openRazorpayCheckout", options, dotnetRef);
+        }
+        catch (Exception ex)
+        {
+            upgradeSuccess = false;
+            upgradeMessage = $"Payment error: {ex.Message}";
+            isUpgrading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string _pendingPlan = "";
+
+    [JSInvokable]
+    public async Task OnPaymentSuccess(string orderId, string paymentId, string signature)
+    {
+        var verifyResult = await PaymentService.VerifyPaymentAsync(new VerifyPaymentRequest
+        {
+            OrderId = orderId,
+            PaymentId = paymentId,
+            Signature = signature
+        });
+
+        if (verifyResult?.Success == true && verifyResult.Data?.Verified == true)
         {
             upgradeSuccess = true;
-            upgradeMessage = $"🎉 Successfully upgraded to {plan}!";
-            currentPlan = plan;
+            upgradeMessage = $"🎉 Payment successful! Upgraded to {_pendingPlan}!";
+            currentPlan = _pendingPlan;
             isTrialExpired = false;
             isTrialActive = false;
 
@@ -247,7 +315,7 @@
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (user != null)
                 {
-                    user.Plan = plan;
+                    user.Plan = _pendingPlan;
                     user.HasAccess = true;
                     user.IsTrialExpired = false;
                     await JS.InvokeVoidAsync("localStorage.setItem", "authUser",
@@ -258,9 +326,30 @@
         else
         {
             upgradeSuccess = false;
-            upgradeMessage = result?.Error ?? "Upgrade failed. Please try again.";
+            upgradeMessage = verifyResult?.Data?.Message ?? "Payment verification failed.";
         }
+
         isUpgrading = false;
         StateHasChanged();
+    }
+
+    [JSInvokable]
+    public Task OnPaymentCancelled()
+    {
+        upgradeMessage = "Payment cancelled.";
+        upgradeSuccess = false;
+        isUpgrading = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnPaymentFailed(string errorDescription)
+    {
+        upgradeMessage = $"Payment failed: {errorDescription}";
+        upgradeSuccess = false;
+        isUpgrading = false;
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 }
