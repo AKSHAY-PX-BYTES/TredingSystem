@@ -2,10 +2,19 @@
 @using TradingSystem.Web.Models
 @using TradingSystem.Web.Services
 @inject IAiApiService AiApi
+@inject IPlanAccessService PlanAccess
 @inject IJSRuntime JS
 
 <PageTitle>AI Chat - Trading System</PageTitle>
 
+@if (isFreeOrPro)
+{
+    <UpgradePrompt Title="AI Trading Assistant"
+                   Description="Chat with our AI assistant about stocks, earnings, options strategies and more. Requires Premium plan."
+                   RequiredPlan="Premium" />
+}
+else
+{
 <div class="chat-page">
     <div class="chat-container">
         <!-- Chat Header -->
@@ -84,13 +93,21 @@
         </div>
     </div>
 </div>
+}
 
 @code {
+    private bool isFreeOrPro = true;
     private List<ChatMsg> messages = new();
     private string inputMessage = "";
     private string? sessionId;
     private bool isTyping = false;
     private ElementReference chatContainer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var canAccess = await PlanAccess.CanUseFeatureAsync("ai_chat");
+        isFreeOrPro = !canAccess;
+    }
 
     private class ChatMsg
     {

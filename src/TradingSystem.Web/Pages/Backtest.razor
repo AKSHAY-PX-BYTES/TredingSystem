@@ -3,11 +3,20 @@
 @implements IDisposable
 @inject IBacktestApiService BacktestApi
 @inject ICurrencyService Currency
+@inject IPlanAccessService PlanAccess
 @inject IJSRuntime JS
 
 <FeatureGate FeatureKey="backtest">
 <PageTitle>Backtesting - AI Trading System</PageTitle>
 
+@if (isFreeOrPro)
+{
+    <UpgradePrompt Title="Strategy Backtesting"
+                   Description="Simulate trading strategies on historical data with AI-powered analysis. Requires Premium plan."
+                   RequiredPlan="Premium" />
+}
+else
+{
 <div class="page-header">
     <h1>🧪 Strategy Backtesting</h1>
     <p>Simulate trading strategies on historical data</p>
@@ -189,9 +198,11 @@
         }
     </div>
 }
+}
 </FeatureGate>
 
 @code {
+    private bool isFreeOrPro = true;
     private BacktestRequest request = new()
     {
         Symbol = "AAPL",
@@ -204,8 +215,10 @@
     private string? error;
     private BacktestResult? result;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var canAccess = await PlanAccess.CanUseFeatureAsync("backtest");
+        isFreeOrPro = !canAccess;
         Currency.OnCurrencyChanged += OnCurrencyChanged;
     }
 

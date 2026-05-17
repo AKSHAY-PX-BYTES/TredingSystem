@@ -2,10 +2,19 @@
 @using TradingSystem.Web.Models
 @using TradingSystem.Web.Services
 @inject IAiApiService AiApi
+@inject IPlanAccessService PlanAccess
 @inject IJSRuntime JS
 
 <PageTitle>AI Trading Signals - Trading System</PageTitle>
 
+@if (isFreeOrPro)
+{
+    <UpgradePrompt Title="AI Trading Signals"
+                   Description="Get real-time AI-powered trading signals using RSI, MACD, Volume clustering, Sentiment analysis and more. Requires Premium plan."
+                   RequiredPlan="Premium" />
+}
+else
+{
 <div class="signals-page">
     <div class="page-header">
         <h1>🤖 AI Trading Signals</h1>
@@ -71,8 +80,10 @@
         }
     </div>
 </div>
+}
 
 @code {
+    private bool isFreeOrPro = true;
     private List<AiSignalDto> signals = new();
     private string activeSource = "";
     private string symbolInput = "";
@@ -85,7 +96,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender) { await LoadSignals(); StateHasChanged(); }
+        if (firstRender)
+        {
+            var canAccess = await PlanAccess.CanUseFeatureAsync("ai_signals");
+            isFreeOrPro = !canAccess;
+            if (canAccess) await LoadSignals();
+            StateHasChanged();
+        }
     }
 
     private async Task LoadSignals()

@@ -7,6 +7,7 @@
 @inject ICurrencyService Currency
 @inject IWatchlistService WatchlistService
 @inject IFeatureFlagService FeatureFlagService
+@inject IPlanAccessService PlanAccess
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -19,15 +20,23 @@
     <div class="explore-search-bar">
         <span class="search-icon-lg">🔍</span>
         <input class="explore-input" @bind="symbolInput" @bind:event="oninput"
-               @onkeydown="HandleKeyDown" placeholder="Search stocks e.g. AAPL, MSFT, RELIANCE"
-               disabled="@(!exploreEnabled)" />
-        <button class="explore-btn" @onclick="LoadData" disabled="@(isLoading || !exploreEnabled)">
+               @onkeydown="HandleKeyDown" placeholder="@(isFreeUser ? "🔒 Upgrade to search any stock" : "Search stocks e.g. AAPL, MSFT, RELIANCE")"
+               disabled="@(!exploreEnabled || isFreeUser)" />
+        <button class="explore-btn @(isFreeUser && !IsDefaultSymbol(symbolInput) ? "free-disabled-btn" : "")" 
+                @onclick="LoadData" disabled="@(isLoading || !exploreEnabled || (isFreeUser && !IsDefaultSymbol(symbolInput)))">
             @if (isLoading) { <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> }
+            else if (isFreeUser && !IsDefaultSymbol(symbolInput)) { <span>🔒 Pro</span> }
             else if (!exploreEnabled) { <span>🚫 Disabled</span> }
             else { <span>Analyze</span> }
         </button>
     </div>
-    @if (!exploreEnabled)
+    @if (isFreeUser)
+    {
+        <div style="color: #818cf8; font-size: 0.85rem; margin-top: 0.5rem; text-align: center;">
+            🔒 Free plan: You can view the @popularSymbols.Length default stocks below. <a href="/plans" style="color: #a78bfa; font-weight: 600; text-decoration: underline;">Upgrade to Pro</a> to analyze any stock.
+        </div>
+    }
+    else if (!exploreEnabled)
     {
         <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; text-align: center;">
             ℹ️ Custom search is disabled. You can still view the default stocks below.
@@ -129,10 +138,10 @@ else if (quote != null)
             </div>
         </div>
 
-        <div class="groww-card">
+        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) Navigation.NavigateTo("/plans"); }">
             <div class="groww-card-header">
                 <h3>AI Strategy</h3>
-                @if (strategy != null)
+                @if (strategy != null && !isFreeUser)
                 {
                     <span class="signal-pill @GetSignalClass(strategy.Signal)">@strategy.Signal</span>
                 }
@@ -175,7 +184,7 @@ else if (quote != null)
 
     <!-- Indicators + Analysis -->
     <div class="groww-grid-2 fade-in">
-        <div class="groww-card">
+        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) Navigation.NavigateTo("/plans"); }">
             <div class="groww-card-header"><h3>Technical Indicators</h3></div>
             @if (strategy?.Indicators != null)
             {
@@ -223,7 +232,7 @@ else if (quote != null)
             }
         </div>
 
-        <div class="groww-card">
+        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) Navigation.NavigateTo("/plans"); }">
             <div class="groww-card-header"><h3>Analysis Breakdown</h3></div>
             @if (strategy?.Reasons != null && strategy.Reasons.Any())
             {
@@ -294,6 +303,8 @@ else if (quote != null)
     private bool isLoading = false;
     private bool isInWatchlist = false;
     private bool exploreEnabled = true;
+    private bool isFreeUser = false;
+    private string userPlan = "Free";
     private string? error;
 
     private StockQuote? quote;
@@ -308,13 +319,32 @@ else if (quote != null)
         await FeatureFlagService.LoadFlagsAsync();
         exploreEnabled = FeatureFlagService.IsEnabled("explore");
 
+        // Load user plan
+        userPlan = await PlanAccess.GetCurrentPlanAsync();
+        isFreeUser = userPlan == "Free";
+
         // Read symbol from URL query parameter if present
         if (!string.IsNullOrWhiteSpace(SymbolFromUrl))
         {
-            symbolInput = SymbolFromUrl.ToUpper();
+            // Free users can only view default stocks
+            if (isFreeUser && !IsDefaultSymbol(SymbolFromUrl))
+            {
+                symbolInput = "AAPL"; // fallback to default
+            }
+            else
+            {
+                symbolInput = SymbolFromUrl.ToUpper();
+            }
         }
         
         await LoadData();
+    }
+
+    private bool IsDefaultSymbol(string? symbol)
+    {
+        if (string.IsNullOrWhiteSpace(symbol)) return false;
+        return popularSymbols.Contains(symbol.ToUpper()) ||
+               popularSymbols.Any(s => symbol.ToUpper().StartsWith(s));
     }
 
     private async void OnCurrencyChanged()

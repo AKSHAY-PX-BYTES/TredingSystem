@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject IExchangeApiService ExchangeApi
 @inject ICurrencyService Currency
+@inject IPlanAccessService PlanAccess
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -112,7 +113,7 @@ else if (exchangeData != null)
             <div class="mkt-trio-body">
                 @foreach (var stock in exchangeData.TopGainers)
                 {
-                    <div class="mkt-stock-row" @onclick="() => NavigateToStock(stock.Symbol)">
+                    <div class="mkt-stock-row" @onclick="() => HandleStockClick(stock.Symbol)">
                         <div class="mkt-stock-left">
                             <span class="mkt-sym">@stock.Symbol</span>
                             <span class="mkt-company">@Truncate(stock.CompanyName, 22)</span>
@@ -138,7 +139,7 @@ else if (exchangeData != null)
             <div class="mkt-trio-body">
                 @foreach (var stock in exchangeData.TopLosers)
                 {
-                    <div class="mkt-stock-row" @onclick="() => NavigateToStock(stock.Symbol)">
+                    <div class="mkt-stock-row" @onclick="() => HandleStockClick(stock.Symbol)">
                         <div class="mkt-stock-left">
                             <span class="mkt-sym">@stock.Symbol</span>
                             <span class="mkt-company">@Truncate(stock.CompanyName, 22)</span>
@@ -164,7 +165,7 @@ else if (exchangeData != null)
             <div class="mkt-trio-body">
                 @foreach (var stock in exchangeData.MostActive)
                 {
-                    <div class="mkt-stock-row" @onclick="() => NavigateToStock(stock.Symbol)">
+                    <div class="mkt-stock-row" @onclick="() => HandleStockClick(stock.Symbol)">
                         <div class="mkt-stock-left">
                             <span class="mkt-sym">@stock.Symbol</span>
                             <span class="mkt-company">@Truncate(stock.CompanyName, 22)</span>
@@ -230,7 +231,7 @@ else if (exchangeData != null)
                 <tbody>
                     @foreach (var stock in GetFilteredStocks())
                     {
-                        <tr class="mkt-trow" @onclick="() => NavigateToStock(stock.Symbol)">
+                        <tr class="mkt-trow" @onclick="() => HandleStockClick(stock.Symbol)">
                             <td><strong class="sym-link">@stock.Symbol</strong></td>
                             <td class="company-cell">@Truncate(stock.CompanyName, 20)</td>
                             <td><span class="mkt-sector-tag">@stock.Sector</span></td>
@@ -259,9 +260,10 @@ else if (exchangeData != null)
                             <td class="vol-cell">@FormatVolume(stock.Volume)</td>
                             <td class="mcap-cell">@FormatMarketCap(stock.MarketCap)</td>
                             <td>
-                                <button class="mkt-analyze-btn" @onclick:stopPropagation="true"
-                                        @onclick="() => NavigateToStock(stock.Symbol)">
-                                    Analyze
+                                <button class="mkt-analyze-btn @(isFreeUser ? "free-disabled-btn" : "")" @onclick:stopPropagation="true"
+                                        @onclick="() => HandleStockClick(stock.Symbol)"
+                                        disabled="@isFreeUser">
+                                    @(isFreeUser ? "🔒 Pro" : "Analyze")
                                 </button>
                             </td>
                         </tr>
@@ -425,6 +427,7 @@ else if (exchangeData != null)
     private DateTime? lastRefresh;
     private System.Threading.Timer? _liveTimer;
     private string fnoActiveTab = "equity-fut";
+    private bool isFreeUser = false;
 
     private readonly List<(string Code, string Name, string Flag)> exchangeTabs = new()
     {
@@ -438,6 +441,7 @@ else if (exchangeData != null)
     protected override async Task OnInitializedAsync()
     {
         Currency.OnCurrencyChanged += OnCurrencyChanged;
+        isFreeUser = await PlanAccess.IsFreeUserAsync();
         await LoadExchangeData();
 
         // Auto-refresh every 30 seconds for live prices
@@ -551,6 +555,16 @@ else if (exchangeData != null)
     {
         var cleanSymbol = symbol.Split('.')[0];
         Navigation.NavigateTo($"/?symbol={cleanSymbol}");
+    }
+
+    private void HandleStockClick(string symbol)
+    {
+        if (isFreeUser)
+        {
+            Navigation.NavigateTo("/plans");
+            return;
+        }
+        NavigateToStock(symbol);
     }
 
     private string GetRangePercent(ExchangeStock stock)
