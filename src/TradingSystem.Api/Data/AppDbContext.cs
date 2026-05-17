@@ -185,7 +185,7 @@ public class AppDbContext : DbContext
             entity.ToTable("payments");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired(false);
             entity.Property(e => e.OrderId).HasColumnName("order_id").IsRequired().HasMaxLength(100);
             entity.Property(e => e.PaymentId).HasColumnName("payment_id").HasMaxLength(100);
             entity.Property(e => e.Plan).HasColumnName("plan").IsRequired().HasMaxLength(20);

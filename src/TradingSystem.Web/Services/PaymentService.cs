@@ -23,14 +23,65 @@ public class PaymentService : IPaymentService
 
     public async Task<CreatePaymentOrderResponse?> CreateOrderAsync(CreatePaymentOrderRequest request)
     {
-        var response = await _http.PostAsJsonAsync("/payment/create-order", request);
-        return await response.Content.ReadFromJsonAsync<CreatePaymentOrderResponse>();
+        try
+        {
+            var response = await _http.PostAsJsonAsync("/payment/create-order", request);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    var errorResult = System.Text.Json.JsonSerializer.Deserialize<CreatePaymentOrderResponse>(body,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    return errorResult ?? new CreatePaymentOrderResponse { Success = false, Error = $"Server error ({(int)response.StatusCode}): {body}" };
+                }
+                catch
+                {
+                    return new CreatePaymentOrderResponse { Success = false, Error = $"Server error ({(int)response.StatusCode}): {body}" };
+                }
+            }
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<CreatePaymentOrderResponse>(body,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return result ?? new CreatePaymentOrderResponse { Success = false, Error = "Empty response from server." };
+        }
+        catch (Exception ex)
+        {
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Network error: {ex.Message}" };
+        }
     }
 
     public async Task<CreatePaymentOrderResponse?> CreateOrderAnonymousAsync(AnonymousCreateOrderRequest request)
     {
-        var response = await _http.PostAsJsonAsync("/payment/create-order-anonymous", request);
-        return await response.Content.ReadFromJsonAsync<CreatePaymentOrderResponse>();
+        try
+        {
+            var response = await _http.PostAsJsonAsync("/payment/create-order-anonymous", request);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Try to parse error from response body
+                try
+                {
+                    var errorResult = System.Text.Json.JsonSerializer.Deserialize<CreatePaymentOrderResponse>(body,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    return errorResult ?? new CreatePaymentOrderResponse { Success = false, Error = $"Server error ({(int)response.StatusCode}): {body}" };
+                }
+                catch
+                {
+                    return new CreatePaymentOrderResponse { Success = false, Error = $"Server error ({(int)response.StatusCode}): {body}" };
+                }
+            }
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<CreatePaymentOrderResponse>(body,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return result ?? new CreatePaymentOrderResponse { Success = false, Error = "Empty response from server." };
+        }
+        catch (Exception ex)
+        {
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Network error: {ex.Message}" };
+        }
     }
 
     public async Task<VerifyPaymentResponse?> VerifyPaymentAsync(VerifyPaymentRequest request)

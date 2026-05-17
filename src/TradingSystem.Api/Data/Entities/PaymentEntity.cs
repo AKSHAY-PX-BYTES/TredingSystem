@@ -3,7 +3,7 @@ namespace TradingSystem.Api.Data.Entities;
 public class PaymentEntity
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
+    public int? UserId { get; set; }
     public string OrderId { get; set; } = string.Empty;
     public string? PaymentId { get; set; }
     public string Plan { get; set; } = string.Empty;

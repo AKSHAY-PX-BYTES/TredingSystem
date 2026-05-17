@@ -16,7 +16,7 @@ public class SubscriptionAccessMiddleware
     {
         "/auth/", "/swagger", "/hubs/", "/subscription/plans",
         "/subscription/status", "/subscription/upgrade",
-        "/localization/"
+        "/localization/", "/payment/"
     };
 
     public SubscriptionAccessMiddleware(RequestDelegate next, ILogger<SubscriptionAccessMiddleware> logger)

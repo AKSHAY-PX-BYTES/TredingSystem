@@ -258,11 +258,11 @@ public class RazorpayPaymentService : IPaymentService
             var orderResponse = JsonSerializer.Deserialize<JsonElement>(responseBody);
             var orderId = orderResponse.GetProperty("id").GetString()!;
 
-            // Save payment record with UserId=0 (will be linked after registration)
+            // Save payment record with UserId=null (will be linked after registration)
             using var db = CreateDbContext();
             db.Payments.Add(new PaymentEntity
             {
-                UserId = 0,
+                UserId = null,
                 OrderId = orderId,
                 Plan = request.Plan,
                 Amount = amount,

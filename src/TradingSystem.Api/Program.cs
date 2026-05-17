@@ -352,7 +352,7 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw(@"
             CREATE TABLE IF NOT EXISTS payments (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 order_id VARCHAR(100) NOT NULL UNIQUE,
                 payment_id VARCHAR(100),
                 plan VARCHAR(20) NOT NULL,
@@ -366,6 +366,7 @@ using (var scope = app.Services.CreateScope())
                 paid_at TIMESTAMP,
                 raw_response TEXT
             )");
+        db.Database.ExecuteSqlRaw("ALTER TABLE payments ALTER COLUMN user_id DROP NOT NULL");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_payments_user_id ON payments(user_id)");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS ix_payments_payment_id ON payments(payment_id)");
         
