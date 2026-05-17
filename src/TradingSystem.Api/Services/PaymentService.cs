@@ -27,7 +27,7 @@ public class RazorpayPaymentService : IPaymentService
 
     private static readonly Dictionary<string, (decimal Monthly, decimal Annual)> PlanPrices = new()
     {
-        ["Pro"] = (1m, 12m),               // ₹1/mo for TESTING (revert to 799m, 6399m)
+        ["Pro"] = (799m, 6399m),             // ₹799/mo or ₹6399/year (~₹533/mo)
         ["Premium"] = (1599m, 12799m),     // ₹1599/mo or ₹12799/year (~₹1066/mo)
         ["Enterprise"] = (39999m, 399999m) // ₹39999/mo or ₹3,99,999/year
     };

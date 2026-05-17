@@ -22,10 +22,10 @@
         <input class="explore-input" @bind="symbolInput" @bind:event="oninput"
                @onkeydown="HandleKeyDown" placeholder="@(isFreeUser ? "🔒 Upgrade to search any stock" : "Search stocks e.g. AAPL, MSFT, RELIANCE")"
                disabled="@(!exploreEnabled || isFreeUser)" />
-        <button class="explore-btn @(isFreeUser && !IsDefaultSymbol(symbolInput) ? "free-disabled-btn" : "")" 
-                @onclick="LoadData" disabled="@(isLoading || !exploreEnabled || (isFreeUser && !IsDefaultSymbol(symbolInput)))">
+        <button class="explore-btn @(isFreeUser ? "free-disabled-btn" : "")" 
+                @onclick="LoadData" disabled="@(isLoading || !exploreEnabled || isFreeUser)">
             @if (isLoading) { <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> }
-            else if (isFreeUser && !IsDefaultSymbol(symbolInput)) { <span>🔒 Pro</span> }
+            else if (isFreeUser) { <span>🔒 Pro</span> }
             else if (!exploreEnabled) { <span>🚫 Disabled</span> }
             else { <span>Analyze</span> }
         </button>
@@ -387,6 +387,14 @@ else if (quote != null)
     private async Task LoadData()
     {
         if (string.IsNullOrWhiteSpace(symbolInput)) return;
+
+        // Free users can only view default stocks via chips, not analyze custom ones
+        if (isFreeUser && !IsDefaultSymbol(symbolInput))
+        {
+            Navigation.NavigateTo("/plans");
+            return;
+        }
+
         isLoading = true;
         error = null;
         currentSymbol = symbolInput.ToUpper();
