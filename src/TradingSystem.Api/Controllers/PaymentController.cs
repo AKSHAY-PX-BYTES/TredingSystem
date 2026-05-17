@@ -14,12 +14,39 @@ public class PaymentController : ControllerBase
     private readonly IPaymentService _paymentService;
     private readonly IActivityTrackingService _activityTracker;
     private readonly ILogger<PaymentController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public PaymentController(IPaymentService paymentService, IActivityTrackingService activityTracker, ILogger<PaymentController> logger)
+    public PaymentController(IPaymentService paymentService, IActivityTrackingService activityTracker, 
+        ILogger<PaymentController> logger, IConfiguration configuration)
     {
         _paymentService = paymentService;
         _activityTracker = activityTracker;
         _logger = logger;
+        _configuration = configuration;
+    }
+
+    /// <summary>
+    /// Check Razorpay configuration status (for debugging)
+    /// </summary>
+    [HttpGet("config-check")]
+    [AllowAnonymous]
+    public IActionResult ConfigCheck()
+    {
+        var keyId = _configuration["Razorpay:KeyId"];
+        var keySecret = _configuration["Razorpay:KeySecret"];
+        var webhookSecret = _configuration["Razorpay:WebhookSecret"];
+        
+        return Ok(new
+        {
+            keyIdSet = !string.IsNullOrEmpty(keyId),
+            keyIdPrefix = keyId?.Length > 8 ? keyId[..8] + "..." : keyId ?? "NOT SET",
+            keySecretSet = !string.IsNullOrEmpty(keySecret),
+            keySecretLength = keySecret?.Length ?? 0,
+            webhookSecretSet = !string.IsNullOrEmpty(webhookSecret),
+            currency = _configuration["Razorpay:Currency"] ?? "INR",
+            companyName = _configuration["Razorpay:CompanyName"] ?? "NOT SET",
+            plans = new[] { "Pro (₹799/mo)", "Premium (₹1599/mo)", "Enterprise (₹39999/mo)" }
+        });
     }
 
     /// <summary>

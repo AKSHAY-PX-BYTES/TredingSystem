@@ -54,7 +54,7 @@ public class RazorpayPaymentService : IPaymentService
 
         if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
         {
-            return new CreatePaymentOrderResponse { Success = false, Error = "Payment gateway not configured. Please contact support." };
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Payment gateway not configured. KeyId={(string.IsNullOrEmpty(keyId) ? "MISSING" : "SET")}, KeySecret={(string.IsNullOrEmpty(keySecret) ? "MISSING" : "SET")}" };
         }
 
         if (!PlanPrices.ContainsKey(request.Plan))
@@ -72,14 +72,13 @@ public class RazorpayPaymentService : IPaymentService
         var (monthly, annual) = PlanPrices[request.Plan];
         var amount = request.IsAnnual ? annual : monthly;
         var currency = _configuration["Razorpay:Currency"] ?? "INR";
-        var amountInPaise = (int)(amount * 100); // Razorpay expects amount in smallest unit (paise)
+        var amountInPaise = (int)(amount * 100);
 
-        // Create order via Razorpay API
         try
         {
             var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{keyId}:{keySecret}"));
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.razorpay.com/v1/orders");
-            httpRequest.Headers.Add("Authorization", $"Basic {credentials}");
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.razorpay.com/v1/orders");
+            httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
 
             var orderPayload = new
             {
@@ -104,8 +103,8 @@ public class RazorpayPaymentService : IPaymentService
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Razorpay order creation failed: {Response}", responseBody);
-                return new CreatePaymentOrderResponse { Success = false, Error = "Failed to create payment order. Please try again." };
+                _logger.LogError("Razorpay order creation failed: status={Status}, response={Response}", response.StatusCode, responseBody);
+                return new CreatePaymentOrderResponse { Success = false, Error = $"Razorpay API error ({response.StatusCode}): {responseBody}" };
             }
 
             var orderResponse = JsonSerializer.Deserialize<JsonElement>(responseBody);
@@ -142,8 +141,8 @@ public class RazorpayPaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating Razorpay order");
-            return new CreatePaymentOrderResponse { Success = false, Error = "Payment service unavailable. Please try again later." };
+            _logger.LogError(ex, "Error creating Razorpay order: {Message}", ex.Message);
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Payment service error: {ex.Message}" };
         }
     }
 
@@ -220,8 +219,11 @@ public class RazorpayPaymentService : IPaymentService
         var keyId = _configuration["Razorpay:KeyId"];
         var keySecret = _configuration["Razorpay:KeySecret"];
 
+        _logger.LogInformation("CreateOrderAnonymous called: email={Email}, plan={Plan}, keyId={KeyId}, keySecretLength={SecretLen}",
+            email, request.Plan, keyId ?? "NULL", keySecret?.Length ?? 0);
+
         if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
-            return new CreatePaymentOrderResponse { Success = false, Error = "Payment gateway not configured." };
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Payment gateway not configured. KeyId={(string.IsNullOrEmpty(keyId) ? "MISSING" : "SET")}, KeySecret={(string.IsNullOrEmpty(keySecret) ? "MISSING" : "SET")}" };
 
         if (!PlanPrices.ContainsKey(request.Plan))
             return new CreatePaymentOrderResponse { Success = false, Error = $"Invalid plan: {request.Plan}" };
@@ -234,25 +236,33 @@ public class RazorpayPaymentService : IPaymentService
         try
         {
             var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{keyId}:{keySecret}"));
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.razorpay.com/v1/orders");
-            httpRequest.Headers.Add("Authorization", $"Basic {credentials}");
+
+            // Use a fresh HttpRequestMessage each time
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.razorpay.com/v1/orders");
+            httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
 
             var orderPayload = new
             {
                 amount = amountInPaise,
                 currency,
-                receipt = $"signup_{email}_{DateTime.UtcNow.Ticks}",
+                receipt = $"signup_{DateTime.UtcNow.Ticks}",
                 notes = new { plan = request.Plan, email, is_annual = request.IsAnnual.ToString(), flow = "signup" }
             };
 
-            httpRequest.Content = new StringContent(JsonSerializer.Serialize(orderPayload), Encoding.UTF8, "application/json");
+            var jsonPayload = JsonSerializer.Serialize(orderPayload);
+            httpRequest.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            _logger.LogInformation("Calling Razorpay API: POST /v1/orders, payload={Payload}", jsonPayload);
+
             var response = await _httpClient.SendAsync(httpRequest);
             var responseBody = await response.Content.ReadAsStringAsync();
 
+            _logger.LogInformation("Razorpay API response: status={Status}, body={Body}", response.StatusCode, responseBody);
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Razorpay anonymous order creation failed: {Response}", responseBody);
-                return new CreatePaymentOrderResponse { Success = false, Error = "Failed to create payment order." };
+                _logger.LogError("Razorpay anonymous order creation failed: status={Status}, response={Response}", response.StatusCode, responseBody);
+                return new CreatePaymentOrderResponse { Success = false, Error = $"Razorpay API error ({response.StatusCode}): {responseBody}" };
             }
 
             var orderResponse = JsonSerializer.Deserialize<JsonElement>(responseBody);
@@ -289,8 +299,8 @@ public class RazorpayPaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating anonymous Razorpay order");
-            return new CreatePaymentOrderResponse { Success = false, Error = "Payment service unavailable." };
+            _logger.LogError(ex, "Exception in CreateOrderAnonymousAsync: {Message}", ex.Message);
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Payment service error: {ex.Message}" };
         }
     }
 
