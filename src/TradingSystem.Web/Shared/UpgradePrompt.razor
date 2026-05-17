@@ -1,0 +1,24 @@
+@inject NavigationManager Navigation
+
+<div class="upgrade-prompt">
+    <div class="upgrade-prompt-icon">🔒</div>
+    <h3 class="upgrade-prompt-title">@Title</h3>
+    <p class="upgrade-prompt-desc">@Description</p>
+    <div class="upgrade-prompt-plans">
+        @if (!string.IsNullOrEmpty(RequiredPlan))
+        {
+            <span class="upgrade-prompt-badge">Requires <strong>@RequiredPlan</strong> plan or higher</span>
+        }
+    </div>
+    <button class="upgrade-prompt-btn" @onclick="GoToPlans">
+        ⚡ Upgrade Now
+    </button>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Feature Locked";
+    [Parameter] public string Description { get; set; } = "Upgrade your plan to unlock this feature.";
+    [Parameter] public string RequiredPlan { get; set; } = "Pro";
+
+    private void GoToPlans() => Navigation.NavigateTo("/plans");
+}
