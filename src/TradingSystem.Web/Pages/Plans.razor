@@ -235,14 +235,14 @@
 
         try
         {
-            // Step 1: Create Razorpay order
+            // Step 1: Create Razorpay order (authenticated)
             var orderResult = await PaymentService.CreateOrderAsync(new CreatePaymentOrderRequest
             {
                 Plan = plan,
                 IsAnnual = isAnnual
             });
 
-            if (orderResult?.Success != true || orderResult.Data == null)
+            if (orderResult?.Success != true || string.IsNullOrEmpty(orderResult.OrderId))
             {
                 upgradeSuccess = false;
                 upgradeMessage = orderResult?.Error ?? "Failed to create payment order.";
@@ -250,8 +250,6 @@
                 StateHasChanged();
                 return;
             }
-
-            var order = orderResult.Data;
 
             // Get user email for prefill
             var userJson = await JS.InvokeAsync<string?>("localStorage.getItem", "authUser");
@@ -266,12 +264,12 @@
             // Step 2: Open Razorpay checkout
             var options = new
             {
-                keyId = order.KeyId,
-                amount = (int)(order.Amount * 100), // Razorpay expects paise
-                currency = order.Currency,
-                companyName = order.CompanyName,
-                description = order.Description,
-                orderId = order.OrderId,
+                keyId = orderResult.RazorpayKeyId,
+                amount = (int)(orderResult.Amount * 100), // Razorpay expects paise
+                currency = orderResult.Currency,
+                companyName = "Trading System",
+                description = orderResult.Description,
+                orderId = orderResult.OrderId,
                 email = email,
                 phone = ""
             };
@@ -294,14 +292,19 @@
     [JSInvokable]
     public async Task OnPaymentSuccess(string orderId, string paymentId, string signature)
     {
+        upgradeMessage = "✅ Payment received! Verifying...";
+        StateHasChanged();
+
         var verifyResult = await PaymentService.VerifyPaymentAsync(new VerifyPaymentRequest
         {
-            OrderId = orderId,
-            PaymentId = paymentId,
-            Signature = signature
+            RazorpayOrderId = orderId,
+            RazorpayPaymentId = paymentId,
+            RazorpaySignature = signature,
+            Plan = _pendingPlan,
+            IsAnnual = isAnnual
         });
 
-        if (verifyResult?.Success == true && verifyResult.Data?.Verified == true)
+        if (verifyResult?.Success == true)
         {
             upgradeSuccess = true;
             upgradeMessage = $"🎉 Payment successful! Upgraded to {_pendingPlan}!";
@@ -327,7 +330,7 @@
         else
         {
             upgradeSuccess = false;
-            upgradeMessage = verifyResult?.Data?.Message ?? "Payment verification failed.";
+            upgradeMessage = verifyResult?.Error ?? "Payment verification failed. Contact support.";
         }
 
         isUpgrading = false;

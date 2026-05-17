@@ -11,7 +11,9 @@ namespace TradingSystem.Api.Services;
 public interface IPaymentService
 {
     Task<CreatePaymentOrderResponse> CreateOrderAsync(string username, CreatePaymentOrderRequest request);
+    Task<CreatePaymentOrderResponse> CreateOrderAnonymousAsync(string email, CreatePaymentOrderRequest request);
     Task<VerifyPaymentResponse> VerifyPaymentAsync(string username, VerifyPaymentRequest request);
+    Task<VerifyPaymentResponse> VerifyPaymentAnonymousAsync(string orderId, string paymentId, string signature);
     Task<List<PaymentHistoryItem>> GetPaymentHistoryAsync(string username);
     Task<bool> HandleWebhookAsync(string payload, string signature);
 }
@@ -208,6 +210,125 @@ public class RazorpayPaymentService : IPaymentService
                 EndDate = request.IsAnnual ? DateTime.UtcNow.AddYears(1) : DateTime.UtcNow.AddMonths(1)
             }
         };
+    }
+
+    /// <summary>
+    /// Create order for anonymous (signup) flow — no user in DB yet
+    /// </summary>
+    public async Task<CreatePaymentOrderResponse> CreateOrderAnonymousAsync(string email, CreatePaymentOrderRequest request)
+    {
+        var keyId = _configuration["Razorpay:KeyId"];
+        var keySecret = _configuration["Razorpay:KeySecret"];
+
+        if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
+            return new CreatePaymentOrderResponse { Success = false, Error = "Payment gateway not configured." };
+
+        if (!PlanPrices.ContainsKey(request.Plan))
+            return new CreatePaymentOrderResponse { Success = false, Error = $"Invalid plan: {request.Plan}" };
+
+        var (monthly, annual) = PlanPrices[request.Plan];
+        var amount = request.IsAnnual ? annual : monthly;
+        var currency = _configuration["Razorpay:Currency"] ?? "INR";
+        var amountInPaise = (int)(amount * 100);
+
+        try
+        {
+            var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{keyId}:{keySecret}"));
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.razorpay.com/v1/orders");
+            httpRequest.Headers.Add("Authorization", $"Basic {credentials}");
+
+            var orderPayload = new
+            {
+                amount = amountInPaise,
+                currency,
+                receipt = $"signup_{email}_{DateTime.UtcNow.Ticks}",
+                notes = new { plan = request.Plan, email, is_annual = request.IsAnnual.ToString(), flow = "signup" }
+            };
+
+            httpRequest.Content = new StringContent(JsonSerializer.Serialize(orderPayload), Encoding.UTF8, "application/json");
+            var response = await _httpClient.SendAsync(httpRequest);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Razorpay anonymous order creation failed: {Response}", responseBody);
+                return new CreatePaymentOrderResponse { Success = false, Error = "Failed to create payment order." };
+            }
+
+            var orderResponse = JsonSerializer.Deserialize<JsonElement>(responseBody);
+            var orderId = orderResponse.GetProperty("id").GetString()!;
+
+            // Save payment record with UserId=0 (will be linked after registration)
+            using var db = CreateDbContext();
+            db.Payments.Add(new PaymentEntity
+            {
+                UserId = 0,
+                OrderId = orderId,
+                Plan = request.Plan,
+                Amount = amount,
+                Currency = currency,
+                Status = "created",
+                IsAnnual = request.IsAnnual,
+                CreatedAt = DateTime.UtcNow,
+                PaymentMethod = email // store email temporarily to link later
+            });
+            await db.SaveChangesAsync();
+
+            _logger.LogInformation("Anonymous Razorpay order created: {OrderId} for email {Email}, plan {Plan}", orderId, email, request.Plan);
+
+            return new CreatePaymentOrderResponse
+            {
+                Success = true,
+                OrderId = orderId,
+                Amount = amount,
+                Currency = currency,
+                RazorpayKeyId = keyId,
+                CustomerEmail = email,
+                Description = $"{request.Plan} Plan - {(request.IsAnnual ? "Annual" : "Monthly")} Subscription"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating anonymous Razorpay order");
+            return new CreatePaymentOrderResponse { Success = false, Error = "Payment service unavailable." };
+        }
+    }
+
+    /// <summary>
+    /// Verify payment for anonymous (signup) flow — just validates signature + marks as paid
+    /// </summary>
+    public async Task<VerifyPaymentResponse> VerifyPaymentAnonymousAsync(string orderId, string paymentId, string signature)
+    {
+        var keySecret = _configuration["Razorpay:KeySecret"];
+        if (string.IsNullOrEmpty(keySecret))
+            return new VerifyPaymentResponse { Success = false, Error = "Payment gateway not configured." };
+
+        var payload = $"{orderId}|{paymentId}";
+        var expectedSignature = ComputeHmacSha256(payload, keySecret);
+
+        if (expectedSignature != signature)
+        {
+            _logger.LogWarning("Anonymous payment signature mismatch for order {OrderId}", orderId);
+            return new VerifyPaymentResponse { Success = false, Error = "Payment verification failed. Invalid signature." };
+        }
+
+        using var db = CreateDbContext();
+        var payment = await db.Payments.FirstOrDefaultAsync(p => p.OrderId == orderId);
+        if (payment == null)
+            return new VerifyPaymentResponse { Success = false, Error = "Payment order not found." };
+
+        if (payment.Status == "paid")
+            return new VerifyPaymentResponse { Success = true, Message = "Payment already verified.", TransactionId = paymentId };
+
+        payment.PaymentId = paymentId;
+        payment.Signature = signature;
+        payment.Status = "paid";
+        payment.PaidAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Anonymous payment verified: {PaymentId}, order {OrderId}", paymentId, orderId);
+
+        return new VerifyPaymentResponse { Success = true, Message = "Payment verified successfully.", TransactionId = paymentId };
     }
 
     public async Task<List<PaymentHistoryItem>> GetPaymentHistoryAsync(string username)

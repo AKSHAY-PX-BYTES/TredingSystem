@@ -112,4 +112,43 @@ public class PaymentController : ControllerBase
 
         return success ? Ok("OK") : BadRequest("Invalid signature");
     }
+
+    /// <summary>
+    /// Create a Razorpay order for signup (anonymous, no auth needed)
+    /// </summary>
+    [HttpPost("create-order-anonymous")]
+    [AllowAnonymous]
+    public async Task<IActionResult> CreateOrderAnonymous([FromBody] AnonymousCreateOrderRequest request)
+    {
+        _logger.LogInformation("POST /payment/create-order-anonymous for email {Email}, plan {Plan}", request.Email, request.Plan);
+
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Plan))
+            return BadRequest(new CreatePaymentOrderResponse { Success = false, Error = "Email and Plan are required." });
+
+        var result = await _paymentService.CreateOrderAnonymousAsync(request.Email, new CreatePaymentOrderRequest
+        {
+            Plan = request.Plan,
+            IsAnnual = request.IsAnnual
+        });
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Verify a Razorpay payment for signup (anonymous, no auth needed)
+    /// </summary>
+    [HttpPost("verify-anonymous")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyPaymentAnonymous([FromBody] AnonymousVerifyRequest request)
+    {
+        _logger.LogInformation("POST /payment/verify-anonymous for order {OrderId}", request.RazorpayOrderId);
+
+        if (string.IsNullOrWhiteSpace(request.RazorpayOrderId) || string.IsNullOrWhiteSpace(request.RazorpayPaymentId))
+            return BadRequest(new VerifyPaymentResponse { Success = false, Error = "Invalid request." });
+
+        var result = await _paymentService.VerifyPaymentAnonymousAsync(
+            request.RazorpayOrderId, request.RazorpayPaymentId, request.RazorpaySignature);
+
+        return Ok(result);
+    }
 }

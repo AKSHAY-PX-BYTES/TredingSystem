@@ -5,8 +5,10 @@ namespace TradingSystem.Web.Services;
 
 public interface IPaymentService
 {
-    Task<ApiResponse<CreatePaymentOrderResponse>?> CreateOrderAsync(CreatePaymentOrderRequest request);
-    Task<ApiResponse<VerifyPaymentResponse>?> VerifyPaymentAsync(VerifyPaymentRequest request);
+    Task<CreatePaymentOrderResponse?> CreateOrderAsync(CreatePaymentOrderRequest request);
+    Task<CreatePaymentOrderResponse?> CreateOrderAnonymousAsync(AnonymousCreateOrderRequest request);
+    Task<VerifyPaymentResponse?> VerifyPaymentAsync(VerifyPaymentRequest request);
+    Task<VerifyPaymentResponse?> VerifyPaymentAnonymousAsync(AnonymousVerifyRequest request);
     Task<ApiResponse<List<PaymentHistoryItem>>?> GetHistoryAsync();
 }
 
@@ -19,16 +21,28 @@ public class PaymentService : IPaymentService
         _http = http;
     }
 
-    public async Task<ApiResponse<CreatePaymentOrderResponse>?> CreateOrderAsync(CreatePaymentOrderRequest request)
+    public async Task<CreatePaymentOrderResponse?> CreateOrderAsync(CreatePaymentOrderRequest request)
     {
         var response = await _http.PostAsJsonAsync("/payment/create-order", request);
-        return await response.Content.ReadFromJsonAsync<ApiResponse<CreatePaymentOrderResponse>>();
+        return await response.Content.ReadFromJsonAsync<CreatePaymentOrderResponse>();
     }
 
-    public async Task<ApiResponse<VerifyPaymentResponse>?> VerifyPaymentAsync(VerifyPaymentRequest request)
+    public async Task<CreatePaymentOrderResponse?> CreateOrderAnonymousAsync(AnonymousCreateOrderRequest request)
+    {
+        var response = await _http.PostAsJsonAsync("/payment/create-order-anonymous", request);
+        return await response.Content.ReadFromJsonAsync<CreatePaymentOrderResponse>();
+    }
+
+    public async Task<VerifyPaymentResponse?> VerifyPaymentAsync(VerifyPaymentRequest request)
     {
         var response = await _http.PostAsJsonAsync("/payment/verify", request);
-        return await response.Content.ReadFromJsonAsync<ApiResponse<VerifyPaymentResponse>>();
+        return await response.Content.ReadFromJsonAsync<VerifyPaymentResponse>();
+    }
+
+    public async Task<VerifyPaymentResponse?> VerifyPaymentAnonymousAsync(AnonymousVerifyRequest request)
+    {
+        var response = await _http.PostAsJsonAsync("/payment/verify-anonymous", request);
+        return await response.Content.ReadFromJsonAsync<VerifyPaymentResponse>();
     }
 
     public async Task<ApiResponse<List<PaymentHistoryItem>>?> GetHistoryAsync()

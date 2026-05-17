@@ -401,7 +401,11 @@
                             @if (isLoading)
                             {
                                 <span class="spinner"></span>
-                                <span>Creating account...</span>
+                                <span>Processing...</span>
+                            }
+                            else if (registerModel.Plan != "Free" && !string.IsNullOrEmpty(registerModel.Plan))
+                            {
+                                <span>💳 Pay & Complete Sign Up</span>
                             }
                             else
                             {
@@ -769,153 +773,169 @@
                 registerModel.CountryCode = selectedCountryCode;
             }
 
-            var result = await AuthService.RegisterAsync(registerModel);
-
-            if (result.Success)
+            // For PAID plans: payment FIRST, then register
+            if (registerModel.Plan != "Free" && !string.IsNullOrEmpty(registerModel.Plan))
             {
-                // If paid plan selected, trigger Razorpay payment
-                if (registerModel.Plan != "Free" && !string.IsNullOrEmpty(registerModel.Plan))
-                {
-                    successMessage = "Account created! Proceeding to payment...";
-                    StateHasChanged();
-
-                    // Auto-login to get JWT for payment API call
-                    var loginResult = await AuthService.LoginAsync(new LoginRequest
-                    {
-                        Username = registerModel.Email,
-                        Password = registerModel.Password
-                    });
-
-                    if (loginResult.Success)
-                    {
-                        await StartPaymentFlow(registerModel.Plan);
-                        return; // Don't redirect yet — payment callback will handle it
-                    }
-                    else
-                    {
-                        // Login failed, redirect to login page — user can pay from Plans page later
-                        successMessage = "Account created! Please log in and upgrade from Plans page.";
-                        StateHasChanged();
-                        await Task.Delay(2000);
-                        Navigation.NavigateTo("/login");
-                    }
-                }
-                else
-                {
-                    successMessage = result.Message ?? "Account created successfully!";
-                    registerModel = new RegisterRequest();
-                    StateHasChanged();
-                    await Task.Delay(2000);
-                    Navigation.NavigateTo("/login");
-                }
+                successMessage = "💳 Opening payment gateway...";
+                StateHasChanged();
+                await StartSignupPaymentFlow(registerModel.Plan);
+                return; // Payment callback will handle registration
             }
-            else
-            {
-                errorMessage = result.Error ?? "Registration failed. Please try again.";
-            }
+
+            // For FREE plan: register directly
+            await CompleteRegistration();
         }
         catch (Exception ex)
         {
             errorMessage = $"An error occurred: {ex.Message}";
-        }
-        finally
-        {
             isLoading = false;
             StateHasChanged();
         }
     }
 
     private string _signupPendingPlan = "";
+    private string _signupPaymentOrderId = "";
+    private string _signupPaymentId = "";
 
-    private async Task StartPaymentFlow(string plan)
+    private async Task StartSignupPaymentFlow(string plan)
     {
         try
         {
-            var orderResult = await PaymentService.CreateOrderAsync(new CreatePaymentOrderRequest
+            // Create order anonymously (user not registered yet)
+            var orderResult = await PaymentService.CreateOrderAnonymousAsync(new AnonymousCreateOrderRequest
             {
+                Email = registerModel.Email,
                 Plan = plan,
                 IsAnnual = false
             });
 
-            if (orderResult?.Success != true || orderResult.Data == null)
+            if (orderResult?.Success != true || string.IsNullOrEmpty(orderResult.OrderId))
             {
-                errorMessage = orderResult?.Error ?? "Failed to create payment order. You can pay later from Plans page.";
+                errorMessage = orderResult?.Error ?? "Failed to create payment order. Please try again.";
+                isLoading = false;
                 StateHasChanged();
-                await Task.Delay(3000);
-                Navigation.NavigateTo("/login");
                 return;
             }
 
-            var order = orderResult.Data;
             var options = new
             {
-                keyId = order.KeyId,
-                amount = (int)(order.Amount * 100),
-                currency = order.Currency,
-                companyName = order.CompanyName,
-                description = order.Description,
-                orderId = order.OrderId,
+                keyId = orderResult.RazorpayKeyId,
+                amount = (int)(orderResult.Amount * 100), // paise
+                currency = orderResult.Currency,
+                companyName = "Trading System",
+                description = orderResult.Description,
+                orderId = orderResult.OrderId,
                 email = registerModel.Email,
                 phone = ""
             };
 
             _signupPendingPlan = plan;
+            _signupPaymentOrderId = orderResult.OrderId;
             var dotnetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("openRazorpayCheckout", options, dotnetRef);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Payment setup failed: {ex.Message}. You can upgrade from Plans page after login.";
+            errorMessage = $"Payment setup failed: {ex.Message}";
+            isLoading = false;
             StateHasChanged();
-            await Task.Delay(3000);
-            Navigation.NavigateTo("/login");
         }
     }
 
     [JSInvokable]
     public async Task OnPaymentSuccess(string orderId, string paymentId, string signature)
     {
-        var verifyResult = await PaymentService.VerifyPaymentAsync(new VerifyPaymentRequest
+        try
         {
-            OrderId = orderId,
-            PaymentId = paymentId,
-            Signature = signature
-        });
+            successMessage = "✅ Payment received! Verifying...";
+            StateHasChanged();
 
-        if (verifyResult?.Success == true && verifyResult.Data?.Verified == true)
-        {
-            successMessage = $"🎉 Payment successful! Your {_signupPendingPlan} plan is now active!";
-            errorMessage = null;
-        }
-        else
-        {
-            successMessage = "Account created but payment verification failed. Contact support.";
-        }
+            // Verify the payment anonymously
+            var verifyResult = await PaymentService.VerifyPaymentAnonymousAsync(new AnonymousVerifyRequest
+            {
+                RazorpayOrderId = orderId,
+                RazorpayPaymentId = paymentId,
+                RazorpaySignature = signature
+            });
 
-        StateHasChanged();
-        await Task.Delay(2500);
-        Navigation.NavigateTo("/dashboard");
+            if (verifyResult?.Success != true)
+            {
+                errorMessage = verifyResult?.Error ?? "Payment verification failed. Please contact support.";
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Payment verified! Now register the account with payment proof
+            _signupPaymentId = paymentId;
+            registerModel.PaymentOrderId = orderId;
+            successMessage = "✅ Payment verified! Creating your account...";
+            StateHasChanged();
+
+            await CompleteRegistration();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error after payment: {ex.Message}";
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     [JSInvokable]
-    public async Task OnPaymentCancelled()
+    public Task OnPaymentCancelled()
     {
-        successMessage = "Account created! You can upgrade anytime from the Plans page.";
-        errorMessage = null;
+        errorMessage = "Payment cancelled. Please complete payment to register with this plan, or select the Free plan.";
+        successMessage = null;
         isLoading = false;
         StateHasChanged();
-        await Task.Delay(2000);
-        Navigation.NavigateTo("/login");
+        return Task.CompletedTask;
     }
 
     [JSInvokable]
-    public async Task OnPaymentFailed(string errorDescription)
+    public Task OnPaymentFailed(string errorDescription)
     {
-        errorMessage = $"Payment failed: {errorDescription}. You can retry from Plans page.";
+        errorMessage = $"Payment failed: {errorDescription}. Please try again or select a different plan.";
+        successMessage = null;
         isLoading = false;
         StateHasChanged();
-        await Task.Delay(3000);
-        Navigation.NavigateTo("/login");
+        return Task.CompletedTask;
+    }
+
+    private async Task CompleteRegistration()
+    {
+        try
+        {
+            var result = await AuthService.RegisterAsync(registerModel);
+
+            if (result.Success)
+            {
+                successMessage = registerModel.Plan != "Free"
+                    ? $"🎉 Payment successful & account created! Your {registerModel.Plan} plan is active."
+                    : result.Message ?? "Account created successfully!";
+                errorMessage = null;
+                registerModel = new RegisterRequest();
+                StateHasChanged();
+
+                await Task.Delay(2500);
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = result.Error ?? "Registration failed. Please try again.";
+                successMessage = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Registration error: {ex.Message}";
+            successMessage = null;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task CheckUsername()

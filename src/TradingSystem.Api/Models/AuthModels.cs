@@ -62,10 +62,15 @@ public class RegisterRequest
     [Compare("Password", ErrorMessage = "Passwords do not match")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    public string Plan { get; set; } = "Basic";
+    public string Plan { get; set; } = "Free";
 
     public string? PhoneNumber { get; set; }
     public string? CountryCode { get; set; }
+
+    /// <summary>
+    /// Razorpay order ID from pre-registration payment (for paid plans during signup)
+    /// </summary>
+    public string? PaymentOrderId { get; set; }
 }
 
 public class RegisterResponse

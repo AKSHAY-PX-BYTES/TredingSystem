@@ -224,10 +224,11 @@ public class RegisterRequest
     [Compare("Password", ErrorMessage = "Passwords do not match")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    public string Plan { get; set; } = "Basic";
+    public string Plan { get; set; } = "Free";
 
     public string? PhoneNumber { get; set; }
     public string? CountryCode { get; set; }
+    public string? PaymentOrderId { get; set; }
 }
 
 public class RegisterResponse
@@ -495,38 +496,58 @@ public class CreatePaymentOrderRequest
     public bool IsAnnual { get; set; }
 }
 
+public class AnonymousCreateOrderRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Plan { get; set; } = string.Empty;
+    public bool IsAnnual { get; set; }
+}
+
 public class CreatePaymentOrderResponse
 {
-    public string OrderId { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string? OrderId { get; set; }
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "INR";
-    public string KeyId { get; set; } = string.Empty;
-    public string CompanyName { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public string? RazorpayKeyId { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerEmail { get; set; }
+    public string? Description { get; set; }
+    public string? Error { get; set; }
 }
 
 public class VerifyPaymentRequest
 {
-    public string OrderId { get; set; } = string.Empty;
-    public string PaymentId { get; set; } = string.Empty;
-    public string Signature { get; set; } = string.Empty;
+    public string RazorpayOrderId { get; set; } = string.Empty;
+    public string RazorpayPaymentId { get; set; } = string.Empty;
+    public string RazorpaySignature { get; set; } = string.Empty;
+    public string Plan { get; set; } = string.Empty;
+    public bool IsAnnual { get; set; }
+}
+
+public class AnonymousVerifyRequest
+{
+    public string RazorpayOrderId { get; set; } = string.Empty;
+    public string RazorpayPaymentId { get; set; } = string.Empty;
+    public string RazorpaySignature { get; set; } = string.Empty;
 }
 
 public class VerifyPaymentResponse
 {
-    public bool Verified { get; set; }
-    public string Plan { get; set; } = string.Empty;
-    public string Message { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? Error { get; set; }
+    public string? TransactionId { get; set; }
 }
 
 public class PaymentHistoryItem
 {
+    public string TransactionId { get; set; } = string.Empty;
     public string OrderId { get; set; } = string.Empty;
-    public string PaymentId { get; set; } = string.Empty;
     public string Plan { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string PaymentMethod { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public DateTime? PaidAt { get; set; }
 }

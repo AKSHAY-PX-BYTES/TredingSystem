@@ -187,6 +187,21 @@ public class AuthService : IAuthService
         var validPlans = new[] { "Free", "Pro", "Premium", "Enterprise" };
         var plan = validPlans.Contains(request.Plan) ? request.Plan : "Free";
 
+        // If paid plan, verify that payment was completed
+        if (plan != "Free" && !string.IsNullOrEmpty(request.PaymentOrderId))
+        {
+            var payment = await db.Payments.FirstOrDefaultAsync(p => p.OrderId == request.PaymentOrderId && p.Status == "paid");
+            if (payment == null)
+            {
+                return new RegisterResponse { Success = false, Error = "Payment not verified. Please complete payment before registration." };
+            }
+        }
+        else if (plan != "Free")
+        {
+            // Paid plan but no payment proof — downgrade to Free
+            plan = "Free";
+        }
+
         var newUser = new UserEntity
         {
             Username = request.Username,
@@ -203,6 +218,17 @@ public class AuthService : IAuthService
 
         db.Users.Add(newUser);
         await db.SaveChangesAsync();
+
+        // Link payment record to the new user
+        if (plan != "Free" && !string.IsNullOrEmpty(request.PaymentOrderId))
+        {
+            var payment = await db.Payments.FirstOrDefaultAsync(p => p.OrderId == request.PaymentOrderId);
+            if (payment != null)
+            {
+                payment.UserId = newUser.Id;
+                await db.SaveChangesAsync();
+            }
+        }
 
         _logger.LogInformation("User registered successfully: {Username}", request.Username);
 

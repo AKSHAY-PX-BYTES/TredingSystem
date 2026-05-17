@@ -60,3 +60,26 @@ public class PaymentHistoryItem
     public string PaymentMethod { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
+
+public class AnonymousCreateOrderRequest
+{
+    [Required]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Plan { get; set; } = string.Empty;
+
+    public bool IsAnnual { get; set; } = false;
+}
+
+public class AnonymousVerifyRequest
+{
+    [Required]
+    public string RazorpayOrderId { get; set; } = string.Empty;
+
+    [Required]
+    public string RazorpayPaymentId { get; set; } = string.Empty;
+
+    [Required]
+    public string RazorpaySignature { get; set; } = string.Empty;
+}
