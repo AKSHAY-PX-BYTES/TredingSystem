@@ -61,13 +61,12 @@
                 {
                     <NavLink class="nav-link" href="chat">AI Chat</NavLink>
                 }
-                <AuthorizeView Roles="Admin">
-                    <Authorized>
-                        <NavLink class="nav-link admin-nav-link" href="admin">
-                            ⚙️ Admin
-                        </NavLink>
-                    </Authorized>
-                </AuthorizeView>
+                @if (isAdmin)
+                {
+                    <NavLink class="nav-link admin-nav-link" href="admin">
+                        ⚙️ Admin
+                    </NavLink>
+                }
             </nav>
             <div class="navbar-right">
                 <button class="theme-toggle" @onclick="ToggleTheme" title="Toggle Theme">
