@@ -3001,7 +3001,7 @@ tbody tr:hover {
 }
 @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-.admin-nav-link { color: #ffc107 !important; font-weight: 600; background: rgba(255, 193, 7, 0.1); border: 1px solid #ffc107; border-radius: 6px; padding: 0.3rem 0.7rem !important; white-space: nowrap; flex-shrink: 0; }
+.admin-nav-link { color: #ffc107 !important; font-weight: 600; background: rgba(255, 193, 7, 0.15); border: 1px solid #ffc107; border-radius: 6px; padding: 0.35rem 0.75rem !important; white-space: nowrap; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem; }
 .admin-nav-link:hover { color: #000 !important; background: #ffc107; }
 
 /* Feature Disabled Page */

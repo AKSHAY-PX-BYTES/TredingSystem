@@ -61,14 +61,14 @@
                 {
                     <NavLink class="nav-link" href="chat">AI Chat</NavLink>
                 }
+            </nav>
+            <div class="navbar-right">
                 @if (isAdmin)
                 {
-                    <NavLink class="nav-link admin-nav-link" href="admin">
+                    <NavLink class="admin-nav-link" href="admin">
                         ⚙️ Admin
                     </NavLink>
                 }
-            </nav>
-            <div class="navbar-right">
                 <button class="theme-toggle" @onclick="ToggleTheme" title="Toggle Theme">
                     @(ThemeService.IsDarkMode ? "☀️" : "🌙")
                 </button>
