@@ -26,10 +26,10 @@ public class PaymentController : ControllerBase
     }
 
     /// <summary>
-    /// Check Razorpay configuration status (for debugging)
+    /// Check Razorpay configuration status (Admin only)
     /// </summary>
     [HttpGet("config-check")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     public IActionResult ConfigCheck()
     {
         var keyId = _configuration["Razorpay:KeyId"];
@@ -38,14 +38,10 @@ public class PaymentController : ControllerBase
         
         return Ok(new
         {
-            keyIdSet = !string.IsNullOrEmpty(keyId),
-            keyIdPrefix = keyId?.Length > 8 ? keyId[..8] + "..." : keyId ?? "NOT SET",
-            keySecretSet = !string.IsNullOrEmpty(keySecret),
-            keySecretLength = keySecret?.Length ?? 0,
-            webhookSecretSet = !string.IsNullOrEmpty(webhookSecret),
-            currency = _configuration["Razorpay:Currency"] ?? "INR",
-            companyName = _configuration["Razorpay:CompanyName"] ?? "NOT SET",
-            plans = new[] { "Pro (₹799/mo)", "Premium (₹1599/mo)", "Enterprise (₹39999/mo)" }
+            keyIdConfigured = !string.IsNullOrEmpty(keyId),
+            keySecretConfigured = !string.IsNullOrEmpty(keySecret),
+            webhookSecretConfigured = !string.IsNullOrEmpty(webhookSecret),
+            currency = _configuration["Razorpay:Currency"] ?? "INR"
         });
     }
 

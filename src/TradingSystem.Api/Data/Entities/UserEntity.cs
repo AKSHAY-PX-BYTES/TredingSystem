@@ -18,4 +18,12 @@ public class UserEntity
     public bool IsTrialUsed { get; set; } = false;
     public string PreferredLanguage { get; set; } = "en";
     public string PreferredCurrency { get; set; } = "USD";
+    
+    // Account lockout
+    public int FailedLoginAttempts { get; set; } = 0;
+    public DateTime? LockoutEndUtc { get; set; }
+    
+    // Refresh token
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiresAt { get; set; }
 }

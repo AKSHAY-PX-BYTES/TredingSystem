@@ -1,0 +1,40 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+
+# IDE
+.vs/
+.vscode/
+*.swp
+
+# Secrets - NEVER commit these
+appsettings.*.local.json
+*.pfx
+*.key
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node (Angular)
+node_modules/
+dist/
+.angular/
+
+# Logs
+*.log
+logs/
+
+# Build outputs
+publish/
+output/

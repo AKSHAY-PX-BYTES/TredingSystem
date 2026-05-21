@@ -58,9 +58,14 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "TradingSystem_SuperSecret_Key_2026_!@#$%^&*()_LONG_ENOUGH_256BITS";
+var jwtKey = builder.Configuration["Jwt:Key"] 
+    ?? Environment.GetEnvironmentVariable("JWT_KEY")
+    ?? throw new InvalidOperationException("JWT signing key not configured. Set Jwt:Key in appsettings or JWT_KEY environment variable.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TradingSystem";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TradingSystemUI";
+
+if (jwtKey.Length < 32)
+    throw new InvalidOperationException("JWT signing key must be at least 256 bits (32 characters).");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -115,7 +120,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowCredentials()
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
 });
 
@@ -259,6 +265,12 @@ using (var scope = app.Services.CreateScope())
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_trial_used BOOLEAN DEFAULT false");
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(10) DEFAULT 'en'");
         db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10) DEFAULT 'USD'");
+        
+        // Account lockout & refresh token columns
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS lockout_end_utc TIMESTAMP");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS refresh_token VARCHAR(200)");
+        db.Database.ExecuteSqlRaw("ALTER TABLE users ADD COLUMN IF NOT EXISTS refresh_token_expires_at TIMESTAMP");
 
         // Create subscriptions table
         db.Database.ExecuteSqlRaw(@"
@@ -387,16 +399,22 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<RateLimitingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
-// Always enable Swagger for demo/free-tier
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Only enable Swagger in Development or explicitly allowed environments
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger"))
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Trading System API v1");
-    c.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Trading System API v1");
+        c.RoutePrefix = "swagger";
+    });
+}
 
+app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseRouting();
 app.UseAuthentication();
@@ -406,9 +424,6 @@ app.UseMiddleware<SubscriptionAccessMiddleware>();
 app.MapControllers();
 app.MapHub<TradingHub>("/hubs/trading");
 
-// Log startup info
-app.Logger.LogInformation("Trading System API started on {Urls}", string.Join(", ", app.Urls));
-app.Logger.LogInformation("Swagger UI available at /swagger");
-app.Logger.LogInformation("SignalR hub available at /hubs/trading");
+app.Logger.LogInformation("Trading System API started successfully");
 
 app.Run();

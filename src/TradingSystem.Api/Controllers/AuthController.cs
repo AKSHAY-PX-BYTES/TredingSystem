@@ -164,7 +164,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Refresh JWT token (requires a valid or recently expired token)
+    /// Refresh JWT token using a valid refresh token (token rotation)
     /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
@@ -173,12 +173,12 @@ public class AuthController : ControllerBase
     {
         _logger.LogInformation("POST /auth/refresh for user: {Username}", request.Username);
 
-        if (string.IsNullOrWhiteSpace(request.Username))
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            return BadRequest(new LoginResponse { Success = false, Error = "Username is required" });
+            return BadRequest(new LoginResponse { Success = false, Error = "Username and refresh token are required" });
         }
 
-        var result = await _authService.RefreshTokenAsync(request.Username);
+        var result = await _authService.RefreshTokenAsync(request.Username, request.RefreshToken);
 
         if (!result.Success)
         {

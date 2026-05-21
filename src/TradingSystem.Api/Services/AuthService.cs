@@ -15,7 +15,7 @@ public interface IAuthService
     Task<LoginResponse> LoginAsync(LoginRequest request);
     Task<RegisterResponse> RegisterAsync(RegisterRequest request);
     Task<UserInfo?> GetUserAsync(string username);
-    Task<LoginResponse> RefreshTokenAsync(string username);
+    Task<LoginResponse> RefreshTokenAsync(string username, string refreshToken);
     Task<ChangePasswordResponse> ChangePasswordAsync(string username, ChangePasswordRequest request);
     Task<bool> UsernameExistsAsync(string username);
     Task<ForgotPasswordResponse> ForgotPasswordAsync(string email, string resetBaseUrl);
@@ -107,18 +107,48 @@ public class AuthService : IAuthService
             return new LoginResponse { Success = false, Error = "Invalid username or password" };
         }
 
-        if (user.PasswordHash != HashPassword(request.Password))
+        // Account lockout check
+        if (user.LockoutEndUtc.HasValue && user.LockoutEndUtc > DateTime.UtcNow)
         {
-            _logger.LogWarning("Login failed: invalid password for '{Username}'", request.Username);
-            return new LoginResponse { Success = false, Error = "Invalid username or password" };
+            var remainingMinutes = (int)(user.LockoutEndUtc.Value - DateTime.UtcNow).TotalMinutes + 1;
+            _logger.LogWarning("Login blocked: account '{Username}' is locked out for {Minutes} more minutes", request.Username, remainingMinutes);
+            return new LoginResponse { Success = false, Error = $"Account locked due to too many failed attempts. Try again in {remainingMinutes} minute(s)." };
         }
 
-        // Update last login
+        if (user.PasswordHash != HashPassword(request.Password))
+        {
+            // Increment failed attempts
+            user.FailedLoginAttempts++;
+            if (user.FailedLoginAttempts >= 5)
+            {
+                user.LockoutEndUtc = DateTime.UtcNow.AddMinutes(15);
+                _logger.LogWarning("Account '{Username}' locked after {Attempts} failed attempts", request.Username, user.FailedLoginAttempts);
+            }
+            await db.SaveChangesAsync();
+
+            var attemptsRemaining = 5 - user.FailedLoginAttempts;
+            var errorMsg = attemptsRemaining > 0
+                ? $"Invalid username or password. {attemptsRemaining} attempt(s) remaining."
+                : "Account locked due to too many failed attempts. Try again in 15 minutes.";
+            
+            return new LoginResponse { Success = false, Error = errorMsg };
+        }
+
+        // Successful login — reset lockout
+        user.FailedLoginAttempts = 0;
+        user.LockoutEndUtc = null;
         user.LastLoginAt = DateTime.UtcNow;
+
+        // Generate refresh token
+        var refreshToken = GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        
         await db.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 8);
+        var expiresAt = DateTime.UtcNow.AddHours(expiryHours);
 
         _logger.LogInformation("Login successful for user: {Username}", request.Username);
 
@@ -126,6 +156,7 @@ public class AuthService : IAuthService
         {
             Success = true,
             Token = token,
+            RefreshToken = refreshToken,
             ExpiresAt = expiresAt,
             User = new UserInfo
             {
@@ -239,7 +270,7 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task<LoginResponse> RefreshTokenAsync(string username)
+    public async Task<LoginResponse> RefreshTokenAsync(string username, string refreshToken)
     {
         _logger.LogInformation("Token refresh for user: {Username}", username);
 
@@ -252,13 +283,32 @@ public class AuthService : IAuthService
             return new LoginResponse { Success = false, Error = "User not found" };
         }
 
+        // Validate refresh token
+        if (user.RefreshToken != refreshToken || user.RefreshTokenExpiresAt < DateTime.UtcNow)
+        {
+            // Possible token theft — invalidate all tokens
+            user.RefreshToken = null;
+            user.RefreshTokenExpiresAt = null;
+            await db.SaveChangesAsync();
+            _logger.LogWarning("Invalid refresh token for user {Username} — possible token theft", username);
+            return new LoginResponse { Success = false, Error = "Invalid or expired refresh token. Please login again." };
+        }
+
         var token = GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 8);
+        var expiresAt = DateTime.UtcNow.AddHours(expiryHours);
+
+        // Rotate refresh token
+        var newRefreshToken = GenerateRefreshToken();
+        user.RefreshToken = newRefreshToken;
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        await db.SaveChangesAsync();
 
         return new LoginResponse
         {
             Success = true,
             Token = token,
+            RefreshToken = newRefreshToken,
             ExpiresAt = expiresAt,
             User = new UserInfo
             {
@@ -300,9 +350,12 @@ public class AuthService : IAuthService
 
     private string GenerateJwtToken(UserEntity user)
     {
-        var jwtKey = _configuration["Jwt:Key"] ?? "TradingSystem_SuperSecret_Key_2026_!@#$%^&*()_LONG_ENOUGH_256BITS";
+        var jwtKey = _configuration["Jwt:Key"] 
+            ?? Environment.GetEnvironmentVariable("JWT_KEY")
+            ?? throw new InvalidOperationException("JWT signing key not configured.");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 8);
 
         var claims = new[]
         {
@@ -319,11 +372,19 @@ public class AuthService : IAuthService
             issuer: _configuration["Jwt:Issuer"] ?? "TradingSystem",
             audience: _configuration["Jwt:Audience"] ?? "TradingSystemUI",
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(10),
+            expires: DateTime.UtcNow.AddHours(expiryHours),
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private static string GenerateRefreshToken()
+    {
+        var randomBytes = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        return Convert.ToBase64String(randomBytes);
     }
 
     private static string HashPassword(string password)

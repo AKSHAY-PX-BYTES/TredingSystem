@@ -17,6 +17,7 @@ public class LoginResponse
 {
     public bool Success { get; set; }
     public string? Token { get; set; }
+    public string? RefreshToken { get; set; }
     public string? Error { get; set; }
     public UserInfo? User { get; set; }
     public DateTime? ExpiresAt { get; set; }
@@ -83,6 +84,7 @@ public class RegisterResponse
 public class RefreshTokenRequest
 {
     public string Username { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
 }
 
 public class SendOtpRequest

@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # NuGet packages for .NET API
+  - package-ecosystem: "nuget"
+    directory: "/src/TradingSystem.Api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    reviewers:
+      - "AKSHAY-PX-BYTES"
+
+  # NuGet packages for Blazor Web
+  - package-ecosystem: "nuget"
+    directory: "/src/TradingSystem.Web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    reviewers:
+      - "AKSHAY-PX-BYTES"
+
+  # npm packages for Angular
+  - package-ecosystem: "npm"
+    directory: "/src/TradingSystem.Angular"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    reviewers:
+      - "AKSHAY-PX-BYTES"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/src/TradingSystem.Web"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/src/TradingSystem.Api"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"

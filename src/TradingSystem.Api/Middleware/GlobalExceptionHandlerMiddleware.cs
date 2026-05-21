@@ -33,9 +33,10 @@ public class GlobalExceptionHandlerMiddleware
 
         var (statusCode, message) = exception switch
         {
-            ArgumentException => (HttpStatusCode.BadRequest, exception.Message),
-            KeyNotFoundException => (HttpStatusCode.NotFound, exception.Message),
-            InvalidOperationException => (HttpStatusCode.BadRequest, exception.Message),
+            ArgumentException => (HttpStatusCode.BadRequest, "Invalid request parameters."),
+            KeyNotFoundException => (HttpStatusCode.NotFound, "The requested resource was not found."),
+            InvalidOperationException => (HttpStatusCode.BadRequest, "Invalid operation."),
+            UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Access denied."),
             _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred. Please try again later.")
         };
 

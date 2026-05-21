@@ -41,6 +41,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsTrialUsed).HasColumnName("is_trial_used").HasDefaultValue(false);
             entity.Property(e => e.PreferredLanguage).HasColumnName("preferred_language").HasMaxLength(10).HasDefaultValue("en");
             entity.Property(e => e.PreferredCurrency).HasColumnName("preferred_currency").HasMaxLength(10).HasDefaultValue("USD");
+            entity.Property(e => e.FailedLoginAttempts).HasColumnName("failed_login_attempts").HasDefaultValue(0);
+            entity.Property(e => e.LockoutEndUtc).HasColumnName("lockout_end_utc");
+            entity.Property(e => e.RefreshToken).HasColumnName("refresh_token").HasMaxLength(200);
+            entity.Property(e => e.RefreshTokenExpiresAt).HasColumnName("refresh_token_expires_at");
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
         });

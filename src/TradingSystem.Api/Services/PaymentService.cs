@@ -54,7 +54,9 @@ public class RazorpayPaymentService : IPaymentService
 
         if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
         {
-            return new CreatePaymentOrderResponse { Success = false, Error = $"Payment gateway not configured. KeyId={(string.IsNullOrEmpty(keyId) ? "MISSING" : "SET")}, KeySecret={(string.IsNullOrEmpty(keySecret) ? "MISSING" : "SET")}" };
+            _logger.LogError("Razorpay credentials not configured. KeyId={KeyIdSet}, KeySecret={KeySecretSet}", 
+                !string.IsNullOrEmpty(keyId), !string.IsNullOrEmpty(keySecret));
+            return new CreatePaymentOrderResponse { Success = false, Error = "Payment gateway is currently unavailable. Please try again later." };
         }
 
         if (!PlanPrices.ContainsKey(request.Plan))
@@ -104,7 +106,7 @@ public class RazorpayPaymentService : IPaymentService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("Razorpay order creation failed: status={Status}, response={Response}", response.StatusCode, responseBody);
-                return new CreatePaymentOrderResponse { Success = false, Error = $"Razorpay API error ({response.StatusCode}): {responseBody}" };
+                return new CreatePaymentOrderResponse { Success = false, Error = "Payment order creation failed. Please try again." };
             }
 
             var orderResponse = JsonSerializer.Deserialize<JsonElement>(responseBody);
@@ -141,8 +143,8 @@ public class RazorpayPaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating Razorpay order: {Message}", ex.Message);
-            return new CreatePaymentOrderResponse { Success = false, Error = $"Payment service error: {ex.Message}" };
+            _logger.LogError(ex, "Error creating Razorpay order for user {Username}", username);
+            return new CreatePaymentOrderResponse { Success = false, Error = "Payment service is temporarily unavailable. Please try again later." };
         }
     }
 
