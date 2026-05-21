@@ -138,7 +138,7 @@ else if (quote != null)
             </div>
         </div>
 
-        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) Navigation.NavigateTo("/plans"); }">
+        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) NavigateToPlans(); }">
             <div class="groww-card-header">
                 <h3>AI Strategy</h3>
                 @if (strategy != null && !isFreeUser)
@@ -184,7 +184,7 @@ else if (quote != null)
 
     <!-- Indicators + Analysis -->
     <div class="groww-grid-2 fade-in">
-        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) Navigation.NavigateTo("/plans"); }">
+        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) NavigateToPlans(); }">
             <div class="groww-card-header"><h3>Technical Indicators</h3></div>
             @if (strategy?.Indicators != null)
             {
@@ -232,7 +232,7 @@ else if (quote != null)
             }
         </div>
 
-        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) Navigation.NavigateTo("/plans"); }">
+        <div class="groww-card @(isFreeUser ? "free-locked-overlay" : "")" @onclick="() => { if (isFreeUser) NavigateToPlans(); }">
             <div class="groww-card-header"><h3>Analysis Breakdown</h3></div>
             @if (strategy?.Reasons != null && strategy.Reasons.Any())
             {
@@ -489,4 +489,6 @@ else if (quote != null)
     public void Dispose() => Currency.OnCurrencyChanged -= OnCurrencyChanged;
 
     private string GetCleanSymbol(string symbol) => symbol.Split('.')[0].ToUpperInvariant();
+
+    private void NavigateToPlans() => Navigation.NavigateTo("/plans");
 }
