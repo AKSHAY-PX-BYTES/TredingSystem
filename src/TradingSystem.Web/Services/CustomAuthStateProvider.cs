@@ -38,7 +38,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
                 }
             }
 
-            var identity = new ClaimsIdentity(claims, "jwt");
+            var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.Name, ClaimTypes.Role);
             var user = new ClaimsPrincipal(identity);
             return new AuthenticationState(user);
         }
@@ -74,7 +74,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
                     "sub" => ClaimTypes.NameIdentifier,
                     "name" => ClaimTypes.Name,
                     "role" => ClaimTypes.Role,
+                    "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" => ClaimTypes.Role,
                     "email" => ClaimTypes.Email,
+                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" => ClaimTypes.Email,
+                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name" => ClaimTypes.Name,
+                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier" => ClaimTypes.NameIdentifier,
                     "given_name" => ClaimTypes.GivenName,
                     _ => kvp.Key
                 };
