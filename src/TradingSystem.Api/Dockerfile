@@ -2,15 +2,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy both projects (context is parent 'src/' directory)
-COPY TradingSystem.Agent/*.csproj TradingSystem.Agent/
-COPY TradingSystem.Api/*.csproj TradingSystem.Api/
-RUN dotnet restore TradingSystem.Api/TradingSystem.Api.csproj
+# Copy csproj and restore
+COPY TradingSystem.Api.csproj .
+RUN dotnet restore
 
-COPY TradingSystem.Agent/ TradingSystem.Agent/
-COPY TradingSystem.Api/ TradingSystem.Api/
-
-WORKDIR /src/TradingSystem.Api
+# Copy all source (includes Agent/ folder)
+COPY . .
 RUN dotnet publish -c Release -o /app/publish
 
 # Stage 2: Runtime
