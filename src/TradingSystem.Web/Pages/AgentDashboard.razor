@@ -1,0 +1,329 @@
+@page "/agents"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>AI Agents - Trading System</PageTitle>
+
+<div class="agent-dashboard">
+    <div class="agent-header">
+        <div class="agent-title">
+            <span class="agent-icon">🤖</span>
+            <div>
+                <h1>AI Agent Control Center</h1>
+                <p class="agent-subtitle">Autonomous trading agents monitoring markets in real-time</p>
+            </div>
+        </div>
+        <button class="agent-refresh-btn" @onclick="LoadDashboard" disabled="@isLoading">
+            🔄 Refresh
+        </button>
+    </div>
+
+    @if (isLoading && dashboard == null)
+    {
+        <div class="agent-loading">
+            <div class="spinner-large"></div>
+            <p>Connecting to Agent System...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(error))
+    {
+        <div class="agent-error">⚠️ @error</div>
+    }
+    else if (dashboard != null)
+    {
+        <!-- System Stats -->
+        <div class="agent-stats-grid">
+            <div class="stat-card">
+                <span class="stat-icon">🏃</span>
+                <div class="stat-info">
+                    <span class="stat-value">@dashboard.Stats.TotalRuns</span>
+                    <span class="stat-label">Total Runs</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📡</span>
+                <div class="stat-info">
+                    <span class="stat-value">@dashboard.Stats.SignalsGenerated</span>
+                    <span class="stat-label">Signals Generated</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🔔</span>
+                <div class="stat-info">
+                    <span class="stat-value">@dashboard.Stats.AlertsSent</span>
+                    <span class="stat-label">Alerts Sent</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">❌</span>
+                <div class="stat-info">
+                    <span class="stat-value">@dashboard.Stats.TotalErrors</span>
+                    <span class="stat-label">Errors</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent Cards -->
+        <h2 class="section-title">🤖 Active Agents</h2>
+        <div class="agent-cards-grid">
+            @foreach (var agent in dashboard.Agents)
+            {
+                <div class="agent-card @GetStatusClass(agent.Status)">
+                    <div class="agent-card-header">
+                        <span class="agent-emoji">@GetAgentEmoji(agent.AgentName)</span>
+                        <div class="agent-card-title">
+                            <h3>@agent.AgentName</h3>
+                            <span class="agent-status-badge @GetStatusClass(agent.Status)">@agent.Status</span>
+                        </div>
+                    </div>
+                    <p class="agent-desc">@agent.Description</p>
+                    <div class="agent-card-meta">
+                        <div class="meta-row">
+                            <span>⏱️ Interval:</span>
+                            <span>@FormatInterval(agent.Interval)</span>
+                        </div>
+                        <div class="meta-row">
+                            <span>🏃 Runs:</span>
+                            <span>@agent.RunCount</span>
+                        </div>
+                        <div class="meta-row">
+                            <span>🕐 Last Run:</span>
+                            <span>@(agent.LastRunAt?.ToString("HH:mm:ss") ?? "Never")</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(agent.LastMessage))
+                        {
+                            <div class="meta-row message">
+                                <span>💬</span>
+                                <span>@agent.LastMessage</span>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(agent.LastError))
+                        {
+                            <div class="meta-row error">
+                                <span>⚠️</span>
+                                <span>@agent.LastError</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="agent-card-actions">
+                        @if (isAdmin)
+                        {
+                            <button class="agent-btn trigger" @onclick="() => TriggerAgent(agent.AgentName)">▶️ Run Now</button>
+                            <button class="agent-btn toggle @(agent.IsEnabled ? "enabled" : "disabled")"
+                                    @onclick="() => ToggleAgent(agent.AgentName, !agent.IsEnabled)">
+                                @(agent.IsEnabled ? "⏸️ Disable" : "▶️ Enable")
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Recent Signals -->
+        @if (dashboard.RecentSignals.Any())
+        {
+            <h2 class="section-title">📡 Recent AI Signals</h2>
+            <div class="signals-table-container">
+                <table class="signals-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Signal</th>
+                            <th>Confidence</th>
+                            <th>Source</th>
+                            <th>Reason</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var signal in dashboard.RecentSignals.Take(15))
+                        {
+                            <tr class="signal-row @signal.Signal.ToString().ToLower()">
+                                <td class="symbol-col">@signal.Symbol</td>
+                                <td><span class="signal-badge @signal.Signal.ToString().ToLower()">@signal.Signal</span></td>
+                                <td><span class="confidence-bar" style="--conf: @(signal.Confidence)%">@signal.Confidence.ToString("F0")%</span></td>
+                                <td>@signal.Source</td>
+                                <td class="reason-col">@(signal.Reason.Length > 60 ? signal.Reason[..60] + "..." : signal.Reason)</td>
+                                <td>@signal.GeneratedAt.ToString("HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <!-- Sentiment Analysis -->
+        @if (dashboard.RecentSentiments.Any())
+        {
+            <h2 class="section-title">📰 News Sentiment</h2>
+            <div class="sentiment-grid">
+                @foreach (var s in dashboard.RecentSentiments.Take(10))
+                {
+                    <div class="sentiment-card @s.Sentiment.ToLower()">
+                        <div class="sentiment-header">
+                            <span class="sentiment-symbol">@s.Symbol</span>
+                            <span class="sentiment-badge @s.Sentiment.ToLower()">@s.Sentiment</span>
+                        </div>
+                        <p class="sentiment-headline">@s.Headline</p>
+                        <div class="sentiment-score">
+                            Score: <strong>@s.Score.ToString("+0.00;-0.00")</strong>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private AgentDashboardDto? dashboard;
+    private bool isLoading = true;
+    private bool isAdmin = false;
+    private string? error;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if admin
+        try
+        {
+            var userJson = await JS.InvokeAsync<string?>("localStorage.getItem", "authUser");
+            if (!string.IsNullOrEmpty(userJson))
+            {
+                var user = System.Text.Json.JsonSerializer.Deserialize<UserInfoDto>(userJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                isAdmin = user?.Role == "Admin";
+            }
+        }
+        catch { }
+
+        await LoadDashboard();
+
+        // Auto-refresh every 30 seconds
+        _refreshTimer = new Timer(async _ =>
+        {
+            await LoadDashboard();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadDashboard()
+    {
+        try
+        {
+            isLoading = true;
+            var response = await Http.GetFromJsonAsync<ApiResponseDto<AgentDashboardDto>>("/agents/dashboard");
+            if (response?.Success == true)
+            {
+                dashboard = response.Data;
+                error = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to connect to Agent System: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task TriggerAgent(string name)
+    {
+        try
+        {
+            await Http.PostAsync($"/agents/trigger/{Uri.EscapeDataString(name)}", null);
+            await Task.Delay(1000);
+            await LoadDashboard();
+        }
+        catch { }
+    }
+
+    private async Task ToggleAgent(string name, bool enabled)
+    {
+        try
+        {
+            await Http.PostAsync($"/agents/toggle/{Uri.EscapeDataString(name)}?enabled={enabled}", null);
+            await LoadDashboard();
+        }
+        catch { }
+    }
+
+    private string GetAgentEmoji(string name) => name switch
+    {
+        "Market Watcher" => "👁️",
+        "Signal Generator" => "📡",
+        "Risk Analyst" => "🛡️",
+        "News Sentiment" => "📰",
+        "Alert Agent" => "🔔",
+        "Portfolio Advisor" => "💼",
+        _ => "🤖"
+    };
+
+    private string GetStatusClass(object status) => status.ToString()?.ToLower() switch
+    {
+        "running" => "status-running",
+        "success" => "status-success",
+        "error" => "status-error",
+        "disabled" => "status-disabled",
+        _ => "status-idle"
+    };
+
+    private string FormatInterval(TimeSpan ts) =>
+        ts.TotalHours >= 1 ? $"{ts.TotalHours:F0}h" : $"{ts.TotalMinutes:F0}m";
+
+    public void Dispose() => _refreshTimer?.Dispose();
+
+    // DTOs
+    private class ApiResponseDto<T> { public bool Success { get; set; } public T? Data { get; set; } }
+    private class UserInfoDto { public string Role { get; set; } = ""; }
+    private class AgentDashboardDto
+    {
+        public List<AgentStateDto> Agents { get; set; } = new();
+        public List<SignalDto> RecentSignals { get; set; } = new();
+        public List<SentimentDto> RecentSentiments { get; set; } = new();
+        public StatsDto Stats { get; set; } = new();
+    }
+    private class AgentStateDto
+    {
+        public string AgentName { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Status { get; set; } = "Idle";
+        public DateTime? LastRunAt { get; set; }
+        public DateTime? NextRunAt { get; set; }
+        public int RunCount { get; set; }
+        public int ErrorCount { get; set; }
+        public string? LastMessage { get; set; }
+        public string? LastError { get; set; }
+        public TimeSpan Interval { get; set; }
+        public bool IsEnabled { get; set; }
+    }
+    private class SignalDto
+    {
+        public string Symbol { get; set; } = "";
+        public string Signal { get; set; } = "";
+        public decimal Confidence { get; set; }
+        public string Reason { get; set; } = "";
+        public string Source { get; set; } = "";
+        public DateTime GeneratedAt { get; set; }
+    }
+    private class SentimentDto
+    {
+        public string Symbol { get; set; } = "";
+        public string Headline { get; set; } = "";
+        public decimal Score { get; set; }
+        public string Sentiment { get; set; } = "";
+        public DateTime AnalyzedAt { get; set; }
+    }
+    private class StatsDto
+    {
+        public int TotalRuns { get; set; }
+        public int TotalErrors { get; set; }
+        public int SignalsGenerated { get; set; }
+        public int AlertsSent { get; set; }
+    }
+}

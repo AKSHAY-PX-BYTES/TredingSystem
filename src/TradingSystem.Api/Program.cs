@@ -10,6 +10,7 @@ using TradingSystem.Api.Hubs;
 using TradingSystem.Api.Middleware;
 using TradingSystem.Api.Services;
 using TradingSystem.Api.Services.EmailProviders;
+using TradingSystem.Agent;
 
 // Fix Npgsql timestamp handling - allow DateTime without explicit Kind
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -187,6 +188,10 @@ builder.Services.AddSingleton<IMarketExchangeService, MarketExchangeService>();
 // Background service for real-time updates
 builder.Services.AddHostedService<MarketDataBroadcaster>();
 builder.Services.AddHostedService<NotificationBroadcaster>();
+
+// AI Trading Agents
+var apiBaseUrl = builder.Configuration["Urls"]?.Split(';').FirstOrDefault() ?? "http://localhost:5000";
+builder.Services.AddTradingAgents(apiBaseUrl);
 
 // Logging
 builder.Logging.ClearProviders();
