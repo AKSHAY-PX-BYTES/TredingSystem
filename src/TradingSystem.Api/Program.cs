@@ -144,7 +144,11 @@ if (connectionString.StartsWith("postgres://") || connectionString.StartsWith("p
 {
     var uri = new Uri(connectionString);
     var userInfo = uri.UserInfo.Split(':');
-    connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+    connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true;Timeout=60;Command Timeout=60";
+}
+else if (!connectionString.Contains("Timeout="))
+{
+    connectionString += ";Timeout=60;Command Timeout=60";
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -210,6 +214,24 @@ using (var scope = app.Services.CreateScope())
     
     try
     {
+        // Retry connection up to 3 times (Neon cold-start can take a few seconds)
+        var maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                logger.LogInformation("Connecting to database (attempt {Attempt}/{Max})...", attempt, maxRetries);
+                await db.Database.CanConnectAsync();
+                logger.LogInformation("Database connection established.");
+                break;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                logger.LogWarning("Database connection attempt {Attempt} failed: {Error}. Retrying in 5s...", attempt, ex.Message);
+                await Task.Delay(5000);
+            }
+        }
+
         logger.LogInformation("Ensuring database is created...");
         var created = db.Database.EnsureCreated();
         logger.LogInformation("Database EnsureCreated result: {Created}", created);
@@ -400,8 +422,8 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Error during database initialization");
-        throw;
+        logger.LogError(ex, "Error during database initialization. App will continue but some features may not work.");
+        // Don't rethrow — let the app start even if DB init fails on cold start
     }
 }
 
