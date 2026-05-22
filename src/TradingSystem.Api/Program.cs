@@ -59,9 +59,11 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] 
-    ?? Environment.GetEnvironmentVariable("JWT_KEY")
-    ?? throw new InvalidOperationException("JWT signing key not configured. Set Jwt:Key in appsettings or JWT_KEY environment variable.");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("JWT signing key not configured. Set Jwt:Key in appsettings or JWT_KEY environment variable.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TradingSystem";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TradingSystemUI";
 
