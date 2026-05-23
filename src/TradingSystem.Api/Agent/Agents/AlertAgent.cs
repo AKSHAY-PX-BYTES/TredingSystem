@@ -9,7 +9,7 @@ namespace TradingSystem.Agent.Agents;
 public class AlertAgent : BaseAgent
 {
     private readonly HttpClient _httpClient;
-    private readonly AgentOrchestrator _orchestrator;
+    private readonly AgentSignalStore _store;
 
     public override string Name => "Alert Agent";
     public override string Description => "Sends email/notification alerts on high-confidence signals";
@@ -17,11 +17,11 @@ public class AlertAgent : BaseAgent
 
     private readonly HashSet<string> _sentAlerts = new();
 
-    public AlertAgent(IHttpClientFactory httpClientFactory, AgentOrchestrator orchestrator, ILogger<AlertAgent> logger)
+    public AlertAgent(IHttpClientFactory httpClientFactory, AgentSignalStore store, ILogger<AlertAgent> logger)
         : base(logger)
     {
         _httpClient = httpClientFactory.CreateClient("AgentClient");
-        _orchestrator = orchestrator;
+        _store = store;
         State.AgentName = Name;
         State.Description = Description;
         State.Interval = Interval;
@@ -29,7 +29,7 @@ public class AlertAgent : BaseAgent
 
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
-        var signals = _orchestrator.GetRecentSignals(10);
+        var signals = _store.GetRecentSignals(10);
         var alertsSent = 0;
 
         foreach (var signal in signals.Where(s => s.Confidence >= 75 && s.Signal != SignalType.Hold))
@@ -56,7 +56,7 @@ public class AlertAgent : BaseAgent
                 {
                     _sentAlerts.Add(alertKey);
                     alertsSent++;
-                    _orchestrator.IncrementAlerts();
+                    _store.IncrementAlerts();
                     _logger.LogInformation("[AlertAgent] Sent alert: {Signal} {Symbol} ({Confidence}%)", 
                         signal.Signal, signal.Symbol, signal.Confidence);
                 }

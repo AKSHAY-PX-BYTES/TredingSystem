@@ -8,7 +8,7 @@ namespace TradingSystem.Agent.Agents;
 public class MarketWatcherAgent : BaseAgent
 {
     private readonly HttpClient _httpClient;
-    private readonly AgentOrchestrator _orchestrator;
+    private readonly AgentSignalStore _store;
     
     public override string Name => "Market Watcher";
     public override string Description => "Monitors price changes every 5 min, detects significant movements";
@@ -17,11 +17,11 @@ public class MarketWatcherAgent : BaseAgent
     private readonly string[] _watchSymbols = { "AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA", "META", "NFLX", "RELIANCE.NS", "TCS.NS" };
     private readonly Dictionary<string, decimal> _lastPrices = new();
 
-    public MarketWatcherAgent(IHttpClientFactory httpClientFactory, AgentOrchestrator orchestrator, ILogger<MarketWatcherAgent> logger) 
+    public MarketWatcherAgent(IHttpClientFactory httpClientFactory, AgentSignalStore store, ILogger<MarketWatcherAgent> logger) 
         : base(logger)
     {
         _httpClient = httpClientFactory.CreateClient("AgentClient");
-        _orchestrator = orchestrator;
+        _store = store;
         State.AgentName = Name;
         State.Description = Description;
         State.Interval = Interval;
@@ -59,7 +59,7 @@ public class MarketWatcherAgent : BaseAgent
                                 Source = "MarketWatcher",
                                 GeneratedAt = DateTime.UtcNow
                             };
-                            _orchestrator.AddSignal(signal);
+                            _store.AddSignal(signal);
                             _logger.LogInformation("[MarketWatcher] Signal: {Symbol} {Signal} ({Change:+0.00}%)", symbol, signal.Signal, changePercent);
                         }
                     }

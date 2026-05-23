@@ -6,16 +6,16 @@ namespace TradingSystem.Agent.Agents;
 
 public class RiskAnalysisAgent : BaseAgent
 {
-    private readonly AgentOrchestrator _orchestrator;
+    private readonly AgentSignalStore _store;
 
     public override string Name => "Risk Analyst";
     public override string Description => "Validates trades against risk profiles, assesses volatility";
     public override TimeSpan Interval => TimeSpan.FromMinutes(10);
 
-    public RiskAnalysisAgent(AgentOrchestrator orchestrator, ILogger<RiskAnalysisAgent> logger)
+    public RiskAnalysisAgent(AgentSignalStore store, ILogger<RiskAnalysisAgent> logger)
         : base(logger)
     {
-        _orchestrator = orchestrator;
+        _store = store;
         State.AgentName = Name;
         State.Description = Description;
         State.Interval = Interval;
@@ -23,7 +23,7 @@ public class RiskAnalysisAgent : BaseAgent
 
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
-        var recentSignals = _orchestrator.GetRecentSignals(10);
+        var recentSignals = _store.GetRecentSignals(10);
         var assessments = 0;
 
         foreach (var signal in recentSignals.Where(s => s.Signal != SignalType.Hold))

@@ -6,7 +6,7 @@ namespace TradingSystem.Agent.Agents;
 
 public class PortfolioAdvisorAgent : BaseAgent
 {
-    private readonly AgentOrchestrator _orchestrator;
+    private readonly AgentSignalStore _store;
 
     public override string Name => "Portfolio Advisor";
     public override string Description => "Suggests rebalancing based on signal performance & diversification";
@@ -26,10 +26,10 @@ public class PortfolioAdvisorAgent : BaseAgent
         ["TCS.NS"] = "IT Services"
     };
 
-    public PortfolioAdvisorAgent(AgentOrchestrator orchestrator, ILogger<PortfolioAdvisorAgent> logger)
+    public PortfolioAdvisorAgent(AgentSignalStore store, ILogger<PortfolioAdvisorAgent> logger)
         : base(logger)
     {
-        _orchestrator = orchestrator;
+        _store = store;
         State.AgentName = Name;
         State.Description = Description;
         State.Interval = Interval;
@@ -37,8 +37,8 @@ public class PortfolioAdvisorAgent : BaseAgent
 
     protected override async Task RunAsync(CancellationToken cancellationToken)
     {
-        var signals = _orchestrator.GetRecentSignals(50);
-        var sentiments = _orchestrator.GetRecentSentiments(50);
+        var signals = _store.GetRecentSignals(50);
+        var sentiments = _store.GetRecentSentiments(50);
 
         var sectorSignals = signals
             .Where(s => SymbolSectors.ContainsKey(s.Symbol))

@@ -14,6 +14,10 @@ public static class AgentServiceExtensions
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // Shared signal store (breaks circular dependency)
+        services.AddSingleton<AgentSignalStore>();
+
+        // Register orchestrator
         services.AddSingleton<AgentOrchestrator>();
         services.AddSingleton<IAgentOrchestrator>(sp => sp.GetRequiredService<AgentOrchestrator>());
 

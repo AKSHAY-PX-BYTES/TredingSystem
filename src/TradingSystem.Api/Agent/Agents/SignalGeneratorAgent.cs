@@ -8,7 +8,7 @@ namespace TradingSystem.Agent.Agents;
 public class SignalGeneratorAgent : BaseAgent
 {
     private readonly HttpClient _httpClient;
-    private readonly AgentOrchestrator _orchestrator;
+    private readonly AgentSignalStore _store;
 
     public override string Name => "Signal Generator";
     public override string Description => "Generates BUY/SELL/HOLD signals using AI analysis";
@@ -16,11 +16,11 @@ public class SignalGeneratorAgent : BaseAgent
 
     private readonly string[] _symbols = { "AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA", "RELIANCE.NS", "TCS.NS" };
 
-    public SignalGeneratorAgent(IHttpClientFactory httpClientFactory, AgentOrchestrator orchestrator, ILogger<SignalGeneratorAgent> logger)
+    public SignalGeneratorAgent(IHttpClientFactory httpClientFactory, AgentSignalStore store, ILogger<SignalGeneratorAgent> logger)
         : base(logger)
     {
         _httpClient = httpClientFactory.CreateClient("AgentClient");
-        _orchestrator = orchestrator;
+        _store = store;
         State.AgentName = Name;
         State.Description = Description;
         State.Interval = Interval;
@@ -45,7 +45,7 @@ public class SignalGeneratorAgent : BaseAgent
                     var signal = ParsePrediction(symbol, prediction);
                     if (signal != null)
                     {
-                        _orchestrator.AddSignal(signal);
+                        _store.AddSignal(signal);
                         signalsGenerated++;
                     }
                 }

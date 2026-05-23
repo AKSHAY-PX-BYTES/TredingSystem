@@ -9,13 +9,13 @@ public class AgentOrchestrator : BackgroundService, IAgentOrchestrator
 {
     private readonly IEnumerable<IAgent> _agents;
     private readonly ILogger<AgentOrchestrator> _logger;
-    private readonly ConcurrentBag<AgentSignal> _signals = new();
-    private readonly ConcurrentBag<SentimentScore> _sentiments = new();
+    private readonly AgentSignalStore _store;
     private readonly AgentSystemStats _stats = new() { SystemStartedAt = DateTime.UtcNow };
 
-    public AgentOrchestrator(IEnumerable<IAgent> agents, ILogger<AgentOrchestrator> logger)
+    public AgentOrchestrator(IEnumerable<IAgent> agents, AgentSignalStore store, ILogger<AgentOrchestrator> logger)
     {
         _agents = agents;
+        _store = store;
         _logger = logger;
     }
 
@@ -51,36 +51,28 @@ public class AgentOrchestrator : BackgroundService, IAgentOrchestrator
         }
     }
 
-    public void AddSignal(AgentSignal signal)
-    {
-        _signals.Add(signal);
-        _stats.SignalsGenerated++;
-    }
-
-    public void AddSentiment(SentimentScore sentiment)
-    {
-        _sentiments.Add(sentiment);
-    }
-
-    public void IncrementAlerts() => _stats.AlertsSent++;
-
     public List<AgentState> GetAllStates() =>
         _agents.Select(a => a.State).ToList();
 
     public List<AgentSignal> GetRecentSignals(int count = 20) =>
-        _signals.OrderByDescending(s => s.GeneratedAt).Take(count).ToList();
+        _store.GetRecentSignals(count);
 
     public List<SentimentScore> GetRecentSentiments(int count = 20) =>
-        _sentiments.OrderByDescending(s => s.AnalyzedAt).Take(count).ToList();
+        _store.GetRecentSentiments(count);
 
-    public AgentSystemStats GetStats() => _stats;
+    public AgentSystemStats GetStats()
+    {
+        _stats.SignalsGenerated = _store.SignalsCount;
+        _stats.AlertsSent = _store.AlertCount;
+        return _stats;
+    }
 
     public AgentDashboardResponse GetDashboard() => new()
     {
         Agents = GetAllStates(),
         RecentSignals = GetRecentSignals(),
         RecentSentiments = GetRecentSentiments(),
-        Stats = _stats
+        Stats = GetStats()
     };
 
     public async Task TriggerAgentAsync(string agentName)

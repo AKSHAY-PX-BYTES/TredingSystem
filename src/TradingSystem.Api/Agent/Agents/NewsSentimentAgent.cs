@@ -8,7 +8,7 @@ namespace TradingSystem.Agent.Agents;
 public class NewsSentimentAgent : BaseAgent
 {
     private readonly HttpClient _httpClient;
-    private readonly AgentOrchestrator _orchestrator;
+    private readonly AgentSignalStore _store;
 
     public override string Name => "News Sentiment";
     public override string Description => "Reads financial news, scores sentiment for tracked symbols";
@@ -19,11 +19,11 @@ public class NewsSentimentAgent : BaseAgent
     private static readonly string[] BullishKeywords = { "surge", "rally", "breakout", "upgrade", "beat", "growth", "record", "bullish", "soar", "profit" };
     private static readonly string[] BearishKeywords = { "crash", "plunge", "downgrade", "miss", "decline", "loss", "bearish", "drop", "sell-off", "warning" };
 
-    public NewsSentimentAgent(IHttpClientFactory httpClientFactory, AgentOrchestrator orchestrator, ILogger<NewsSentimentAgent> logger)
+    public NewsSentimentAgent(IHttpClientFactory httpClientFactory, AgentSignalStore store, ILogger<NewsSentimentAgent> logger)
         : base(logger)
     {
         _httpClient = httpClientFactory.CreateClient("AgentClient");
-        _orchestrator = orchestrator;
+        _store = store;
         State.AgentName = Name;
         State.Description = Description;
         State.Interval = Interval;
@@ -59,7 +59,7 @@ public class NewsSentimentAgent : BaseAgent
                             Sentiment = sentiment.label,
                             AnalyzedAt = DateTime.UtcNow
                         };
-                        _orchestrator.AddSentiment(score);
+                        _store.AddSentiment(score);
                         analyzed++;
                     }
                 }
