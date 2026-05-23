@@ -350,9 +350,11 @@ public class AuthService : IAuthService
 
     private string GenerateJwtToken(UserEntity user)
     {
-        var jwtKey = _configuration["Jwt:Key"] 
-            ?? Environment.GetEnvironmentVariable("JWT_KEY")
-            ?? throw new InvalidOperationException("JWT signing key not configured.");
+        var jwtKey = _configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            throw new InvalidOperationException("JWT signing key not configured.");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 8);
