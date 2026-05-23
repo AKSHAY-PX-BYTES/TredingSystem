@@ -195,9 +195,19 @@ builder.Services.AddSingleton<IMarketExchangeService, MarketExchangeService>();
 builder.Services.AddHostedService<MarketDataBroadcaster>();
 builder.Services.AddHostedService<NotificationBroadcaster>();
 
-// AI Trading Agents
-var apiBaseUrl = builder.Configuration["Urls"]?.Split(';').FirstOrDefault() ?? "http://localhost:5000";
-builder.Services.AddTradingAgents(apiBaseUrl);
+// AI Trading Agents (disabled on free-tier to prevent OOM crashes)
+var enableAgents = builder.Configuration.GetValue<bool>("EnableAgents");
+if (enableAgents)
+{
+    var apiBaseUrl = builder.Configuration["Urls"]?.Split(';').FirstOrDefault() ?? "http://localhost:5000";
+    builder.Services.AddTradingAgents(apiBaseUrl);
+}
+else
+{
+    // Register minimal agent services so controllers don't crash
+    builder.Services.AddSingleton<TradingSystem.Agent.Core.AgentSignalStore>();
+    builder.Services.AddSingleton<TradingSystem.Agent.Core.IAgentOrchestrator, TradingSystem.Agent.Core.DummyOrchestrator>();
+}
 
 // Logging
 builder.Logging.ClearProviders();
