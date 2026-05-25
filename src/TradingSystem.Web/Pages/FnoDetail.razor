@@ -111,10 +111,10 @@
                         }
                     </div>
                     <div class="chart-levels">
-                        <div class="chart-support" style="bottom: @((int)((double)(chartData.SupportLevel - minPrice) / maxRange * 200))px">
+                        <div class="chart-support" style="bottom: @((int)((double)(chartData.SupportLevel - minPrice) / (double)maxRange * 200))px">
                             Support: ₹@chartData.SupportLevel.ToString("N0")
                         </div>
-                        <div class="chart-resistance" style="bottom: @((int)((double)(chartData.ResistanceLevel - minPrice) / maxRange * 200))px">
+                        <div class="chart-resistance" style="bottom: @((int)((double)(chartData.ResistanceLevel - minPrice) / (double)maxRange * 200))px">
                             Resistance: ₹@chartData.ResistanceLevel.ToString("N0")
                         </div>
                     </div>
