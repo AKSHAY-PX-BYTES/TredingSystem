@@ -281,7 +281,8 @@ public class FnoController : ControllerBase
     {
         var expiries = new List<string>();
         var date = DateTime.UtcNow.Date;
-        while (expiries.Count < count)
+        // Generate weekly expiries (Thursdays) for next 8 weeks + monthly expiries
+        while (expiries.Count < 12)
         {
             date = date.AddDays(1);
             if (date.DayOfWeek == DayOfWeek.Thursday)

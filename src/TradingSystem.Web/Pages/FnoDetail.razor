@@ -161,14 +161,25 @@
             <div class="options-section">
                 <div class="options-header">
                     <h2>Options Chain — Spot: ₹@optionsChain.SpotPrice.ToString("N2")</h2>
-                    <div class="expiry-selector">
-                        @foreach (var exp in optionsChain.Expiries.Take(4))
-                        {
-                            <button class="expiry-btn @(selectedExpiry == exp ? "active" : "")" @onclick="() => SelectExpiry(exp)">
-                                @exp
-                            </button>
-                        }
-                    </div>
+                </div>
+
+                <!-- All Available Expiries grouped by month -->
+                <div class="expiry-group-container">
+                    @foreach (var group in GroupedExpiries)
+                    {
+                        <div class="expiry-month-group">
+                            <span class="expiry-month-label">@group.Key</span>
+                            <div class="expiry-btns">
+                                @foreach (var exp in group.Value)
+                                {
+                                    var expLabel = FormatExpiryShort(exp);
+                                    <button class="expiry-btn @(selectedExpiry == exp ? "active" : "")" @onclick="() => SelectExpiry(exp)">
+                                        @expLabel
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
 
                 <!-- Options Chain Table -->
@@ -259,6 +270,16 @@
     private string selectedExpiry = "";
     private string? selectedOption;
     private System.Threading.Timer? refreshTimer;
+
+    private Dictionary<string, List<string>> GroupedExpiries =>
+        (optionsChain?.Expiries ?? new())
+        .GroupBy(e => { try { return DateTime.Parse(e).ToString("MMM yyyy"); } catch { return "Other"; } })
+        .ToDictionary(g => g.Key, g => g.ToList());
+
+    private string FormatExpiryShort(string expiry)
+    {
+        try { return DateTime.Parse(expiry).ToString("dd MMM"); } catch { return expiry; }
+    }
     private decimal minPrice, maxRange = 1;
 
     protected override async Task OnInitializedAsync()
