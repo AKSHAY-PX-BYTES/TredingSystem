@@ -1,0 +1,424 @@
+@page "/fno/{Symbol}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject IFnoApiService FnoApi
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>@Symbol F&O Options Chain</PageTitle>
+
+<div class="fno-detail-container">
+    <!-- Back & Header -->
+    <div class="fno-detail-header">
+        <button class="btn-back" @onclick='() => Navigation.NavigateTo("/fno")'>← Back to F&O</button>
+        <div class="detail-title-row">
+            <h1>@Symbol Options</h1>
+            @if (analysis != null)
+            {
+                <span class="trend-pill @GetTrendClass(analysis.Trend)">@analysis.Trend</span>
+                <span class="sentiment-pill">Sentiment: @analysis.Sentiment</span>
+            }
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="fno-loading"><div class="spinner"></div><p>Loading options data...</p></div>
+    }
+    else
+    {
+        <!-- AI Analysis Summary -->
+        @if (analysis != null)
+        {
+            <div class="ai-summary-card">
+                <div class="ai-summary-header">
+                    <span>🤖 AI Analysis</span>
+                    <span class="pcr-badge">PCR: @analysis.PcrRatio.ToString("N2")</span>
+                </div>
+                <p class="ai-text">@analysis.AiSummary</p>
+                <div class="ai-levels">
+                    <div class="level-item">
+                        <span class="level-label">Support</span>
+                        <span class="level-value support">@analysis.SupportLevel</span>
+                    </div>
+                    <div class="level-item">
+                        <span class="level-label">Resistance</span>
+                        <span class="level-value resistance">@analysis.ResistanceLevel</span>
+                    </div>
+                    <div class="level-item">
+                        <span class="level-label">Max Pain</span>
+                        <span class="level-value">₹@analysis.MaxPainStrike.ToString("N0")</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Signals -->
+            @if (analysis.ActiveSignals.Any())
+            {
+                <div class="signals-section">
+                    <h2>🎯 Active AI Signals</h2>
+                    <div class="signal-cards">
+                        @foreach (var signal in analysis.ActiveSignals)
+                        {
+                            <div class="signal-card @(signal.Action == "BUY" ? "signal-buy-card" : "signal-sell-card")" 
+                                 @onclick="() => ViewOption(signal)">
+                                <div class="signal-top">
+                                    <span class="signal-action @(signal.Action == "BUY" ? "buy" : "sell")">@signal.Action</span>
+                                    <span class="signal-type">@signal.OptionType @signal.StrikePrice.ToString("N0")</span>
+                                    <span class="signal-confidence">@signal.Confidence.ToString("N0")%</span>
+                                </div>
+                                <div class="signal-details">
+                                    <div><span>Entry:</span> ₹@signal.EntryPrice.ToString("N2")</div>
+                                    <div><span>Target:</span> ₹@signal.TargetPrice.ToString("N2")</div>
+                                    <div><span>SL:</span> ₹@signal.StopLoss.ToString("N2")</div>
+                                </div>
+                                <p class="signal-reason">@signal.Reason</p>
+                                <span class="signal-strategy">Strategy: @signal.Strategy</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+        <!-- Live Chart Section -->
+        @if (selectedOption != null && chartData != null)
+        {
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h2>📈 @selectedOption — Live Chart</h2>
+                    <button class="btn-close-chart" @onclick="CloseChart">✕</button>
+                </div>
+                <div class="chart-canvas" id="fnoChart">
+                    <div class="chart-placeholder">
+                        @foreach (var candle in chartData.Candles.TakeLast(50))
+                        {
+                            var height = (int)Math.Max(2, Math.Abs((double)(candle.Close - candle.Open)) / maxRange * 200);
+                            var bottom = (int)((double)(candle.Low - minPrice) / maxRange * 200);
+                            var isGreen = candle.Close >= candle.Open;
+                            <div class="candle-wrapper" title="@candle.Time.ToString("dd MMM HH:mm") O:@candle.Open H:@candle.High L:@candle.Low C:@candle.Close">
+                                <div class="candle-wick" style="height: @((int)((double)(candle.High - candle.Low) / maxRange * 200))px; bottom: @bottom px;"></div>
+                                <div class="candle-body @(isGreen ? "green" : "red")" style="height: @height px; bottom: @((int)((double)(Math.Min(candle.Open, candle.Close) - minPrice) / maxRange * 200))px;"></div>
+                            </div>
+                        }
+                        <!-- Signal markers overlay -->
+                        @foreach (var sig in chartData.Signals)
+                        {
+                            <div class="chart-signal-marker @(sig.Action == "BUY" ? "buy-marker" : "sell-marker")"
+                                 title="@sig.Action at ₹@sig.Price">
+                                @(sig.Action == "BUY" ? "▲" : "▼")
+                            </div>
+                        }
+                    </div>
+                    <div class="chart-levels">
+                        <div class="chart-support" style="bottom: @((int)((double)(chartData.SupportLevel - minPrice) / maxRange * 200))px">
+                            Support: ₹@chartData.SupportLevel.ToString("N0")
+                        </div>
+                        <div class="chart-resistance" style="bottom: @((int)((double)(chartData.ResistanceLevel - minPrice) / maxRange * 200))px">
+                            Resistance: ₹@chartData.ResistanceLevel.ToString("N0")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Expiry Selector -->
+        @if (optionsChain != null)
+        {
+            <div class="options-section">
+                <div class="options-header">
+                    <h2>Options Chain — Spot: ₹@optionsChain.SpotPrice.ToString("N2")</h2>
+                    <div class="expiry-selector">
+                        @foreach (var exp in optionsChain.Expiries.Take(4))
+                        {
+                            <button class="expiry-btn @(selectedExpiry == exp ? "active" : "")" @onclick="() => SelectExpiry(exp)">
+                                @exp
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Options Chain Table -->
+                <div class="chain-table-wrapper">
+                    <table class="chain-table">
+                        <thead>
+                            <tr>
+                                <th colspan="6" class="calls-header">CALLS (CE)</th>
+                                <th class="strike-header">STRIKE</th>
+                                <th colspan="6" class="puts-header">PUTS (PE)</th>
+                            </tr>
+                            <tr>
+                                <th>Signal</th>
+                                <th>OI</th>
+                                <th>OI Chg</th>
+                                <th>Volume</th>
+                                <th>IV</th>
+                                <th>LTP</th>
+                                <th class="strike-col">₹</th>
+                                <th>LTP</th>
+                                <th>IV</th>
+                                <th>Volume</th>
+                                <th>OI Chg</th>
+                                <th>OI</th>
+                                <th>Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var strikes = optionsChain.Calls.Select(c => c.StrikePrice)
+                                    .Union(optionsChain.Puts.Select(p => p.StrikePrice))
+                                    .Distinct().OrderBy(s => s).ToList();
+                            }
+                            @foreach (var strike in strikes)
+                            {
+                                var call = optionsChain.Calls.FirstOrDefault(c => c.StrikePrice == strike);
+                                var put = optionsChain.Puts.FirstOrDefault(p => p.StrikePrice == strike);
+                                var isAtm = Math.Abs(strike - optionsChain.SpotPrice) < 50;
+                                <tr class="@(isAtm ? "atm-row" : "")">
+                                    <td>
+                                        @if (call != null)
+                                        {
+                                            <span class="mini-signal @GetSignalClass(call.Signal)" @onclick="() => OpenChart(call)" title="@call.SignalReason">
+                                                @(call.Signal == "Buy" ? "▲" : call.Signal == "Sell" ? "▼" : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="oi-cell">@FormatOI(call?.OpenInterest)</td>
+                                    <td class="@(call?.OiChange >= 0 ? "positive" : "negative")">@FormatOI(call?.OiChange)</td>
+                                    <td>@FormatOI(call?.Volume)</td>
+                                    <td>@call?.ImpliedVolatility.ToString("N1")%</td>
+                                    <td class="ltp-cell @(call?.Change >= 0 ? "positive" : "negative")" @onclick="() => OpenChart(call)">
+                                        ₹@(call?.LastPrice.ToString("N2") ?? "-")
+                                    </td>
+                                    <td class="strike-col @(isAtm ? "atm-strike" : "")">@strike.ToString("N0")</td>
+                                    <td class="ltp-cell @(put?.Change >= 0 ? "positive" : "negative")" @onclick="() => OpenChart(put)">
+                                        ₹@(put?.LastPrice.ToString("N2") ?? "-")
+                                    </td>
+                                    <td>@put?.ImpliedVolatility.ToString("N1")%</td>
+                                    <td>@FormatOI(put?.Volume)</td>
+                                    <td class="@(put?.OiChange >= 0 ? "positive" : "negative")">@FormatOI(put?.OiChange)</td>
+                                    <td class="oi-cell">@FormatOI(put?.OpenInterest)</td>
+                                    <td>
+                                        @if (put != null)
+                                        {
+                                            <span class="mini-signal @GetSignalClass(put.Signal)" @onclick="() => OpenChart(put)" title="@put.SignalReason">
+                                                @(put.Signal == "Buy" ? "▲" : put.Signal == "Sell" ? "▼" : "—")
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string Symbol { get; set; } = "";
+    
+    private OptionsChain? optionsChain;
+    private FnoAnalysis? analysis;
+    private FnoChartData? chartData;
+    private bool isLoading = true;
+    private string selectedExpiry = "";
+    private string? selectedOption;
+    private System.Threading.Timer? refreshTimer;
+    private decimal minPrice, maxRange = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        // Auto-refresh every 30 seconds
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadData(silent: true);
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadData(bool silent = false)
+    {
+        if (!silent) isLoading = true;
+        try
+        {
+            var chainTask = FnoApi.GetOptionsChainAsync(Symbol, string.IsNullOrEmpty(selectedExpiry) ? null : selectedExpiry);
+            var analysisTask = FnoApi.GetAnalysisAsync(Symbol);
+            await Task.WhenAll(chainTask, analysisTask);
+            
+            optionsChain = await chainTask;
+            analysis = await analysisTask;
+
+            if (optionsChain != null && string.IsNullOrEmpty(selectedExpiry) && optionsChain.Expiries.Any())
+                selectedExpiry = optionsChain.Expiries.First();
+        }
+        catch { }
+        if (!silent) isLoading = false;
+    }
+
+    private async Task SelectExpiry(string expiry)
+    {
+        selectedExpiry = expiry;
+        optionsChain = await FnoApi.GetOptionsChainAsync(Symbol, expiry);
+    }
+
+    private async Task OpenChart(OptionsContract? contract)
+    {
+        if (contract == null) return;
+        selectedOption = $"{Symbol} {contract.StrikePrice:N0} {contract.OptionType}";
+        chartData = await FnoApi.GetChartDataAsync(Symbol, contract.OptionType, contract.StrikePrice, selectedExpiry);
+        if (chartData != null && chartData.Candles.Any())
+        {
+            minPrice = chartData.Candles.Min(c => c.Low);
+            var maxP = chartData.Candles.Max(c => c.High);
+            maxRange = maxP - minPrice;
+            if (maxRange == 0) maxRange = 1;
+        }
+    }
+
+    private void ViewOption(FnoSignal signal)
+    {
+        var contract = new OptionsContract
+        {
+            StrikePrice = signal.StrikePrice,
+            OptionType = signal.OptionType,
+            Symbol = Symbol
+        };
+        _ = OpenChart(contract);
+    }
+
+    private void CloseChart()
+    {
+        selectedOption = null;
+        chartData = null;
+    }
+
+    private string GetSignalClass(string signal) => signal.ToLower() switch
+    {
+        "buy" => "signal-buy",
+        "sell" => "signal-sell",
+        _ => "signal-hold"
+    };
+
+    private string GetTrendClass(string trend) => trend.ToLower() switch
+    {
+        "bullish" => "trend-bullish",
+        "bearish" => "trend-bearish",
+        _ => "trend-neutral"
+    };
+
+    private string FormatOI(decimal? val) => val switch
+    {
+        null => "-",
+        >= 10000000 => $"{val / 10000000:N2}Cr",
+        >= 100000 => $"{val / 100000:N2}L",
+        >= 1000 => $"{val / 1000:N1}K",
+        _ => val.Value.ToString("N0")
+    };
+
+    private string FormatOI(long? val) => FormatOI((decimal?)val);
+
+    public void Dispose() => refreshTimer?.Dispose();
+}
+
+<style>
+    .fno-detail-container { max-width: 1500px; margin: 0 auto; padding: 20px 16px; }
+    .fno-detail-header { margin-bottom: 24px; }
+    .btn-back { background: none; border: none; color: var(--primary); cursor: pointer; font-weight: 600; padding: 8px 0; margin-bottom: 8px; }
+    .detail-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .detail-title-row h1 { font-size: 1.8rem; margin: 0; }
+    .trend-pill { padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+    .trend-pill.trend-bullish { background: rgba(0,200,83,0.15); color: #00c853; }
+    .trend-pill.trend-bearish { background: rgba(255,23,68,0.15); color: #ff1744; }
+    .trend-pill.trend-neutral { background: rgba(255,193,7,0.15); color: #ffc107; }
+    .sentiment-pill { padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; background: var(--card-bg); border: 1px solid var(--border); }
+
+    .fno-loading { text-align: center; padding: 60px 0; }
+    .fno-loading .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+
+    /* AI Summary */
+    .ai-summary-card { background: linear-gradient(135deg, var(--card-bg), rgba(99,102,241,0.05)); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .ai-summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; font-size: 1.1rem; }
+    .pcr-badge { font-size: 0.85rem; padding: 4px 10px; border-radius: 8px; background: var(--border); }
+    .ai-text { color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
+    .ai-levels { display: flex; gap: 24px; flex-wrap: wrap; }
+    .level-item { display: flex; flex-direction: column; gap: 4px; }
+    .level-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
+    .level-value { font-weight: 700; font-size: 1.1rem; }
+    .level-value.support { color: #00c853; }
+    .level-value.resistance { color: #ff1744; }
+
+    /* Signals */
+    .signals-section { margin-bottom: 28px; }
+    .signals-section h2 { margin-bottom: 16px; }
+    .signal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .signal-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; cursor: pointer; transition: all 0.2s; }
+    .signal-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .signal-buy-card { border-left: 4px solid #00c853; }
+    .signal-sell-card { border-left: 4px solid #ff1744; }
+    .signal-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .signal-action { font-weight: 800; font-size: 0.85rem; padding: 3px 8px; border-radius: 4px; }
+    .signal-action.buy { background: rgba(0,200,83,0.15); color: #00c853; }
+    .signal-action.sell { background: rgba(255,23,68,0.15); color: #ff1744; }
+    .signal-type { font-weight: 600; }
+    .signal-confidence { margin-left: auto; font-size: 0.85rem; font-weight: 700; color: var(--primary); }
+    .signal-details { display: flex; gap: 16px; font-size: 0.85rem; margin-bottom: 8px; }
+    .signal-details span { color: var(--text-secondary); }
+    .signal-reason { font-size: 0.8rem; color: var(--text-secondary); margin: 8px 0; line-height: 1.4; }
+    .signal-strategy { font-size: 0.75rem; color: var(--primary); font-weight: 600; }
+
+    /* Chart */
+    .chart-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .chart-header h2 { font-size: 1.1rem; margin: 0; }
+    .btn-close-chart { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
+    .chart-canvas { position: relative; height: 240px; overflow: hidden; }
+    .chart-placeholder { display: flex; align-items: flex-end; gap: 2px; height: 200px; padding: 20px 0; }
+    .candle-wrapper { position: relative; flex: 1; min-width: 6px; max-width: 14px; height: 200px; }
+    .candle-body { position: absolute; width: 80%; left: 10%; min-height: 2px; border-radius: 1px; }
+    .candle-body.green { background: #00c853; }
+    .candle-body.red { background: #ff1744; }
+    .candle-wick { position: absolute; width: 1px; left: 50%; background: var(--text-secondary); opacity: 0.4; }
+    .chart-signal-marker { position: absolute; font-size: 1rem; }
+    .buy-marker { color: #00c853; }
+    .sell-marker { color: #ff1744; }
+
+    /* Options Chain */
+    .options-section { margin-top: 24px; }
+    .options-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    .options-header h2 { font-size: 1.2rem; margin: 0; }
+    .expiry-selector { display: flex; gap: 8px; }
+    .expiry-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
+    .expiry-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .chain-table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .chain-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .chain-table th { padding: 10px 8px; text-align: center; font-size: 0.7rem; text-transform: uppercase; background: var(--card-bg); border-bottom: 2px solid var(--border); }
+    .calls-header { color: #00c853; border-bottom: 2px solid #00c853 !important; }
+    .puts-header { color: #ff1744; border-bottom: 2px solid #ff1744 !important; }
+    .strike-header, .strike-col { background: var(--hover-bg) !important; font-weight: 700; text-align: center; }
+    .chain-table td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border); }
+    .atm-row { background: rgba(99,102,241,0.05); }
+    .atm-strike { font-weight: 800; color: var(--primary); font-size: 0.95rem; }
+    .ltp-cell { cursor: pointer; font-weight: 600; }
+    .ltp-cell:hover { text-decoration: underline; }
+    .positive { color: #00c853; }
+    .negative { color: #ff1744; }
+    .oi-cell { font-weight: 500; }
+
+    .mini-signal { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; font-size: 0.7rem; font-weight: 800; }
+    .mini-signal.signal-buy { background: rgba(0,200,83,0.15); color: #00c853; }
+    .mini-signal.signal-sell { background: rgba(255,23,68,0.15); color: #ff1744; }
+    .mini-signal.signal-hold { background: var(--border); color: var(--text-secondary); }
+
+    @@media (max-width: 768px) {
+        .signal-cards { grid-template-columns: 1fr; }
+        .ai-levels { flex-direction: column; gap: 12px; }
+        .expiry-selector { flex-wrap: wrap; }
+    }
+</style>

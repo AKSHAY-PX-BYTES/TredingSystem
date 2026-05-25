@@ -551,3 +551,104 @@ public class PaymentHistoryItem
     public string PaymentMethod { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
+
+// F&O Models
+public class FnoIndex
+{
+    public string Symbol { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public decimal LastPrice { get; set; }
+    public decimal Change { get; set; }
+    public decimal ChangePercent { get; set; }
+    public decimal DayHigh { get; set; }
+    public decimal DayLow { get; set; }
+    public long Volume { get; set; }
+    public decimal OpenInterest { get; set; }
+    public string Signal { get; set; } = "Hold"; // Buy/Sell/Hold
+    public decimal SignalConfidence { get; set; }
+    public string Trend { get; set; } = "Neutral"; // Bullish/Bearish/Neutral
+}
+
+public class OptionsContract
+{
+    public string Symbol { get; set; } = string.Empty;
+    public string Underlying { get; set; } = string.Empty;
+    public decimal StrikePrice { get; set; }
+    public string OptionType { get; set; } = string.Empty; // CE (Call) / PE (Put)
+    public string Expiry { get; set; } = string.Empty;
+    public decimal LastPrice { get; set; }
+    public decimal Change { get; set; }
+    public decimal ChangePercent { get; set; }
+    public long Volume { get; set; }
+    public decimal OpenInterest { get; set; }
+    public decimal OiChange { get; set; }
+    public decimal ImpliedVolatility { get; set; }
+    public decimal BidPrice { get; set; }
+    public decimal AskPrice { get; set; }
+    public string Signal { get; set; } = "Hold";
+    public decimal SignalConfidence { get; set; }
+    public string SignalReason { get; set; } = string.Empty;
+}
+
+public class OptionsChain
+{
+    public string Underlying { get; set; } = string.Empty;
+    public decimal SpotPrice { get; set; }
+    public List<string> Expiries { get; set; } = new();
+    public List<OptionsContract> Calls { get; set; } = new();
+    public List<OptionsContract> Puts { get; set; } = new();
+}
+
+public class FnoSignal
+{
+    public string Symbol { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty; // BUY/SELL
+    public string OptionType { get; set; } = string.Empty; // CE/PE
+    public decimal StrikePrice { get; set; }
+    public decimal EntryPrice { get; set; }
+    public decimal TargetPrice { get; set; }
+    public decimal StopLoss { get; set; }
+    public decimal Confidence { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string Strategy { get; set; } = string.Empty;
+    public DateTime GeneratedAt { get; set; }
+}
+
+public class FnoChartData
+{
+    public List<FnoCandle> Candles { get; set; } = new();
+    public List<FnoSignalMarker> Signals { get; set; } = new();
+    public decimal SupportLevel { get; set; }
+    public decimal ResistanceLevel { get; set; }
+}
+
+public class FnoCandle
+{
+    public DateTime Time { get; set; }
+    public decimal Open { get; set; }
+    public decimal High { get; set; }
+    public decimal Low { get; set; }
+    public decimal Close { get; set; }
+    public long Volume { get; set; }
+}
+
+public class FnoSignalMarker
+{
+    public DateTime Time { get; set; }
+    public string Action { get; set; } = string.Empty; // BUY/SELL
+    public decimal Price { get; set; }
+    public string Label { get; set; } = string.Empty;
+}
+
+public class FnoAnalysis
+{
+    public string Symbol { get; set; } = string.Empty;
+    public string Trend { get; set; } = string.Empty;
+    public string Sentiment { get; set; } = string.Empty;
+    public decimal PcrRatio { get; set; }
+    public decimal MaxPainStrike { get; set; }
+    public string SupportLevel { get; set; } = string.Empty;
+    public string ResistanceLevel { get; set; } = string.Empty;
+    public List<FnoSignal> ActiveSignals { get; set; } = new();
+    public string AiSummary { get; set; } = string.Empty;
+}
