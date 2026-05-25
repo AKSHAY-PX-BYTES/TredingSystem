@@ -573,6 +573,7 @@ public class OptionsContract
 {
     public string Symbol { get; set; } = string.Empty;
     public string Underlying { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
     public decimal StrikePrice { get; set; }
     public string OptionType { get; set; } = string.Empty; // CE (Call) / PE (Put)
     public string Expiry { get; set; } = string.Empty;
@@ -616,10 +617,23 @@ public class FnoSignal
 
 public class FnoChartData
 {
+    public string DisplayName { get; set; } = string.Empty;
     public List<FnoCandle> Candles { get; set; } = new();
     public List<FnoSignalMarker> Signals { get; set; } = new();
     public decimal SupportLevel { get; set; }
     public decimal ResistanceLevel { get; set; }
+    public FnoPrediction? Prediction { get; set; }
+}
+
+public class FnoPrediction
+{
+    public decimal CurrentPrice { get; set; }
+    public string Signal { get; set; } = string.Empty;
+    public decimal Entry { get; set; }
+    public decimal Target { get; set; }
+    public decimal StopLoss { get; set; }
+    public decimal Confidence { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class FnoCandle

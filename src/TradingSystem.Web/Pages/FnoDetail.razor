@@ -86,9 +86,42 @@
         {
             <div class="chart-section">
                 <div class="chart-header">
-                    <h2>📈 @selectedOption — Live Chart</h2>
+                    <h2>📈 @(chartData.DisplayName ?? selectedOption) — Live Chart</h2>
                     <button class="btn-close-chart" @onclick="CloseChart">✕</button>
                 </div>
+
+                <!-- AI Prediction Highlight -->
+                @if (chartData.Prediction != null)
+                {
+                    var pred = chartData.Prediction;
+                    <div class="prediction-card @(pred.Signal == "BUY" ? "pred-buy" : "pred-sell")">
+                        <div class="pred-header">
+                            <span class="pred-signal @(pred.Signal == "BUY" ? "buy" : "sell")">@pred.Signal</span>
+                            <span class="pred-name">@(chartData.DisplayName ?? selectedOption)</span>
+                            <span class="pred-confidence">@pred.Confidence% Confidence</span>
+                        </div>
+                        <div class="pred-levels">
+                            <div class="pred-item">
+                                <span class="pred-label">Entry</span>
+                                <span class="pred-value">₹@pred.Entry.ToString("N2")</span>
+                            </div>
+                            <div class="pred-item target">
+                                <span class="pred-label">Target</span>
+                                <span class="pred-value">₹@pred.Target.ToString("N2")</span>
+                            </div>
+                            <div class="pred-item stoploss">
+                                <span class="pred-label">Stop Loss</span>
+                                <span class="pred-value">₹@pred.StopLoss.ToString("N2")</span>
+                            </div>
+                            <div class="pred-item">
+                                <span class="pred-label">Current</span>
+                                <span class="pred-value">₹@pred.CurrentPrice.ToString("N2")</span>
+                            </div>
+                        </div>
+                        <p class="pred-reason">💡 @pred.Reason</p>
+                    </div>
+                }
+
                 <div class="chart-canvas" id="fnoChart">
                     <div class="chart-placeholder">
                         @foreach (var candle in chartData.Candles.TakeLast(50))
@@ -270,7 +303,9 @@
     private async Task OpenChart(OptionsContract? contract)
     {
         if (contract == null) return;
-        selectedOption = $"{Symbol} {contract.StrikePrice:N0} {contract.OptionType}";
+        var expiryLabel = selectedExpiry;
+        try { expiryLabel = DateTime.Parse(selectedExpiry).ToString("dd MMM"); } catch { }
+        selectedOption = $"{Symbol} {expiryLabel} {contract.StrikePrice:N0} {contract.OptionType}";
         chartData = await FnoApi.GetChartDataAsync(Symbol, contract.OptionType, contract.StrikePrice, selectedExpiry);
         if (chartData != null && chartData.Candles.Any())
         {
@@ -421,4 +456,22 @@
         .ai-levels { flex-direction: column; gap: 12px; }
         .expiry-selector { flex-wrap: wrap; }
     }
+
+    /* Prediction Card */
+    .prediction-card { border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
+    .prediction-card.pred-buy { background: linear-gradient(135deg, rgba(0,200,83,0.05), rgba(0,200,83,0.02)); border-left: 4px solid #00c853; }
+    .prediction-card.pred-sell { background: linear-gradient(135deg, rgba(255,23,68,0.05), rgba(255,23,68,0.02)); border-left: 4px solid #ff1744; }
+    .pred-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .pred-signal { font-weight: 800; font-size: 1rem; padding: 4px 12px; border-radius: 6px; }
+    .pred-signal.buy { background: rgba(0,200,83,0.15); color: #00c853; }
+    .pred-signal.sell { background: rgba(255,23,68,0.15); color: #ff1744; }
+    .pred-name { font-weight: 700; font-size: 1rem; }
+    .pred-confidence { margin-left: auto; font-weight: 700; color: var(--primary); }
+    .pred-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin-bottom: 12px; }
+    .pred-item { display: flex; flex-direction: column; gap: 2px; }
+    .pred-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
+    .pred-value { font-size: 1.1rem; font-weight: 700; }
+    .pred-item.target .pred-value { color: #00c853; }
+    .pred-item.stoploss .pred-value { color: #ff1744; }
+    .pred-reason { font-size: 0.85rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
 </style>
