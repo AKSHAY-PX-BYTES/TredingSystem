@@ -93,12 +93,12 @@
                     <div class="chart-placeholder">
                         @foreach (var candle in chartData.Candles.TakeLast(50))
                         {
-                            var height = (int)Math.Max(2, Math.Abs((double)(candle.Close - candle.Open)) / maxRange * 200);
-                            var bottom = (int)((double)(candle.Low - minPrice) / maxRange * 200);
+                            var height = (int)Math.Max(2, Math.Abs((double)(candle.Close - candle.Open)) / (double)maxRange * 200);
+                            var bottom = (int)((double)(candle.Low - minPrice) / (double)maxRange * 200);
                             var isGreen = candle.Close >= candle.Open;
                             <div class="candle-wrapper" title="@candle.Time.ToString("dd MMM HH:mm") O:@candle.Open H:@candle.High L:@candle.Low C:@candle.Close">
-                                <div class="candle-wick" style="height: @((int)((double)(candle.High - candle.Low) / maxRange * 200))px; bottom: @bottom px;"></div>
-                                <div class="candle-body @(isGreen ? "green" : "red")" style="height: @height px; bottom: @((int)((double)(Math.Min(candle.Open, candle.Close) - minPrice) / maxRange * 200))px;"></div>
+                                <div class="candle-wick" style="height: @((int)((double)(candle.High - candle.Low) / (double)maxRange * 200))px; bottom: @bottom px;"></div>
+                                <div class="candle-body @(isGreen ? "green" : "red")" style="height: @height px; bottom: @((int)((double)(Math.Min(candle.Open, candle.Close) - minPrice) / (double)maxRange * 200))px;"></div>
                             </div>
                         }
                         <!-- Signal markers overlay -->
