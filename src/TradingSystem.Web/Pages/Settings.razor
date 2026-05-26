@@ -1,0 +1,678 @@
+@page "/settings"
+@using TradingSystem.Web.Services
+@inject HttpClient Http
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<div class="settings-page">
+    <div class="settings-header">
+        <h2>⚙️ Settings</h2>
+        <p class="settings-subtitle">Manage your account, preferences, and privacy</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMsg))
+    {
+        <div class="alert alert-success">✅ @successMsg</div>
+    }
+    @if (!string.IsNullOrEmpty(errorMsg))
+    {
+        <div class="alert alert-error">❌ @errorMsg</div>
+    }
+
+    <div class="settings-nav">
+        @foreach (var s in sections)
+        {
+            <button class="settings-nav-btn @(activeSection == s.Key ? "active" : "")"
+                    @onclick="() => activeSection = s.Key">
+                <span class="nav-icon">@s.Icon</span>
+                <span class="nav-label">@s.Label</span>
+            </button>
+        }
+    </div>
+
+    <div class="settings-content">
+        @if (activeSection == "profile")
+        {
+            <div class="settings-card">
+                <h3>👤 Your Profile</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" @bind="profile.FirstName" />
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" @bind="profile.LastName" />
+                    </div>
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" @bind="profile.DisplayName" />
+                    </div>
+                    <div class="form-group">
+                        <label>Country</label>
+                        <input type="text" @bind="profile.Country" />
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth</label>
+                        <input type="date" @bind="profile.DateOfBirth" />
+                    </div>
+                    <div class="form-group">
+                        <label>Trading Experience</label>
+                        <select @bind="profile.TradingExperience">
+                            <option value="None">None</option>
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                            <option value="Expert">Expert</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn-primary" @onclick="SaveProfile">Save Profile</button>
+                <hr />
+                <h4>📧 Change Email</h4>
+                <p class="current-value">Current: <strong>@profile.Email</strong></p>
+                <div class="form-row">
+                    <input type="email" placeholder="New email address" @bind="newEmail" />
+                    <input type="password" placeholder="Your password" @bind="emailChangePassword" />
+                    <button class="btn-secondary" @onclick="RequestEmailChange">Send Verification</button>
+                </div>
+                @if (emailOtpSent)
+                {
+                    <div class="form-row" style="margin-top:8px">
+                        <input type="text" maxlength="6" placeholder="Enter OTP" @bind="emailOtpCode" />
+                        <button class="btn-primary" @onclick="VerifyEmailChange">Verify & Update</button>
+                    </div>
+                }
+                <hr />
+                <h4>🌐 Language</h4>
+                <select @bind="selectedLanguage" @bind:after="ChangeLanguage">
+                    @if (languages != null)
+                    {
+                        @foreach (var lang in languages)
+                        {
+                            <option value="@lang.Code">@lang.Name (@lang.Native)</option>
+                        }
+                    }
+                </select>
+            </div>
+        }
+        else if (activeSection == "security")
+        {
+            <div class="settings-card">
+                <h3>🔒 Account & Security</h3>
+                @if (security != null)
+                {
+                    <div class="security-status">
+                        <div class="status-item @(security.PasswordExpired ? "danger" : security.PasswordExpiringSoon ? "warning" : "good")">
+                            <span class="status-icon">@(security.PasswordExpired ? "🔴" : security.PasswordExpiringSoon ? "🟡" : "🟢")</span>
+                            <div>
+                                <strong>Password Age: @security.PasswordAgeDays days</strong>
+                                @if (security.PasswordExpired)
+                                {
+                                    <p class="text-danger">⚠️ Password expired! Please change immediately.</p>
+                                }
+                                else if (security.PasswordExpiringSoon)
+                                {
+                                    <p class="text-warning">Password expires in @(90 - security.PasswordAgeDays) days</p>
+                                }
+                                else
+                                {
+                                    <p>Password is up to date</p>
+                                }
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-icon">@(security.MfaEnabled ? "🛡️" : "⚠️")</span>
+                            <div>
+                                <strong>MFA: @(security.MfaEnabled ? "Enabled" : "Disabled")</strong>
+                                <button class="btn-link" @onclick="ToggleMfa">@(security.MfaEnabled ? "Disable" : "Enable") MFA</button>
+                            </div>
+                        </div>
+                    </div>
+                    <hr />
+                    <h4>🔑 Change Password</h4>
+                    <div class="form-grid narrow">
+                        <input type="password" placeholder="Current password" @bind="currentPassword" />
+                        <input type="password" placeholder="New password" @bind="newPassword" />
+                        <input type="password" placeholder="Confirm new password" @bind="confirmPassword" />
+                    </div>
+                    <button class="btn-primary" @onclick="ChangePassword">Update Password</button>
+                    <hr />
+                    <h4>📬 Recovery Email</h4>
+                    <p class="help-text">Used when you can't access your primary email</p>
+                    <div class="form-row">
+                        <input type="email" placeholder="Recovery email" @bind="recoveryEmail" />
+                        <button class="btn-secondary" @onclick="SetRecoveryEmail">Save</button>
+                    </div>
+                    <hr />
+                    <h4>🚪 Sign Out All Devices</h4>
+                    <p class="help-text">This will sign you out from all active sessions</p>
+                    <button class="btn-danger" @onclick="SignOutAll">Sign Out Everywhere</button>
+                    <hr />
+                    <h4>🗑️ Delete Account</h4>
+                    <div class="danger-zone">
+                        <p>⚠️ This action is irreversible. All data will be permanently lost after 30 days.</p>
+                        <div class="form-row">
+                            <input type="password" placeholder="Enter password to confirm" @bind="deletePassword" />
+                            <button class="btn-danger" @onclick="DeleteAccount">Delete My Account</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (activeSection == "accessibility")
+        {
+            <div class="settings-card">
+                <h3>🎨 Accessibility</h3>
+                <h4>Theme</h4>
+                <div class="theme-picker">
+                    <button class="theme-btn @(selectedTheme == "light" ? "active" : "")" @onclick='() => SetTheme("light")'>☀️ Light</button>
+                    <button class="theme-btn @(selectedTheme == "dark" ? "active" : "")" @onclick='() => SetTheme("dark")'>🌙 Dark</button>
+                    <button class="theme-btn @(selectedTheme == "system" ? "active" : "")" @onclick='() => SetTheme("system")'>💻 System</button>
+                </div>
+            </div>
+        }
+        else if (activeSection == "messages")
+        {
+            <div class="settings-card">
+                <h3>📬 Message Preferences</h3>
+                <div class="toggle-list">
+                    <div class="toggle-item">
+                        <div><strong>What's New</strong><p>Get notified about new features and updates</p></div>
+                        <label class="switch"><input type="checkbox" @bind="notifyWhatsNew" /><span class="slider"></span></label>
+                    </div>
+                    <div class="toggle-item">
+                        <div><strong>Recommendations</strong><p>Receive personalized trading recommendations</p></div>
+                        <label class="switch"><input type="checkbox" @bind="notifyRecommendations" /><span class="slider"></span></label>
+                    </div>
+                    <div class="toggle-item">
+                        <div><strong>Email Notifications</strong><p>Receive admin announcements via email</p></div>
+                        <label class="switch"><input type="checkbox" @bind="notifyEmailUpdates" /><span class="slider"></span></label>
+                    </div>
+                </div>
+                <button class="btn-primary" @onclick="SaveNotificationPrefs">Save Preferences</button>
+            </div>
+        }
+        else if (activeSection == "privacy")
+        {
+            <div class="settings-card">
+                <h3>🔐 Privacy Control</h3>
+                <div class="privacy-info">
+                    <h4>Your Consents</h4>
+                    <ul>
+                        <li>✅ Financial risk acknowledgement</li>
+                        <li>✅ Terms & Conditions accepted</li>
+                        <li>✅ Privacy Policy accepted</li>
+                        <li>
+                            @(consentAiSignals ? "✅" : "❌") AI-generated signals consent
+                            <button class="btn-link" @onclick="ToggleAiConsent">@(consentAiSignals ? "Revoke" : "Grant")</button>
+                        </li>
+                    </ul>
+                    <h4>Data We Collect</h4>
+                    <ul>
+                        <li>Login activity & device info</li>
+                        <li>Trading preferences & watchlists</li>
+                        <li>Usage analytics</li>
+                    </ul>
+                    <p class="help-text">Data retention: 365 days.</p>
+                </div>
+            </div>
+        }
+        else if (activeSection == "orders")
+        {
+            <div class="settings-card">
+                <h3>🧾 Orders & Invoices</h3>
+                @if (orders != null && orders.Any())
+                {
+                    <table class="data-table">
+                        <thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach (var o in orders)
+                            {
+                                <tr>
+                                    <td>@o.CreatedAt.ToString("dd MMM yyyy")</td>
+                                    <td>@o.Plan @(o.IsAnnual ? "(Annual)" : "(Monthly)")</td>
+                                    <td>@o.Currency @o.Amount</td>
+                                    <td><span class="badge @(o.Status == "paid" ? "badge-success" : "badge-pending")">@o.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="empty-state">No purchase history yet.</p>
+                }
+            </div>
+        }
+        else if (activeSection == "subscription")
+        {
+            <div class="settings-card">
+                <h3>💎 Subscription Details</h3>
+                @if (subscription != null)
+                {
+                    <div class="subscription-card">
+                        <div class="plan-badge">@subscription.Plan</div>
+                        <div class="plan-details">
+                            <p><strong>Status:</strong> @(subscription.IsActive ? "✅ Active" : "❌ Expired")</p>
+                            <p><strong>Days Remaining:</strong> @subscription.DaysRemaining</p>
+                            <div class="usage-bar">
+                                <div class="usage-fill" style="width: @(subscription.UsagePercent)%"></div>
+                            </div>
+                            <p class="usage-text">@subscription.UsagePercent% of plan period used</p>
+                            @if (subscription.IsTrialExpired)
+                            {
+                                <p class="text-danger">⚠️ Trial expired. <a href="/plans">Upgrade now</a></p>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (activeSection == "feedback")
+        {
+            <div class="settings-card">
+                <h3>💬 Feedback & Suggestions</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select @bind="feedbackType">
+                            <option value="Bug">🐛 Bug Report</option>
+                            <option value="Suggestion">💡 Suggestion</option>
+                            <option value="Feedback">📝 General Feedback</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject</label>
+                        <input type="text" @bind="feedbackSubject" placeholder="Brief summary" />
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Message</label>
+                        <textarea @bind="feedbackMessage" rows="5" placeholder="Describe in detail..."></textarea>
+                    </div>
+                </div>
+                <button class="btn-primary" @onclick="SubmitFeedback">Submit Feedback</button>
+                @if (myFeedback != null && myFeedback.Any())
+                {
+                    <hr />
+                    <h4>Your Previous Feedback</h4>
+                    @foreach (var f in myFeedback)
+                    {
+                        <div class="feedback-item">
+                            <div class="feedback-header">
+                                <span class="badge">@f.Type</span>
+                                <span class="badge">@f.Status</span>
+                                <span class="feedback-date">@f.CreatedAt.ToString("dd MMM yyyy")</span>
+                            </div>
+                            <strong>@f.Subject</strong>
+                            <p>@f.Message</p>
+                            @if (!string.IsNullOrEmpty(f.AdminResponse))
+                            {
+                                <div class="admin-reply">
+                                    <strong>Admin Response:</strong>
+                                    <p>@f.AdminResponse</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+@code {
+    private string activeSection = "profile";
+    private string successMsg = "", errorMsg = "";
+
+    // Section definitions
+    private List<(string Key, string Icon, string Label)> sections = new()
+    {
+        ("profile", "👤", "Profile"),
+        ("security", "🔒", "Security"),
+        ("accessibility", "🎨", "Accessibility"),
+        ("messages", "📬", "Messages"),
+        ("privacy", "🔐", "Privacy"),
+        ("orders", "🧾", "Orders"),
+        ("subscription", "💎", "Subscription"),
+        ("feedback", "💬", "Feedback"),
+    };
+
+    // Profile state
+    private ProfileData profile = new();
+    private string newEmail = "", emailChangePassword = "", emailOtpCode = "";
+    private bool emailOtpSent;
+    private string selectedLanguage = "en";
+    private List<LanguageItem>? languages;
+
+    // Security state
+    private SecurityData? security;
+    private string currentPassword = "", newPassword = "", confirmPassword = "";
+    private string recoveryEmail = "", deletePassword = "";
+
+    // Preferences
+    private string selectedTheme = "system";
+    private bool notifyWhatsNew = true, notifyRecommendations = true, notifyEmailUpdates = true;
+    private bool consentAiSignals = true;
+
+    // Orders & Subscription
+    private List<OrderItem>? orders;
+    private SubscriptionData? subscription;
+
+    // Feedback
+    private string feedbackType = "Suggestion", feedbackSubject = "", feedbackMessage = "";
+    private List<FeedbackItem>? myFeedback;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+        await LoadSecurity();
+        await LoadLanguages();
+        await LoadNotificationPrefs();
+        await LoadOrders();
+        await LoadSubscription();
+        await LoadFeedback();
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<ProfileData>>("settings/profile");
+            if (resp?.Success == true && resp.Data != null)
+            {
+                profile = resp.Data;
+                selectedLanguage = profile.PreferredLanguage ?? "en";
+                selectedTheme = profile.Theme ?? "system";
+            }
+        }
+        catch { }
+    }
+
+    private async Task LoadSecurity()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<SecurityData>>("settings/security");
+            if (resp?.Success == true) security = resp.Data;
+        }
+        catch { }
+    }
+
+    private async Task LoadLanguages()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<List<LanguageItem>>>("settings/languages");
+            if (resp?.Success == true) languages = resp.Data;
+        }
+        catch { }
+    }
+
+    private async Task LoadNotificationPrefs()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<NotifPrefs>>("settings/notifications");
+            if (resp?.Success == true && resp.Data != null)
+            {
+                notifyWhatsNew = resp.Data.NotifyWhatsNew;
+                notifyRecommendations = resp.Data.NotifyRecommendations;
+                notifyEmailUpdates = resp.Data.NotifyEmailUpdates;
+            }
+        }
+        catch { }
+    }
+
+    private async Task LoadOrders()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<List<OrderItem>>>("settings/orders");
+            if (resp?.Success == true) orders = resp.Data;
+        }
+        catch { }
+    }
+
+    private async Task LoadSubscription()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<SubscriptionData>>("settings/subscription");
+            if (resp?.Success == true) subscription = resp.Data;
+        }
+        catch { }
+    }
+
+    private async Task LoadFeedback()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResp<List<FeedbackItem>>>("settings/feedback");
+            if (resp?.Success == true) myFeedback = resp.Data;
+        }
+        catch { }
+    }
+
+    private async Task SaveProfile()
+    {
+        var resp = await Http.PutAsJsonAsync("settings/profile", new
+        {
+            profile.FirstName, profile.LastName, profile.DisplayName,
+            profile.Country, profile.DateOfBirth, profile.TradingExperience
+        });
+        await ShowResult(resp);
+    }
+
+    private async Task RequestEmailChange()
+    {
+        var resp = await Http.PostAsJsonAsync("settings/profile/change-email", new { newEmail, password = emailChangePassword });
+        if (resp.IsSuccessStatusCode) { emailOtpSent = true; successMsg = "OTP sent to new email"; }
+        else errorMsg = "Failed to send verification";
+    }
+
+    private async Task VerifyEmailChange()
+    {
+        var resp = await Http.PostAsJsonAsync("settings/profile/verify-email-change", new { newEmail, otpCode = emailOtpCode });
+        await ShowResult(resp);
+        if (resp.IsSuccessStatusCode) { emailOtpSent = false; await LoadProfile(); }
+    }
+
+    private async Task ChangeLanguage()
+    {
+        await Http.PutAsJsonAsync("settings/profile/language", new { language = selectedLanguage });
+    }
+
+    private async Task ChangePassword()
+    {
+        var resp = await Http.PostAsJsonAsync("auth/change-password", new { currentPassword, newPassword, confirmNewPassword = confirmPassword });
+        await ShowResult(resp);
+        if (resp.IsSuccessStatusCode) { currentPassword = newPassword = confirmPassword = ""; await LoadSecurity(); }
+    }
+
+    private async Task SetRecoveryEmail()
+    {
+        var resp = await Http.PutAsJsonAsync("settings/security/recovery-email", new { recoveryEmail });
+        await ShowResult(resp);
+    }
+
+    private async Task ToggleMfa()
+    {
+        var enable = !(security?.MfaEnabled ?? false);
+        var resp = await Http.PostAsJsonAsync("settings/security/toggle-mfa", new { enable });
+        await ShowResult(resp);
+        await LoadSecurity();
+    }
+
+    private async Task SignOutAll()
+    {
+        var resp = await Http.PostAsync("settings/security/sign-out-all", null);
+        await ShowResult(resp);
+    }
+
+    private async Task DeleteAccount()
+    {
+        if (string.IsNullOrEmpty(deletePassword)) { errorMsg = "Enter password to confirm"; return; }
+        var resp = await Http.PostAsJsonAsync("settings/security/delete-account", new { password = deletePassword, confirm = true });
+        if (resp.IsSuccessStatusCode) { await Auth.LogoutAsync(); Nav.NavigateTo("/login"); }
+        else errorMsg = "Failed to delete account";
+    }
+
+    private async Task SetTheme(string theme)
+    {
+        selectedTheme = theme;
+        await Http.PutAsJsonAsync("settings/accessibility/theme", new { theme });
+    }
+
+    private async Task SaveNotificationPrefs()
+    {
+        var resp = await Http.PutAsJsonAsync("settings/notifications", new { notifyWhatsNew, notifyRecommendations, notifyEmailUpdates });
+        await ShowResult(resp);
+    }
+
+    private async Task ToggleAiConsent()
+    {
+        consentAiSignals = !consentAiSignals;
+        await Http.PutAsJsonAsync("settings/privacy/ai-signals-consent", consentAiSignals);
+    }
+
+    private async Task SubmitFeedback()
+    {
+        if (string.IsNullOrWhiteSpace(feedbackSubject) || string.IsNullOrWhiteSpace(feedbackMessage))
+        { errorMsg = "Please fill in subject and message"; return; }
+
+        var resp = await Http.PostAsJsonAsync("settings/feedback", new { type = feedbackType, subject = feedbackSubject, message = feedbackMessage });
+        await ShowResult(resp);
+        if (resp.IsSuccessStatusCode) { feedbackSubject = feedbackMessage = ""; await LoadFeedback(); }
+    }
+
+    private async Task ShowResult(HttpResponseMessage resp)
+    {
+        errorMsg = successMsg = "";
+        if (resp.IsSuccessStatusCode) successMsg = "Updated successfully!";
+        else errorMsg = "Operation failed. Please try again.";
+        await Task.Delay(3000);
+        successMsg = errorMsg = "";
+        StateHasChanged();
+    }
+
+    // Models
+    private class ApiResp<T> { public bool Success { get; set; } public T? Data { get; set; } }
+    private class ProfileData
+    {
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? DisplayName { get; set; }
+        public string? Country { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? TradingExperience { get; set; }
+        public string? PreferredLanguage { get; set; }
+        public string? Theme { get; set; }
+    }
+    private class SecurityData
+    {
+        public int PasswordAgeDays { get; set; }
+        public bool PasswordExpiringSoon { get; set; }
+        public bool PasswordExpired { get; set; }
+        public DateTime? PasswordChangedAt { get; set; }
+        public string? RecoveryEmail { get; set; }
+        public bool MfaEnabled { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+    private class LanguageItem { public string Code { get; set; } = ""; public string Name { get; set; } = ""; public string Native { get; set; } = ""; }
+    private class NotifPrefs { public bool NotifyWhatsNew { get; set; } public bool NotifyRecommendations { get; set; } public bool NotifyEmailUpdates { get; set; } }
+    private class OrderItem { public DateTime CreatedAt { get; set; } public string Plan { get; set; } = ""; public decimal Amount { get; set; } public string Currency { get; set; } = ""; public string Status { get; set; } = ""; public bool IsAnnual { get; set; } }
+    private class SubscriptionData { public string Plan { get; set; } = ""; public int DaysRemaining { get; set; } public decimal UsagePercent { get; set; } public bool IsActive { get; set; } public bool IsTrialExpired { get; set; } }
+    private class FeedbackItem { public string Type { get; set; } = ""; public string Subject { get; set; } = ""; public string Message { get; set; } = ""; public string Status { get; set; } = ""; public string? AdminResponse { get; set; } public DateTime CreatedAt { get; set; } }
+}
+
+<style>
+    .settings-page { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .settings-header h2 { margin: 0; font-size: 1.8rem; }
+    .settings-subtitle { color: #666; margin-top: 4px; }
+
+    .settings-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0; padding: 10px 0; border-bottom: 1px solid #e0e0e0; }
+    .settings-nav-btn { background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; transition: all 0.2s; }
+    .settings-nav-btn:hover { background: #e8e8e8; }
+    .settings-nav-btn.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+
+    .settings-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .settings-card h3 { margin: 0 0 16px; font-size: 1.3rem; }
+    .settings-card h4 { margin: 16px 0 8px; font-size: 1rem; color: #333; }
+    .settings-card hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .form-grid.narrow { grid-template-columns: 1fr; max-width: 400px; }
+    .form-group label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 4px; font-weight: 600; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; }
+    .form-group.full-width { grid-column: 1 / -1; }
+    .form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .form-row input { flex: 1; min-width: 150px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; }
+
+    .btn-primary { background: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-primary:hover { background: #1557b0; }
+    .btn-secondary { background: #f0f0f0; color: #333; border: 1px solid #ddd; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+    .btn-danger { background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+    .btn-link { background: none; border: none; color: #1a73e8; cursor: pointer; font-size: 0.85rem; text-decoration: underline; }
+
+    .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+    .alert-success { background: #d4edda; color: #155724; }
+    .alert-error { background: #f8d7da; color: #721c24; }
+
+    .security-status { display: flex; flex-direction: column; gap: 12px; }
+    .status-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 8px; background: #f8f9fa; }
+    .status-item.danger { background: #fff3f3; }
+    .status-item.warning { background: #fff8e1; }
+    .status-item.good { background: #e8f5e9; }
+    .status-icon { font-size: 1.5rem; }
+
+    .danger-zone { background: #fff3f3; border: 1px solid #ffcdd2; border-radius: 8px; padding: 16px; }
+
+    .theme-picker { display: flex; gap: 12px; }
+    .theme-btn { padding: 16px 24px; border: 2px solid #ddd; border-radius: 12px; cursor: pointer; background: white; font-size: 1rem; }
+    .theme-btn.active { border-color: #1a73e8; background: #e8f0fe; }
+
+    .toggle-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .toggle-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 8px; background: #f8f9fa; }
+    .toggle-item p { margin: 2px 0 0; font-size: 0.8rem; color: #666; }
+    .switch { position: relative; width: 48px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
+    .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+    input:checked + .slider { background: #1a73e8; }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .data-table th { background: #f5f5f5; font-weight: 600; }
+
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-pending { background: #fff3cd; color: #856404; }
+
+    .subscription-card { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px; padding: 24px; }
+    .plan-badge { font-size: 1.5rem; font-weight: 700; margin-bottom: 12px; }
+    .usage-bar { height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; margin: 8px 0; }
+    .usage-fill { height: 100%; background: white; border-radius: 4px; transition: width 0.3s; }
+    .usage-text { font-size: 0.8rem; opacity: 0.9; }
+
+    .feedback-item { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-top: 12px; }
+    .feedback-header { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .feedback-date { font-size: 0.75rem; color: #999; margin-left: auto; }
+    .admin-reply { background: #e8f5e9; border-radius: 6px; padding: 10px; margin-top: 8px; }
+
+    .help-text { font-size: 0.8rem; color: #666; margin: 4px 0 8px; }
+    .current-value { font-size: 0.85rem; color: #555; }
+    .empty-state { color: #999; text-align: center; padding: 20px; }
+    .text-danger { color: #dc3545; }
+    .text-warning { color: #ff9800; }
+
+    @@media (max-width: 768px) {
+        .form-grid { grid-template-columns: 1fr; }
+        .settings-nav { overflow-x: auto; flex-wrap: nowrap; }
+        .settings-nav-btn .nav-label { display: none; }
+        .theme-picker { flex-direction: column; }
+    }
+</style>

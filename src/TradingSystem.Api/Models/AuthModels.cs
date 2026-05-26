@@ -19,6 +19,7 @@ public class LoginResponse
     public string? Token { get; set; }
     public string? RefreshToken { get; set; }
     public string? Error { get; set; }
+    public string? Warning { get; set; }
     public UserInfo? User { get; set; }
     public DateTime? ExpiresAt { get; set; }
 }
@@ -62,6 +63,34 @@ public class RegisterRequest
     [Required(ErrorMessage = "Confirm password is required")]
     [Compare("Password", ErrorMessage = "Passwords do not match")]
     public string ConfirmPassword { get; set; } = string.Empty;
+
+    // New profile fields
+    [Required(ErrorMessage = "First name is required")]
+    [StringLength(50, MinimumLength = 1)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Last name is required")]
+    [StringLength(50, MinimumLength = 1)]
+    public string LastName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Country is required")]
+    public string Country { get; set; } = string.Empty;
+
+    public DateTime? DateOfBirth { get; set; }
+
+    public string TradingExperience { get; set; } = "None"; // None, Beginner, Intermediate, Advanced, Expert
+
+    // Legal consents (all required)
+    [Range(typeof(bool), "true", "true", ErrorMessage = "You must acknowledge that trading involves financial risk")]
+    public bool ConsentFinancialRisk { get; set; }
+
+    [Range(typeof(bool), "true", "true", ErrorMessage = "You must agree to the Terms and Conditions")]
+    public bool ConsentTermsAndConditions { get; set; }
+
+    [Range(typeof(bool), "true", "true", ErrorMessage = "You must agree to the Privacy Policy")]
+    public bool ConsentPrivacyPolicy { get; set; }
+
+    public bool ConsentAiSignals { get; set; } = true;
 
     public string Plan { get; set; } = "Free";
 

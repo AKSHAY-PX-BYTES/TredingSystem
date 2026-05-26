@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<ChatMessageEntity> ChatMessages => Set<ChatMessageEntity>();
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
     public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
+    public DbSet<FeedbackEntity> Feedbacks => Set<FeedbackEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,40 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LockoutEndUtc).HasColumnName("lockout_end_utc");
             entity.Property(e => e.RefreshToken).HasColumnName("refresh_token").HasMaxLength(200);
             entity.Property(e => e.RefreshTokenExpiresAt).HasColumnName("refresh_token_expires_at");
+            
+            // Profile fields
+            entity.Property(e => e.FirstName).HasColumnName("first_name").HasMaxLength(50);
+            entity.Property(e => e.LastName).HasColumnName("last_name").HasMaxLength(50);
+            entity.Property(e => e.Country).HasColumnName("country").HasMaxLength(100);
+            entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
+            entity.Property(e => e.TradingExperience).HasColumnName("trading_experience").HasMaxLength(20);
+            
+            // Legal consents
+            entity.Property(e => e.ConsentFinancialRisk).HasColumnName("consent_financial_risk").HasDefaultValue(false);
+            entity.Property(e => e.ConsentTermsAndConditions).HasColumnName("consent_terms").HasDefaultValue(false);
+            entity.Property(e => e.ConsentPrivacyPolicy).HasColumnName("consent_privacy").HasDefaultValue(false);
+            entity.Property(e => e.ConsentAiSignals).HasColumnName("consent_ai_signals").HasDefaultValue(false);
+            entity.Property(e => e.ConsentedAt).HasColumnName("consented_at");
+            
+            // Security
+            entity.Property(e => e.PasswordChangedAt).HasColumnName("password_changed_at");
+            entity.Property(e => e.RecoveryEmail).HasColumnName("recovery_email").HasMaxLength(100);
+            entity.Property(e => e.MfaEnabled).HasColumnName("mfa_enabled").HasDefaultValue(false);
+            entity.Property(e => e.MfaSecret).HasColumnName("mfa_secret").HasMaxLength(200);
+            entity.Property(e => e.SessionToken).HasColumnName("session_token").HasMaxLength(200);
+            entity.Property(e => e.SessionTokenIssuedAt).HasColumnName("session_token_issued_at");
+            
+            // Preferences
+            entity.Property(e => e.Theme).HasColumnName("theme").HasMaxLength(10).HasDefaultValue("system");
+            entity.Property(e => e.NotifyWhatsNew).HasColumnName("notify_whats_new").HasDefaultValue(true);
+            entity.Property(e => e.NotifyRecommendations).HasColumnName("notify_recommendations").HasDefaultValue(true);
+            entity.Property(e => e.NotifyEmailUpdates).HasColumnName("notify_email_updates").HasDefaultValue(true);
+            
+            // Account deletion
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.DeletionReason).HasColumnName("deletion_reason").HasMaxLength(500);
+
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
         });
@@ -206,6 +241,25 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.OrderId).IsUnique();
             entity.HasIndex(e => e.PaymentId);
             entity.HasIndex(e => e.UserId);
+        });
+
+        modelBuilder.Entity<FeedbackEntity>(entity =>
+        {
+            entity.ToTable("feedbacks");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Type).HasColumnName("type").IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Subject).HasColumnName("subject").IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).HasColumnName("message").IsRequired().HasMaxLength(5000);
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired().HasMaxLength(20).HasDefaultValue("Open");
+            entity.Property(e => e.AdminResponse).HasColumnName("admin_response").HasMaxLength(5000);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at");
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
         });
     }
 }

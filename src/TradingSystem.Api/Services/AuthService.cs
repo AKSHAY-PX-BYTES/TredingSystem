@@ -110,6 +110,12 @@ public class AuthService : IAuthService
             return new LoginResponse { Success = false, Error = "Invalid username/email or password" };
         }
 
+        // Soft-deleted account check
+        if (user.IsDeleted)
+        {
+            return new LoginResponse { Success = false, Error = "This account has been deleted. Contact support to restore." };
+        }
+
         // Account lockout check
         if (user.LockoutEndUtc.HasValue && user.LockoutEndUtc > DateTime.UtcNow)
         {
@@ -155,12 +161,23 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("Login successful for user: {Username}", request.Username);
 
+        // Password expiry warning
+        string? warning = null;
+        var passwordAge = user.PasswordChangedAt.HasValue
+            ? (int)(DateTime.UtcNow - user.PasswordChangedAt.Value).TotalDays
+            : (int)(DateTime.UtcNow - user.CreatedAt).TotalDays;
+        if (passwordAge > 90)
+            warning = "Your password has expired (over 90 days). Please update your password immediately for security.";
+        else if (passwordAge > 75)
+            warning = $"Your password will expire in {90 - passwordAge} days. Please update it soon.";
+
         return new LoginResponse
         {
             Success = true,
             Token = token,
             RefreshToken = refreshToken,
             ExpiresAt = expiresAt,
+            Warning = warning,
             User = new UserInfo
             {
                 Username = user.Username,
@@ -240,14 +257,30 @@ public class AuthService : IAuthService
         {
             Username = request.Username,
             PasswordHash = HashPassword(request.Password),
-            DisplayName = request.Username,
+            DisplayName = $"{request.FirstName} {request.LastName}".Trim(),
             Role = "Trader",
             Plan = plan,
             Email = request.Email,
             PhoneNumber = request.PhoneNumber,
             CountryCode = request.CountryCode,
             IsPhoneVerified = !string.IsNullOrEmpty(request.PhoneNumber),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            // New profile fields
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Country = request.Country,
+            DateOfBirth = request.DateOfBirth,
+            TradingExperience = request.TradingExperience,
+            // Legal consents
+            ConsentFinancialRisk = request.ConsentFinancialRisk,
+            ConsentTermsAndConditions = request.ConsentTermsAndConditions,
+            ConsentPrivacyPolicy = request.ConsentPrivacyPolicy,
+            ConsentAiSignals = request.ConsentAiSignals,
+            ConsentedAt = DateTime.UtcNow,
+            // Security defaults
+            PasswordChangedAt = DateTime.UtcNow,
+            SessionToken = Guid.NewGuid().ToString("N"),
+            SessionTokenIssuedAt = DateTime.UtcNow
         };
 
         db.Users.Add(newUser);
@@ -345,6 +378,7 @@ public class AuthService : IAuthService
             return new ChangePasswordResponse { Success = false, Error = "New passwords do not match" };
 
         user.PasswordHash = HashPassword(request.NewPassword);
+        user.PasswordChangedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         _logger.LogInformation("Password changed successfully for user: {Username}", username);
