@@ -668,3 +668,16 @@ public class FnoAnalysis
     public List<FnoSignal> ActiveSignals { get; set; } = new();
     public string AiSummary { get; set; } = string.Empty;
 }
+
+public class LiveChartData
+{
+    public string Symbol { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public decimal PreviousClose { get; set; }
+    public decimal High { get; set; }
+    public decimal Low { get; set; }
+    public long Volume { get; set; }
+    public decimal Change { get; set; }
+    public decimal ChangePercent { get; set; }
+    public List<decimal> Sparkline { get; set; } = new();
+}

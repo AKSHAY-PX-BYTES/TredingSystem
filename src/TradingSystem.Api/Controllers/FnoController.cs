@@ -15,51 +15,52 @@ public class FnoController : ControllerBase
     private static readonly Random _rng = new();
 
     // F&O instruments with their details - Indian Indices
+    // BasePrice is fallback only if Yahoo Finance is unreachable
     private static readonly List<FnoInstrument> FnoInstruments = new()
     {
-        // Indian Indices
-        new("NIFTY50", "Nifty 50", 24250m, "Indian", "index"),
-        new("BANKNIFTY", "Bank Nifty", 51800m, "Indian", "index"),
-        new("FINNIFTY", "Finnifty", 23400m, "Indian", "index"),
-        new("SENSEX", "Sensex", 79500m, "Indian", "index"),
-        new("MIDCPNIFTY", "Nifty Midcap Select", 12800m, "Indian", "index"),
-        new("BANKEX", "BANKEX", 58200m, "Indian", "index"),
-        new("INDIAVIX", "India VIX", 13.5m, "Indian", "index"),
-        new("NIFTYTOTALMARKET", "Nifty Total Market", 11850m, "Indian", "index"),
-        new("NIFTYNEXT50", "Nifty Next 50", 62400m, "Indian", "index"),
-        new("NIFTY100", "Nifty 100", 25100m, "Indian", "index"),
-        new("NIFTYMIDCAP100", "Nifty Midcap 100", 54200m, "Indian", "index"),
-        new("BSE100", "BSE 100", 26300m, "Indian", "index"),
-        new("NIFTY500", "Nifty 500", 22500m, "Indian", "index"),
-        new("NIFTYAUTO", "Nifty Auto", 24800m, "Indian", "index"),
-        new("NIFTYSMLCAP", "Nifty Small Cap", 17200m, "Indian", "index"),
-        new("NIFTYFMCG", "Nifty FMCG", 57400m, "Indian", "index"),
-        new("NIFTYMETAL", "Nifty Metal", 9100m, "Indian", "index"),
-        new("NIFTYPHARMA", "Nifty Pharma", 19800m, "Indian", "index"),
-        new("NIFTYPSUBANK", "Nifty PSU Bank", 6800m, "Indian", "index"),
-        new("NIFTYIT", "Nifty IT", 38200m, "Indian", "index"),
-        new("BSESMLCAP", "BSE SmallCap", 42500m, "Indian", "index"),
-        new("NIFTYSMLCAP250", "Nifty SmallCap 250", 16800m, "Indian", "index"),
-        new("NIFTYMIDCAP150", "Nifty Midcap 150", 19500m, "Indian", "index"),
-        new("NIFTYCOMMODITIES", "Nifty Commodities", 8400m, "Indian", "index"),
-        new("BSEIPO", "BSE IPO", 15200m, "Indian", "index"),
+        // Indian Indices (Yahoo tickers: .NS for NSE, ^NSEI for Nifty50 etc.)
+        new("NIFTY50", "Nifty 50", 24250m, "Indian", "index", "^NSEI"),
+        new("BANKNIFTY", "Bank Nifty", 51800m, "Indian", "index", "^NSEBANK"),
+        new("FINNIFTY", "Finnifty", 23400m, "Indian", "index", "NIFTY_FIN_SERVICE.NS"),
+        new("SENSEX", "Sensex", 79500m, "Indian", "index", "^BSESN"),
+        new("MIDCPNIFTY", "Nifty Midcap Select", 12800m, "Indian", "index", "NIFTY_MID_SELECT.NS"),
+        new("BANKEX", "BANKEX", 58200m, "Indian", "index", "BSE-BANK.BO"),
+        new("INDIAVIX", "India VIX", 13.5m, "Indian", "index", "^INDIAVIX"),
+        new("NIFTYTOTALMARKET", "Nifty Total Market", 11850m, "Indian", "index", "NIFTY_TOTAL_MKT.NS"),
+        new("NIFTYNEXT50", "Nifty Next 50", 62400m, "Indian", "index", "^NSMIDCP"),
+        new("NIFTY100", "Nifty 100", 25100m, "Indian", "index", "^CNX100"),
+        new("NIFTYMIDCAP100", "Nifty Midcap 100", 54200m, "Indian", "index", "NIFTY_MIDCAP_100.NS"),
+        new("BSE100", "BSE 100", 26300m, "Indian", "index", "BSE-100.BO"),
+        new("NIFTY500", "Nifty 500", 22500m, "Indian", "index", "^CRSLDX"),
+        new("NIFTYAUTO", "Nifty Auto", 24800m, "Indian", "index", "^CNXAUTO"),
+        new("NIFTYSMLCAP", "Nifty Small Cap", 17200m, "Indian", "index", "NIFTY_SMLCAP_50.NS"),
+        new("NIFTYFMCG", "Nifty FMCG", 57400m, "Indian", "index", "^CNXFMCG"),
+        new("NIFTYMETAL", "Nifty Metal", 9100m, "Indian", "index", "^CNXMETAL"),
+        new("NIFTYPHARMA", "Nifty Pharma", 19800m, "Indian", "index", "^CNXPHARMA"),
+        new("NIFTYPSUBANK", "Nifty PSU Bank", 6800m, "Indian", "index", "^CNXPSUBANK"),
+        new("NIFTYIT", "Nifty IT", 38200m, "Indian", "index", "^CNXIT"),
+        new("BSESMLCAP", "BSE SmallCap", 42500m, "Indian", "index", "BSE-SMLCAP.BO"),
+        new("NIFTYSMLCAP250", "Nifty SmallCap 250", 16800m, "Indian", "index", "NIFTY_SMLCAP_250.NS"),
+        new("NIFTYMIDCAP150", "Nifty Midcap 150", 19500m, "Indian", "index", "NIFTY_MIDCAP_150.NS"),
+        new("NIFTYCOMMODITIES", "Nifty Commodities", 8400m, "Indian", "index", "^CNXCMDT"),
+        new("BSEIPO", "BSE IPO", 15200m, "Indian", "index", "BSE-IPO.BO"),
 
         // Global Indices
-        new("SPX500", "S&P 500", 5920m, "Global", "index"),
-        new("NASDAQ", "NASDAQ Composite", 19200m, "Global", "index"),
-        new("DOWJONES", "Dow Jones Industrial", 42500m, "Global", "index"),
-        new("FTSE100", "FTSE 100", 8450m, "Global", "index"),
-        new("DAX", "DAX 40", 19100m, "Global", "index"),
-        new("NIKKEI", "Nikkei 225", 38900m, "Global", "index"),
-        new("HANGSENG", "Hang Seng", 19600m, "Global", "index"),
-        new("SHANGHAI", "Shanghai Composite", 3250m, "Global", "index"),
-        new("CAC40", "CAC 40", 7800m, "Global", "index"),
-        new("ASX200", "ASX 200", 8150m, "Global", "index"),
-        new("KOSPI", "KOSPI", 2680m, "Global", "index"),
-        new("TAIWANW", "Taiwan Weighted", 21500m, "Global", "index"),
-        new("BOVESPA", "Bovespa (Brazil)", 128500m, "Global", "index"),
-        new("RUSSELL2000", "Russell 2000", 2250m, "Global", "index"),
-        new("STOXX50", "Euro STOXX 50", 5100m, "Global", "index"),
+        new("SPX500", "S&P 500", 5920m, "Global", "index", "^GSPC"),
+        new("NASDAQ", "NASDAQ Composite", 19200m, "Global", "index", "^IXIC"),
+        new("DOWJONES", "Dow Jones Industrial", 42500m, "Global", "index", "^DJI"),
+        new("FTSE100", "FTSE 100", 8450m, "Global", "index", "^FTSE"),
+        new("DAX", "DAX 40", 19100m, "Global", "index", "^GDAXI"),
+        new("NIKKEI", "Nikkei 225", 38900m, "Global", "index", "^N225"),
+        new("HANGSENG", "Hang Seng", 19600m, "Global", "index", "^HSI"),
+        new("SHANGHAI", "Shanghai Composite", 3250m, "Global", "index", "000001.SS"),
+        new("CAC40", "CAC 40", 7800m, "Global", "index", "^FCHI"),
+        new("ASX200", "ASX 200", 8150m, "Global", "index", "^AXJO"),
+        new("KOSPI", "KOSPI", 2680m, "Global", "index", "^KS11"),
+        new("TAIWANW", "Taiwan Weighted", 21500m, "Global", "index", "^TWII"),
+        new("BOVESPA", "Bovespa (Brazil)", 128500m, "Global", "index", "^BVSP"),
+        new("RUSSELL2000", "Russell 2000", 2250m, "Global", "index", "^RUT"),
+        new("STOXX50", "Euro STOXX 50", 5100m, "Global", "index", "^STOXX50E"),
     };
 
     public FnoController(ILiveMarketDataService marketData, ILogger<FnoController> logger)
@@ -68,26 +69,54 @@ public class FnoController : ControllerBase
         _logger = logger;
     }
 
-    /// <summary>Get all F&O indices with AI signals</summary>
+    /// <summary>Get all F&O indices with live prices from Yahoo Finance</summary>
     [HttpGet("indices")]
-    public IActionResult GetIndices()
+    public async Task<IActionResult> GetIndices()
     {
+        // Fetch all live prices in parallel from Yahoo Finance
+        var yahooTickers = FnoInstruments.Select(i => i.YahooTicker).ToList();
+        var liveData = await _marketData.FetchBatchAsync(yahooTickers);
+
         var result = FnoInstruments.Select(inst =>
         {
-            var change = GenerateChange(inst.BasePrice);
+            decimal lastPrice, change, dayHigh, dayLow;
+            long volume;
+
+            // Use live data if available, else fallback to cached base price
+            if (liveData.TryGetValue(inst.YahooTicker, out var live) && live.Price > 0)
+            {
+                lastPrice = live.Price;
+                change = Math.Round(live.Price - live.PreviousClose, 2);
+                dayHigh = live.High > 0 ? live.High : lastPrice;
+                dayLow = live.Low > 0 ? live.Low : lastPrice;
+                volume = live.Volume;
+            }
+            else
+            {
+                // Fallback: use base price with small random variation
+                var fallbackChange = GenerateChange(inst.BasePrice);
+                lastPrice = inst.BasePrice + fallbackChange;
+                change = fallbackChange;
+                dayHigh = lastPrice + Math.Abs(change) * 0.5m;
+                dayLow = lastPrice - Math.Abs(change) * 0.4m;
+                volume = _rng.NextInt64(5000000, 50000000);
+            }
+
+            var changePercent = lastPrice != 0 ? Math.Round(change / (lastPrice - change) * 100, 2) : 0;
             var signal = GenerateSignal();
+
             return new
             {
                 symbol = inst.Symbol,
                 name = inst.Name,
                 category = inst.Category,
                 instrumentType = inst.InstrumentType,
-                lastPrice = inst.BasePrice + change,
+                lastPrice,
                 change,
-                changePercent = Math.Round(change / inst.BasePrice * 100, 2),
-                dayHigh = inst.BasePrice + Math.Abs(change) * 1.5m,
-                dayLow = inst.BasePrice - Math.Abs(change) * 1.2m,
-                volume = _rng.NextInt64(5000000, 50000000),
+                changePercent,
+                dayHigh,
+                dayLow,
+                volume,
                 openInterest = (decimal)_rng.NextInt64(10000000, 200000000),
                 signal = signal.action,
                 signalConfidence = signal.confidence,
@@ -100,13 +129,15 @@ public class FnoController : ControllerBase
 
     /// <summary>Get options chain for a symbol</summary>
     [HttpGet("options-chain/{symbol}")]
-    public IActionResult GetOptionsChain(string symbol, [FromQuery] string? expiry = null)
+    public async Task<IActionResult> GetOptionsChain(string symbol, [FromQuery] string? expiry = null)
     {
         var instrument = FnoInstruments.FirstOrDefault(i => i.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
         if (instrument == null)
             return NotFound(new { success = false, error = "Symbol not found" });
 
-        var spotPrice = instrument.BasePrice + GenerateChange(instrument.BasePrice);
+        // Fetch live spot price
+        var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         var strikeInterval = GetStrikeInterval(spotPrice);
         var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
 
@@ -137,13 +168,14 @@ public class FnoController : ControllerBase
 
     /// <summary>Get AI analysis for a symbol</summary>
     [HttpGet("analysis/{symbol}")]
-    public IActionResult GetAnalysis(string symbol)
+    public async Task<IActionResult> GetAnalysis(string symbol)
     {
         var instrument = FnoInstruments.FirstOrDefault(i => i.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
         if (instrument == null)
             return NotFound(new { success = false, error = "Symbol not found" });
 
-        var spotPrice = instrument.BasePrice + GenerateChange(instrument.BasePrice);
+        var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         var strikeInterval = GetStrikeInterval(spotPrice);
         var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
         var pcrRatio = 0.7m + (decimal)_rng.NextDouble() * 0.8m;
@@ -180,13 +212,14 @@ public class FnoController : ControllerBase
 
     /// <summary>Get chart data for a specific option</summary>
     [HttpGet("chart/{symbol}")]
-    public IActionResult GetChart(string symbol, [FromQuery] string type, [FromQuery] decimal strike, [FromQuery] string expiry)
+    public async Task<IActionResult> GetChart(string symbol, [FromQuery] string type, [FromQuery] decimal strike, [FromQuery] string expiry)
     {
         var instrument = FnoInstruments.FirstOrDefault(i => i.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
         if (instrument == null)
             return NotFound(new { success = false, error = "Symbol not found" });
 
-        var spotPrice = instrument.BasePrice + GenerateChange(instrument.BasePrice);
+        var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         
         // Calculate realistic option price using intrinsic + time value
         var intrinsic = type == "CE" ? Math.Max(0, spotPrice - strike) : Math.Max(0, strike - spotPrice);
@@ -269,18 +302,50 @@ public class FnoController : ControllerBase
 
     /// <summary>Get AI signals for a symbol</summary>
     [HttpGet("signals/{symbol}")]
-    public IActionResult GetSignals(string symbol)
+    public async Task<IActionResult> GetSignals(string symbol)
     {
         var instrument = FnoInstruments.FirstOrDefault(i => i.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
         if (instrument == null)
             return NotFound(new { success = false, error = "Symbol not found" });
 
-        var spotPrice = instrument.BasePrice + GenerateChange(instrument.BasePrice);
+        var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         var strikeInterval = GetStrikeInterval(spotPrice);
         var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
 
         var signals = GenerateActiveSignals(symbol, spotPrice, atmStrike, strikeInterval);
         return Ok(new { success = true, data = signals, timestamp = DateTime.UtcNow });
+    }
+
+    /// <summary>Get live intraday sparkline chart for an index</summary>
+    [HttpGet("live-chart/{symbol}")]
+    public async Task<IActionResult> GetLiveChart(string symbol)
+    {
+        var instrument = FnoInstruments.FirstOrDefault(i => i.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
+        if (instrument == null)
+            return NotFound(new { success = false, error = "Symbol not found" });
+
+        var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        if (live == null || live.Price == 0)
+            return Ok(new { success = true, data = new { symbol, sparkline = new List<decimal>(), price = instrument.BasePrice, previousClose = instrument.BasePrice }, timestamp = DateTime.UtcNow });
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                symbol,
+                price = live.Price,
+                previousClose = live.PreviousClose,
+                high = live.High,
+                low = live.Low,
+                volume = live.Volume,
+                change = Math.Round(live.Price - live.PreviousClose, 2),
+                changePercent = live.PreviousClose > 0 ? Math.Round((live.Price - live.PreviousClose) / live.PreviousClose * 100, 2) : 0,
+                sparkline = live.Sparkline
+            },
+            timestamp = DateTime.UtcNow
+        });
     }
 
     #region Helpers
@@ -462,7 +527,7 @@ public class FnoController : ControllerBase
         return options[_rng.Next(options.Length)];
     }
 
-    private record FnoInstrument(string Symbol, string Name, decimal BasePrice, string Category, string InstrumentType);
+    private record FnoInstrument(string Symbol, string Name, decimal BasePrice, string Category, string InstrumentType, string YahooTicker);
 
     #endregion
 }

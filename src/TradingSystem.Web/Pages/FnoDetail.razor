@@ -27,6 +27,55 @@
     }
     else
     {
+        <!-- Live Index Price Card -->
+        @if (liveChart != null)
+        {
+            <div class="live-price-card">
+                <div class="live-price-left">
+                    <div class="live-price-main">
+                        <span class="live-price-value">₹@liveChart.Price.ToString("N2")</span>
+                        <span class="live-price-change @(liveChart.Change >= 0 ? "positive" : "negative")">
+                            @(liveChart.Change >= 0 ? "▲" : "▼") @Math.Abs(liveChart.Change).ToString("N2") (@Math.Abs(liveChart.ChangePercent).ToString("N2")%)
+                        </span>
+                    </div>
+                    <div class="live-price-meta">
+                        <span>Prev Close: ₹@liveChart.PreviousClose.ToString("N2")</span>
+                        <span>High: ₹@liveChart.High.ToString("N2")</span>
+                        <span>Low: ₹@liveChart.Low.ToString("N2")</span>
+                        <span>Vol: @FormatOI(liveChart.Volume)</span>
+                    </div>
+                    <div class="live-badge-row">
+                        <span class="live-dot-badge"><span class="live-dot-anim"></span> Live from Market</span>
+                    </div>
+                </div>
+                <div class="live-price-chart">
+                    @if (liveChart.Sparkline.Any())
+                    {
+                        var sparkMin = liveChart.Sparkline.Min();
+                        var sparkMax = liveChart.Sparkline.Max();
+                        var sparkRange = sparkMax - sparkMin;
+                        if (sparkRange == 0) sparkRange = 1;
+                        var isUp = liveChart.Change >= 0;
+                        <svg class="sparkline-svg" viewBox="0 0 @(liveChart.Sparkline.Count * 5) 60" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="sparkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" style="stop-color:@(isUp ? "#00c853" : "#ff1744");stop-opacity:0.3" />
+                                    <stop offset="100%" style="stop-color:@(isUp ? "#00c853" : "#ff1744");stop-opacity:0.02" />
+                                </linearGradient>
+                            </defs>
+                            @{
+                                var points = string.Join(" ", liveChart.Sparkline.Select((v, i) =>
+                                    $"{i * 5},{60 - (int)((v - sparkMin) / sparkRange * 55)}"));
+                                var areaPoints = points + $" {(liveChart.Sparkline.Count - 1) * 5},60 0,60";
+                            }
+                            <polygon points="@areaPoints" fill="url(#sparkGrad)" />
+                            <polyline points="@points" fill="none" stroke="@(isUp ? "#00c853" : "#ff1744")" stroke-width="1.5" />
+                        </svg>
+                    }
+                </div>
+            </div>
+        }
+
         <!-- AI Analysis Summary -->
         @if (analysis != null)
         {
@@ -319,6 +368,7 @@
     private OptionsChain? optionsChain;
     private FnoAnalysis? analysis;
     private FnoChartData? chartData;
+    private LiveChartData? liveChart;
     private bool isLoading = true;
     private string selectedExpiry = "";
     private string? selectedOption;
@@ -356,10 +406,12 @@
         {
             var chainTask = FnoApi.GetOptionsChainAsync(Symbol, string.IsNullOrEmpty(selectedExpiry) ? null : selectedExpiry);
             var analysisTask = FnoApi.GetAnalysisAsync(Symbol);
-            await Task.WhenAll(chainTask, analysisTask);
+            var liveChartTask = FnoApi.GetLiveChartAsync(Symbol);
+            await Task.WhenAll(chainTask, analysisTask, liveChartTask);
             
             optionsChain = await chainTask;
             analysis = await analysisTask;
+            liveChart = await liveChartTask;
 
             if (optionsChain != null && string.IsNullOrEmpty(selectedExpiry) && optionsChain.Expiries.Any())
                 selectedExpiry = optionsChain.Expiries.First();
@@ -581,7 +633,23 @@
     .expiry-month-label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); min-width: 70px; text-transform: uppercase; }
     .expiry-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 
+    /* Live Price Card */
+    .live-price-card { display: flex; align-items: center; gap: 24px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .live-price-left { flex: 1; }
+    .live-price-main { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .live-price-value { font-size: 2.2rem; font-weight: 800; }
+    .live-price-change { font-size: 1rem; font-weight: 700; }
+    .live-price-meta { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; flex-wrap: wrap; }
+    .live-badge-row { margin-top: 4px; }
+    .live-dot-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600; color: #00c853; background: rgba(0,200,83,0.08); padding: 3px 10px; border-radius: 10px; }
+    .live-dot-anim { width: 7px; height: 7px; background: #00c853; border-radius: 50%; animation: livePulse 1.5s infinite; }
+    @@keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+    .live-price-chart { width: 300px; height: 60px; flex-shrink: 0; }
+    .sparkline-svg { width: 100%; height: 100%; }
+
     @@media (max-width: 768px) {
+        .live-price-card { flex-direction: column; }
+        .live-price-chart { width: 100%; height: 50px; }
         .sentiment-grid { grid-template-columns: 1fr; }
     }
 </style>

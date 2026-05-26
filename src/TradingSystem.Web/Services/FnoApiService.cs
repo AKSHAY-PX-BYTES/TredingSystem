@@ -10,6 +10,7 @@ public interface IFnoApiService
     Task<FnoAnalysis?> GetAnalysisAsync(string symbol);
     Task<FnoChartData?> GetChartDataAsync(string symbol, string optionType, decimal strike, string expiry);
     Task<List<FnoSignal>?> GetSignalsAsync(string symbol);
+    Task<LiveChartData?> GetLiveChartAsync(string symbol);
 }
 
 public class FnoApiService : IFnoApiService
@@ -51,6 +52,12 @@ public class FnoApiService : IFnoApiService
     public async Task<List<FnoSignal>?> GetSignalsAsync(string symbol)
     {
         var response = await _http.GetFromJsonAsync<ApiResponse<List<FnoSignal>>>($"fno/signals/{symbol}");
+        return response?.Data;
+    }
+
+    public async Task<LiveChartData?> GetLiveChartAsync(string symbol)
+    {
+        var response = await _http.GetFromJsonAsync<ApiResponse<LiveChartData>>($"fno/live-chart/{symbol}");
         return response?.Data;
     }
 }
