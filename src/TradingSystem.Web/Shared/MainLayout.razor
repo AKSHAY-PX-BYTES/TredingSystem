@@ -9,67 +9,24 @@
 @inject IJSRuntime JS
 
 <div class="groww-app" data-theme="@ThemeService.CurrentTheme">
-    <!-- Top Navbar -->
+    <!-- Top Navbar (slim) -->
     <header class="groww-navbar">
         <div class="navbar-inner">
             <div class="navbar-left">
+                <button class="menu-toggle" @onclick="ToggleSidebar" title="Menu">
+                    <span class="hamburger-icon @(sidebarOpen ? "open" : "")">
+                        <span></span><span></span><span></span>
+                    </span>
+                </button>
                 <NavLink class="navbar-brand" href="" Match="NavLinkMatch.All">
                     <span class="brand-icon">📈</span>
                     <span class="brand-text">AI Trader</span>
                 </NavLink>
             </div>
-            <nav class="navbar-center">
-                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                    Explore
-                </NavLink>
-                @if (IsFeatureVisible("markets"))
-                {
-                    <NavLink class="nav-link" href="markets">Markets</NavLink>
-                }
-                @if (IsFeatureVisible("watchlist"))
-                {
-                    <NavLink class="nav-link" href="watchlist">Watchlist</NavLink>
-                }
-                @if (IsFeatureVisible("charts"))
-                {
-                    <NavLink class="nav-link" href="charts">Charts</NavLink>
-                }
-                @if (IsFeatureVisible("compare"))
-                {
-                    <NavLink class="nav-link" href="compare">Compare</NavLink>
-                }
-                @if (IsFeatureVisible("news"))
-                {
-                    <NavLink class="nav-link" href="news">News</NavLink>
-                }
-                @if (IsFeatureVisible("backtest"))
-                {
-                    <NavLink class="nav-link" href="backtest">Backtest</NavLink>
-                }
-                <NavLink class="nav-link" href="plans">Plans</NavLink>
-                @if (IsFeatureVisible("notifications"))
-                {
-                    <NavLink class="nav-link" href="notifications">
-                        🔔 @if(unreadNotifications > 0){<span class="nav-badge">@unreadNotifications</span>}
-                    </NavLink>
-                }
-                @if (IsFeatureVisible("ai_signals"))
-                {
-                    <NavLink class="nav-link" href="signals">Signals</NavLink>
-                }
-                <NavLink class="nav-link" href="fno">F&O</NavLink>
-                @if (IsFeatureVisible("ai_chat"))
-                {
-                    <NavLink class="nav-link" href="chat">AI Chat</NavLink>
-                }
-                <NavLink class="nav-link" href="agents">🤖 Agents</NavLink>
-            </nav>
             <div class="navbar-right">
                 @if (isAdmin)
                 {
-                    <NavLink class="admin-nav-link" href="admin">
-                        ⚙️ Admin
-                    </NavLink>
+                    <NavLink class="admin-nav-link" href="admin">⚙️</NavLink>
                 }
                 <button class="theme-toggle" @onclick="ToggleTheme" title="Toggle Theme">
                     @(ThemeService.IsDarkMode ? "☀️" : "🌙")
@@ -84,27 +41,140 @@
                         }
                     </select>
                 }
+                @if (IsFeatureVisible("notifications"))
+                {
+                    <NavLink class="notif-btn" href="notifications" title="Notifications">
+                        🔔 @if(unreadNotifications > 0){<span class="nav-badge">@unreadNotifications</span>}
+                    </NavLink>
+                }
                 <AuthorizeView>
                     <Authorized>
-                        <div class="user-pill">
+                        <div class="user-pill" @onclick="ToggleSidebar">
                             <span class="user-avatar-sm">@(context.User.Identity?.Name?[0].ToString().ToUpper() ?? "U")</span>
-                            <span class="user-name-sm">@context.User.Identity?.Name</span>
-                            <span class="plan-badge plan-badge-@(userPlan.ToLower())">@GetPlanBadge(userPlan)</span>
                         </div>
-                        <NavLink class="nav-link plan-info-link" href="plans" title="View Plans">
-                            🏷️
-                        </NavLink>
-                        <button class="change-pwd-pill" @onclick="() => showChangePassword = true" title="Change Password">
-                            🔑
-                        </button>
-                        <button class="logout-pill" @onclick="HandleLogout" title="Sign Out">
-                            Sign Out
-                        </button>
                     </Authorized>
                 </AuthorizeView>
             </div>
         </div>
     </header>
+
+    <!-- Sidebar Overlay -->
+    @if (sidebarOpen)
+    {
+        <div class="sidebar-overlay" @onclick="ToggleSidebar"></div>
+    }
+
+    <!-- Slide-out Sidebar -->
+    <aside class="sidebar @(sidebarOpen ? "open" : "")">
+        <div class="sidebar-header">
+            <AuthorizeView>
+                <Authorized>
+                    <div class="sidebar-user">
+                        <div class="sidebar-avatar">@(context.User.Identity?.Name?[0].ToString().ToUpper() ?? "U")</div>
+                        <div class="sidebar-user-info">
+                            <span class="sidebar-username">@context.User.Identity?.Name</span>
+                            <span class="plan-badge plan-badge-@(userPlan.ToLower())">@GetPlanBadge(userPlan)</span>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">Main</div>
+            <NavLink class="sidebar-link" href="" Match="NavLinkMatch.All" @onclick="CloseSidebar">
+                <span class="sidebar-icon">🏠</span><span>Explore</span>
+            </NavLink>
+            @if (IsFeatureVisible("markets"))
+            {
+                <NavLink class="sidebar-link" href="markets" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">📊</span><span>Markets</span>
+                </NavLink>
+            }
+            <NavLink class="sidebar-link" href="fno" @onclick="CloseSidebar">
+                <span class="sidebar-icon">📉</span><span>F&O Options</span>
+            </NavLink>
+            @if (IsFeatureVisible("watchlist"))
+            {
+                <NavLink class="sidebar-link" href="watchlist" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">⭐</span><span>Watchlist</span>
+                </NavLink>
+            }
+
+            <div class="sidebar-section-label">Analysis</div>
+            @if (IsFeatureVisible("charts"))
+            {
+                <NavLink class="sidebar-link" href="charts" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">📈</span><span>Charts</span>
+                </NavLink>
+            }
+            @if (IsFeatureVisible("compare"))
+            {
+                <NavLink class="sidebar-link" href="compare" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">⚖️</span><span>Compare</span>
+                </NavLink>
+            }
+            @if (IsFeatureVisible("backtest"))
+            {
+                <NavLink class="sidebar-link" href="backtest" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">🧪</span><span>Backtest</span>
+                </NavLink>
+            }
+
+            <div class="sidebar-section-label">AI & Signals</div>
+            @if (IsFeatureVisible("ai_signals"))
+            {
+                <NavLink class="sidebar-link" href="signals" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">�</span><span>AI Signals</span>
+                </NavLink>
+            }
+            @if (IsFeatureVisible("ai_chat"))
+            {
+                <NavLink class="sidebar-link" href="chat" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">💬</span><span>AI Chat</span>
+                </NavLink>
+            }
+            <NavLink class="sidebar-link" href="agents" @onclick="CloseSidebar">
+                <span class="sidebar-icon">🤖</span><span>AI Agents</span>
+            </NavLink>
+
+            <div class="sidebar-section-label">More</div>
+            @if (IsFeatureVisible("news"))
+            {
+                <NavLink class="sidebar-link" href="news" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">📰</span><span>News</span>
+                </NavLink>
+            }
+            @if (IsFeatureVisible("notifications"))
+            {
+                <NavLink class="sidebar-link" href="notifications" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">🔔</span><span>Notifications @if(unreadNotifications > 0){<span class="nav-badge">@unreadNotifications</span>}</span>
+                </NavLink>
+            }
+            <NavLink class="sidebar-link" href="plans" @onclick="CloseSidebar">
+                <span class="sidebar-icon">🏷️</span><span>Plans & Pricing</span>
+            </NavLink>
+            @if (isAdmin)
+            {
+                <NavLink class="sidebar-link" href="admin" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">⚙️</span><span>Admin Panel</span>
+                </NavLink>
+            }
+        </nav>
+
+        <div class="sidebar-footer">
+            <AuthorizeView>
+                <Authorized>
+                    <button class="sidebar-link sidebar-btn" @onclick="() => { showChangePassword = true; CloseSidebar(); }">
+                        <span class="sidebar-icon">🔑</span><span>Change Password</span>
+                    </button>
+                    <button class="sidebar-link sidebar-btn sidebar-logout" @onclick="HandleLogout">
+                        <span class="sidebar-icon">🚪</span><span>Sign Out</span>
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </aside>
 
     <!-- Main Content -->
     <main class="groww-main">
@@ -122,24 +192,18 @@
                 <span>📊</span><span>Markets</span>
             </NavLink>
         }
+        <NavLink class="mobile-nav-item" href="fno">
+            <span>📉</span><span>F&O</span>
+        </NavLink>
         @if (IsFeatureVisible("watchlist"))
         {
             <NavLink class="mobile-nav-item" href="watchlist">
                 <span>⭐</span><span>Watchlist</span>
             </NavLink>
         }
-        @if (IsFeatureVisible("charts"))
-        {
-            <NavLink class="mobile-nav-item" href="charts">
-                <span>📈</span><span>Charts</span>
-            </NavLink>
-        }
-        @if (IsFeatureVisible("compare"))
-        {
-            <NavLink class="mobile-nav-item" href="compare">
-                <span>⚖️</span><span>Compare</span>
-            </NavLink>
-        }
+        <button class="mobile-nav-item" @onclick="ToggleSidebar">
+            <span>☰</span><span>Menu</span>
+        </button>
     </nav>
 
     <!-- Change Password Modal -->
@@ -217,6 +281,10 @@
     private const int IdleTimeoutMinutes = 10;
     private bool isAdmin = false;
     private string userPlan = "Basic";
+    private bool sidebarOpen = false;
+
+    private void ToggleSidebar() => sidebarOpen = !sidebarOpen;
+    private void CloseSidebar() => sidebarOpen = false;
 
     // Change password state
     private bool showChangePassword = false;
