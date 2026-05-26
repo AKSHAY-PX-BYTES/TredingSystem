@@ -29,7 +29,7 @@ public class YahooFinanceService : ILiveMarketDataService
     private readonly ILogger<YahooFinanceService> _logger;
     private readonly ConcurrentDictionary<string, (DateTime CachedAt, LiveStockData Data)> _cache = new();
     private static readonly SemaphoreSlim _throttle = new(5, 5); // max 5 concurrent Yahoo requests
-    private const int CACHE_SECONDS = 30;
+    private const int CACHE_SECONDS = 8; // 8 seconds for near real-time
 
     public YahooFinanceService(IHttpClientFactory httpFactory, ILogger<YahooFinanceService> logger)
     {
