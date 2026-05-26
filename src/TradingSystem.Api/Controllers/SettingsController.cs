@@ -104,7 +104,7 @@ public class SettingsController : ControllerBase
         if (user == null) return Unauthorized();
 
         var verified = await _otpService.VerifyOtpAsync(req.NewEmail, req.OtpCode);
-        if (!verified) return BadRequest(ApiResponse<string>.Fail("Invalid or expired verification code"));
+        if (!verified.Success) return BadRequest(ApiResponse<string>.Fail("Invalid or expired verification code"));
 
         user.Email = req.NewEmail;
         await db.SaveChangesAsync();
@@ -349,8 +349,8 @@ public class SettingsController : ControllerBase
         
         if (sub != null)
         {
-            var daysRemaining = Math.Max(0, (int)(sub.EndDate - DateTime.UtcNow).TotalDays);
-            var totalDays = (int)(sub.EndDate - sub.StartDate).TotalDays;
+            var daysRemaining = Math.Max(0, (int)(sub.EndDate!.Value - DateTime.UtcNow).TotalDays);
+            var totalDays = (int)(sub.EndDate.Value - sub.StartDate).TotalDays;
             var usagePercent = totalDays > 0 ? Math.Round((double)(totalDays - daysRemaining) / totalDays * 100, 1) : 0;
 
             return Ok(ApiResponse<SubscriptionDetailResponse>.Ok(new SubscriptionDetailResponse
