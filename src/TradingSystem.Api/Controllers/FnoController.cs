@@ -474,7 +474,6 @@ public class FnoController : ControllerBase
         var signal = GenerateOptionSignal(optionType, spot, strike, oi, oiChange);
         
         // Format display name like "NIFTY 26 May 24600 Call"
-        var expiryDate = DateTime.Parse(expiry);
         var optionLabel = optionType == "CE" ? "Call" : "Put";
         var displayName = $"{symbol} {expiryDate:dd MMM} {strike:N0} {optionLabel}";
 
