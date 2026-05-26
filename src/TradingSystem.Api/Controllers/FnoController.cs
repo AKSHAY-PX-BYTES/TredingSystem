@@ -375,14 +375,24 @@ public class FnoController : ControllerBase
     private List<string> GetUpcomingExpiries(int count)
     {
         var expiries = new List<string>();
-        var date = DateTime.UtcNow.Date;
-        // Generate weekly expiries (Thursdays) for next 8 weeks + monthly expiries
+        var date = DateTime.UtcNow.Date.AddHours(5.5); // IST
+        var today = date.Date;
+        
+        // Check if today is an expiry day (NSE weekly expiries: Tue for Nifty, Wed for Finnifty, Thu for BankNifty/Sensex)
+        // Include today and upcoming expiry days
+        var expiryDays = new[] { DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday };
+        
+        // Start from today (include today's expiry if market is open)
+        var current = today;
         while (expiries.Count < 12)
         {
-            date = date.AddDays(1);
-            if (date.DayOfWeek == DayOfWeek.Thursday)
-                expiries.Add(date.ToString("dd-MMM-yyyy"));
+            if (expiryDays.Contains(current.DayOfWeek))
+                expiries.Add(current.ToString("dd-MMM-yyyy"));
+            current = current.AddDays(1);
         }
+        
+        // Remove duplicates and sort
+        expiries = expiries.Distinct().OrderBy(e => DateTime.Parse(e)).ToList();
         return expiries;
     }
 
@@ -390,15 +400,22 @@ public class FnoController : ControllerBase
     {
         var intrinsic = optionType == "CE" ? Math.Max(0, spot - strike) : Math.Max(0, strike - spot);
         
-        // Realistic time value based on distance from ATM and days to expiry
-        var daysToExpiry = Math.Max(1, (DateTime.Parse(expiry) - DateTime.UtcNow).TotalDays);
+        // Realistic time value: for today's expiry, time value is very small
+        var daysToExpiry = Math.Max(0, (DateTime.Parse(expiry).Date - DateTime.UtcNow.AddHours(5.5).Date).TotalDays);
+        var hoursToExpiry = daysToExpiry * 6.25 + 2; // trading hours remaining (approx)
+        if (daysToExpiry == 0) hoursToExpiry = Math.Max(0.5, 15.5 - DateTime.UtcNow.AddHours(5.5).TimeOfDay.TotalHours); // hours left today
+        
         var distancePercent = Math.Abs((double)(strike - spot) / (double)spot) * 100;
-        var baseTimeValue = (decimal)(Math.Sqrt(daysToExpiry) * (double)spot * 0.002);
-        var decayFactor = (decimal)Math.Exp(-distancePercent * 0.3); // OTM options have less time value
+        
+        // Time value formula: much smaller for 0DTE, scales with sqrt of hours
+        var annualizedTime = hoursToExpiry / (252.0 * 6.25); // fraction of year in trading hours
+        var volatility = 0.15 + _rng.NextDouble() * 0.05; // ~15-20% annualized IV for Nifty
+        var baseTimeValue = (decimal)((double)spot * volatility * Math.Sqrt(annualizedTime));
+        var decayFactor = (decimal)Math.Exp(-distancePercent * 0.5); // OTM decays faster for 0DTE
         var timeValue = Math.Round(baseTimeValue * decayFactor, 2);
         
         var premium = Math.Round(intrinsic + timeValue, 2);
-        if (premium < 1) premium = Math.Round(1 + (decimal)_rng.NextDouble() * 5, 2); // Minimum premium for deep OTM
+        if (premium < 0.5m) premium = Math.Round(0.5m + (decimal)_rng.NextDouble() * 2m, 2); // Minimum for deep OTM
         
         var change = Math.Round((decimal)(_rng.NextDouble() - 0.45) * premium * 0.08m, 2);
         var iv = intrinsic > 0 
@@ -409,9 +426,10 @@ public class FnoController : ControllerBase
 
         var signal = GenerateOptionSignal(optionType, spot, strike, oi, oiChange);
         
-        // Format display name like "NIFTY 26 May 24600 CE"
+        // Format display name like "NIFTY 26 May 24600 Call"
         var expiryDate = DateTime.Parse(expiry);
-        var displayName = $"{symbol} {expiryDate:dd MMM} {strike:N0} {optionType}";
+        var optionLabel = optionType == "CE" ? "Call" : "Put";
+        var displayName = $"{symbol} {expiryDate:dd MMM} {strike:N0} {optionLabel}";
 
         return new
         {
@@ -473,6 +491,12 @@ public class FnoController : ControllerBase
             ("Breakout Retest", "Price retesting breakout level with strong support — entry opportunity")
         };
 
+        // Use the nearest expiry (today or this week)
+        var expiries = GetUpcomingExpiries(4);
+        var nearestExpiry = expiries.First();
+        var nearestExpiryDate = DateTime.Parse(nearestExpiry);
+        var daysToExpiry = Math.Max(0.1, (nearestExpiryDate - DateTime.UtcNow).TotalDays);
+
         var signals = new List<object>();
         var count = _rng.Next(2, 5);
         for (int i = 0; i < count; i++)
@@ -482,21 +506,34 @@ public class FnoController : ControllerBase
             var strikeOffset = _rng.Next(-2, 3);
             var strike = atm + strikeOffset * interval;
             var strategy = strategies[_rng.Next(strategies.Length)];
-            var entry = Math.Round(50 + (decimal)_rng.NextDouble() * 200, 2);
+
+            // Calculate realistic entry price based on Black-Scholes-like model
+            var optionType = isCe ? "CE" : "PE";
+            var intrinsic = isCe ? Math.Max(0, spot - strike) : Math.Max(0, strike - spot);
+            var distancePercent = Math.Abs((double)(strike - spot) / (double)spot) * 100;
+            var baseTimeValue = (decimal)(Math.Sqrt(daysToExpiry) * (double)spot * 0.002);
+            var decayFactor = (decimal)Math.Exp(-distancePercent * 0.3);
+            var timeValue = Math.Round(baseTimeValue * decayFactor, 2);
+            var entry = Math.Max(0.5m, Math.Round(intrinsic + timeValue, 2));
+
+            // Display name: "26 May 24000 Call"
+            var displayName = $"{nearestExpiryDate:dd MMM} {strike:N0} {(isCe ? "Call" : "Put")}";
 
             signals.Add(new
             {
                 symbol,
                 action = isBuy ? "BUY" : "SELL",
-                optionType = isCe ? "CE" : "PE",
+                optionType,
+                displayName,
+                expiry = nearestExpiry,
                 strikePrice = strike,
                 entryPrice = entry,
-                targetPrice = Math.Round(isBuy ? entry * 1.3m : entry * 0.7m, 2),
-                stopLoss = Math.Round(isBuy ? entry * 0.8m : entry * 1.25m, 2),
+                targetPrice = Math.Round(isBuy ? entry * 1.25m : entry * 0.7m, 2),
+                stopLoss = Math.Round(isBuy ? entry * 0.75m : entry * 1.3m, 2),
                 confidence = (decimal)_rng.Next(65, 93),
                 reason = strategy.Item2,
                 strategy = strategy.Item1,
-                generatedAt = DateTime.UtcNow.AddMinutes(-_rng.Next(5, 120))
+                generatedAt = DateTime.UtcNow.AddMinutes(-_rng.Next(5, 60))
             });
         }
         return signals;

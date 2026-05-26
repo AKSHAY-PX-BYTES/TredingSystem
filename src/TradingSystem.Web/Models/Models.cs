@@ -607,6 +607,8 @@ public class FnoSignal
     public string Symbol { get; set; } = string.Empty;
     public string Action { get; set; } = string.Empty; // BUY/SELL
     public string OptionType { get; set; } = string.Empty; // CE/PE
+    public string DisplayName { get; set; } = string.Empty; // "26 May 24000 Call"
+    public string Expiry { get; set; } = string.Empty;
     public decimal StrikePrice { get; set; }
     public decimal EntryPrice { get; set; }
     public decimal TargetPrice { get; set; }

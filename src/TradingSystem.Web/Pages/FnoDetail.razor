@@ -113,7 +113,7 @@
                                  @onclick="() => ViewOption(signal)">
                                 <div class="signal-top">
                                     <span class="signal-action @(signal.Action == "BUY" ? "buy" : "sell")">@signal.Action</span>
-                                    <span class="signal-type">@signal.OptionType @signal.StrikePrice.ToString("N0")</span>
+                                    <span class="signal-type">@(string.IsNullOrEmpty(signal.DisplayName) ? $"{signal.OptionType} {signal.StrikePrice:N0}" : signal.DisplayName)</span>
                                     <span class="signal-confidence">@signal.Confidence.ToString("N0")%</span>
                                 </div>
                                 <div class="signal-details">
