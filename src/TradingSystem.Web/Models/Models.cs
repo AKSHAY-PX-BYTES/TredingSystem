@@ -557,6 +557,8 @@ public class FnoIndex
 {
     public string Symbol { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string Category { get; set; } = "Indian"; // Indian / Global
+    public string InstrumentType { get; set; } = "index";
     public decimal LastPrice { get; set; }
     public decimal Change { get; set; }
     public decimal ChangePercent { get; set; }

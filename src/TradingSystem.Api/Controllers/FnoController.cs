@@ -14,24 +14,52 @@ public class FnoController : ControllerBase
     private readonly ILogger<FnoController> _logger;
     private static readonly Random _rng = new();
 
-    // F&O instruments with their details
+    // F&O instruments with their details - Indian Indices
     private static readonly List<FnoInstrument> FnoInstruments = new()
     {
-        new("NIFTY50", "Nifty 50 Index", 24250m),
-        new("BANKNIFTY", "Bank Nifty Index", 51800m),
-        new("SENSEX", "BSE Sensex", 79500m),
-        new("FINNIFTY", "Nifty Financial Services", 23400m),
-        new("MIDCPNIFTY", "Nifty Midcap Select", 12800m),
-        new("NIFTYIT", "Nifty IT Index", 38200m),
-        new("RELIANCE", "Reliance Industries", 2920m),
-        new("TCS", "Tata Consultancy Services", 3850m),
-        new("HDFCBANK", "HDFC Bank Ltd", 1780m),
-        new("INFY", "Infosys Ltd", 1520m),
-        new("ICICIBANK", "ICICI Bank Ltd", 1340m),
-        new("SBIN", "State Bank of India", 820m),
-        new("TATAMOTORS", "Tata Motors Ltd", 740m),
-        new("BAJFINANCE", "Bajaj Finance Ltd", 8400m),
-        new("LT", "Larsen & Toubro Ltd", 3450m),
+        // Indian Indices
+        new("NIFTY50", "Nifty 50", 24250m, "Indian", "index"),
+        new("BANKNIFTY", "Bank Nifty", 51800m, "Indian", "index"),
+        new("FINNIFTY", "Finnifty", 23400m, "Indian", "index"),
+        new("SENSEX", "Sensex", 79500m, "Indian", "index"),
+        new("MIDCPNIFTY", "Nifty Midcap Select", 12800m, "Indian", "index"),
+        new("BANKEX", "BANKEX", 58200m, "Indian", "index"),
+        new("INDIAVIX", "India VIX", 13.5m, "Indian", "index"),
+        new("NIFTYTOTALMARKET", "Nifty Total Market", 11850m, "Indian", "index"),
+        new("NIFTYNEXT50", "Nifty Next 50", 62400m, "Indian", "index"),
+        new("NIFTY100", "Nifty 100", 25100m, "Indian", "index"),
+        new("NIFTYMIDCAP100", "Nifty Midcap 100", 54200m, "Indian", "index"),
+        new("BSE100", "BSE 100", 26300m, "Indian", "index"),
+        new("NIFTY500", "Nifty 500", 22500m, "Indian", "index"),
+        new("NIFTYAUTO", "Nifty Auto", 24800m, "Indian", "index"),
+        new("NIFTYSMLCAP", "Nifty Small Cap", 17200m, "Indian", "index"),
+        new("NIFTYFMCG", "Nifty FMCG", 57400m, "Indian", "index"),
+        new("NIFTYMETAL", "Nifty Metal", 9100m, "Indian", "index"),
+        new("NIFTYPHARMA", "Nifty Pharma", 19800m, "Indian", "index"),
+        new("NIFTYPSUBANK", "Nifty PSU Bank", 6800m, "Indian", "index"),
+        new("NIFTYIT", "Nifty IT", 38200m, "Indian", "index"),
+        new("BSESMLCAP", "BSE SmallCap", 42500m, "Indian", "index"),
+        new("NIFTYSMLCAP250", "Nifty SmallCap 250", 16800m, "Indian", "index"),
+        new("NIFTYMIDCAP150", "Nifty Midcap 150", 19500m, "Indian", "index"),
+        new("NIFTYCOMMODITIES", "Nifty Commodities", 8400m, "Indian", "index"),
+        new("BSEIPO", "BSE IPO", 15200m, "Indian", "index"),
+
+        // Global Indices
+        new("SPX500", "S&P 500", 5920m, "Global", "index"),
+        new("NASDAQ", "NASDAQ Composite", 19200m, "Global", "index"),
+        new("DOWJONES", "Dow Jones Industrial", 42500m, "Global", "index"),
+        new("FTSE100", "FTSE 100", 8450m, "Global", "index"),
+        new("DAX", "DAX 40", 19100m, "Global", "index"),
+        new("NIKKEI", "Nikkei 225", 38900m, "Global", "index"),
+        new("HANGSENG", "Hang Seng", 19600m, "Global", "index"),
+        new("SHANGHAI", "Shanghai Composite", 3250m, "Global", "index"),
+        new("CAC40", "CAC 40", 7800m, "Global", "index"),
+        new("ASX200", "ASX 200", 8150m, "Global", "index"),
+        new("KOSPI", "KOSPI", 2680m, "Global", "index"),
+        new("TAIWANW", "Taiwan Weighted", 21500m, "Global", "index"),
+        new("BOVESPA", "Bovespa (Brazil)", 128500m, "Global", "index"),
+        new("RUSSELL2000", "Russell 2000", 2250m, "Global", "index"),
+        new("STOXX50", "Euro STOXX 50", 5100m, "Global", "index"),
     };
 
     public FnoController(ILiveMarketDataService marketData, ILogger<FnoController> logger)
@@ -52,6 +80,8 @@ public class FnoController : ControllerBase
             {
                 symbol = inst.Symbol,
                 name = inst.Name,
+                category = inst.Category,
+                instrumentType = inst.InstrumentType,
                 lastPrice = inst.BasePrice + change,
                 change,
                 changePercent = Math.Round(change / inst.BasePrice * 100, 2),
@@ -432,7 +462,7 @@ public class FnoController : ControllerBase
         return options[_rng.Next(options.Length)];
     }
 
-    private record FnoInstrument(string Symbol, string Name, decimal BasePrice);
+    private record FnoInstrument(string Symbol, string Name, decimal BasePrice, string Category, string InstrumentType);
 
     #endregion
 }

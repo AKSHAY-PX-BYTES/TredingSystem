@@ -56,7 +56,7 @@
             @if (analysis.ActiveSignals.Any())
             {
                 <div class="signals-section">
-                    <h2>🎯 Active AI Signals</h2>
+                    <h2>🎯 Active AI Trading Signals</h2>
                     <div class="signal-cards">
                         @foreach (var signal in analysis.ActiveSignals)
                         {
@@ -69,16 +69,69 @@
                                 </div>
                                 <div class="signal-details">
                                     <div><span>Entry:</span> ₹@signal.EntryPrice.ToString("N2")</div>
-                                    <div><span>Target:</span> ₹@signal.TargetPrice.ToString("N2")</div>
-                                    <div><span>SL:</span> ₹@signal.StopLoss.ToString("N2")</div>
+                                    <div><span>Target:</span> <span class="positive">₹@signal.TargetPrice.ToString("N2")</span></div>
+                                    <div><span>SL:</span> <span class="negative">₹@signal.StopLoss.ToString("N2")</span></div>
+                                </div>
+                                <div class="signal-risk-reward">
+                                    <span>R:R @(Math.Abs((signal.TargetPrice - signal.EntryPrice) / (signal.StopLoss - signal.EntryPrice)).ToString("N1")):1</span>
                                 </div>
                                 <p class="signal-reason">@signal.Reason</p>
-                                <span class="signal-strategy">Strategy: @signal.Strategy</span>
+                                <span class="signal-strategy">📊 @signal.Strategy</span>
                             </div>
                         }
                     </div>
                 </div>
             }
+
+            <!-- News & Sentiment Section -->
+            <div class="news-sentiment-section">
+                <h2>📰 Market Sentiment & News</h2>
+                <div class="sentiment-grid">
+                    <div class="sentiment-card">
+                        <div class="sentiment-header">
+                            <span class="sentiment-icon">🤖</span>
+                            <span class="sentiment-title">AI Sentiment</span>
+                        </div>
+                        <div class="sentiment-gauge @(analysis.Sentiment == "Bullish" ? "gauge-bull" : "gauge-bear")">
+                            <span>@analysis.Sentiment</span>
+                        </div>
+                        <p class="sentiment-note">Based on OI data, PCR ratio, FII/DII activity & technical indicators</p>
+                    </div>
+                    <div class="sentiment-card">
+                        <div class="sentiment-header">
+                            <span class="sentiment-icon">📊</span>
+                            <span class="sentiment-title">PCR Analysis</span>
+                        </div>
+                        <div class="pcr-display">
+                            <span class="pcr-value">@analysis.PcrRatio.ToString("N2")</span>
+                            <span class="pcr-interpretation">
+                                @(analysis.PcrRatio > 1.2m ? "Heavy Put Writing — Bullish" :
+                                  analysis.PcrRatio < 0.8m ? "Heavy Call Writing — Bearish" : "Balanced — Neutral")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="sentiment-card">
+                        <div class="sentiment-header">
+                            <span class="sentiment-icon">🎯</span>
+                            <span class="sentiment-title">Max Pain</span>
+                        </div>
+                        <div class="maxpain-display">
+                            <span class="maxpain-value">₹@analysis.MaxPainStrike.ToString("N0")</span>
+                            <span class="maxpain-note">Options likely to expire near this level</span>
+                        </div>
+                    </div>
+                    <div class="sentiment-card">
+                        <div class="sentiment-header">
+                            <span class="sentiment-icon">📈</span>
+                            <span class="sentiment-title">Trading Range</span>
+                        </div>
+                        <div class="range-display">
+                            <div class="range-item"><span class="range-label">Support</span><span class="range-val positive">@analysis.SupportLevel</span></div>
+                            <div class="range-item"><span class="range-label">Resistance</span><span class="range-val negative">@analysis.ResistanceLevel</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         }
 
         <!-- Live Chart Section -->
@@ -495,4 +548,40 @@
     .pred-item.target .pred-value { color: #00c853; }
     .pred-item.stoploss .pred-value { color: #ff1744; }
     .pred-reason { font-size: 0.85rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+
+    /* Risk Reward */
+    .signal-risk-reward { font-size: 0.75rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; padding: 3px 8px; background: rgba(99,102,241,0.08); border-radius: 4px; display: inline-block; }
+
+    /* News Sentiment */
+    .news-sentiment-section { margin-bottom: 28px; }
+    .news-sentiment-section h2 { margin-bottom: 16px; }
+    .sentiment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .sentiment-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .sentiment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .sentiment-icon { font-size: 1.2rem; }
+    .sentiment-title { font-weight: 700; font-size: 0.9rem; }
+    .sentiment-gauge { padding: 8px 16px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+    .gauge-bull { background: rgba(0,200,83,0.1); color: #00c853; }
+    .gauge-bear { background: rgba(255,23,68,0.1); color: #ff1744; }
+    .sentiment-note { font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px; }
+    .pcr-display { text-align: center; }
+    .pcr-value { display: block; font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+    .pcr-interpretation { display: block; font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+    .maxpain-display { text-align: center; }
+    .maxpain-value { display: block; font-size: 1.5rem; font-weight: 800; }
+    .maxpain-note { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 4px; }
+    .range-display { display: flex; flex-direction: column; gap: 8px; }
+    .range-item { display: flex; justify-content: space-between; align-items: center; }
+    .range-label { font-size: 0.8rem; color: var(--text-secondary); }
+    .range-val { font-weight: 700; font-size: 1rem; }
+
+    /* Expiry Groups */
+    .expiry-group-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .expiry-month-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .expiry-month-label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); min-width: 70px; text-transform: uppercase; }
+    .expiry-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    @@media (max-width: 768px) {
+        .sentiment-grid { grid-template-columns: 1fr; }
+    }
 </style>
