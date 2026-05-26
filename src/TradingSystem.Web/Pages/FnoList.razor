@@ -313,9 +313,36 @@
     .btn-refresh { padding: 10px 24px; border: none; background: var(--primary); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; }
     .fno-empty { text-align: center; padding: 60px 0; }
 
+    @@media (max-width: 1024px) {
+        .fno-index-cards { grid-template-columns: repeat(2, 1fr); }
+        .index-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @@media (max-width: 768px) {
-        .market-overview { grid-template-columns: repeat(2, 1fr); }
-        .index-grid { grid-template-columns: 1fr; }
-        .fno-index-cards { grid-template-columns: 1fr; }
+        .fno-container { padding: 12px 8px; }
+        .fno-header h1 { font-size: 1.4rem; }
+        .fno-subtitle { font-size: 0.8rem; }
+        .market-tabs { flex-direction: column; gap: 4px; padding: 4px; }
+        .tab-btn { padding: 12px 14px; font-size: 0.9rem; }
+        .market-overview { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .overview-stat { padding: 12px 8px; }
+        .stat-value { font-size: 1.2rem; }
+        .fno-index-cards { grid-template-columns: 1fr; gap: 10px; }
+        .fno-index-card { padding: 16px; }
+        .index-grid { grid-template-columns: 1fr; gap: 10px; }
+        .index-card { padding: 14px; }
+        .fno-filter-bar { flex-direction: column; }
+        .fno-search { min-width: unset; width: 100%; }
+        .fno-filter-select { width: 100%; }
+        .top-movers-section h3 { font-size: 1rem; }
+        .idx-price { font-size: 1.1rem; }
+    }
+
+    @@media (max-width: 380px) {
+        .market-overview { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .stat-value { font-size: 1rem; }
+        .stat-label { font-size: 0.65rem; }
+        .idx-price { font-size: 1rem; }
+        .index-card-price { font-size: 1rem; }
     }
 </style>
