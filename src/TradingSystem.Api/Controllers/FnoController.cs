@@ -11,6 +11,7 @@ namespace TradingSystem.Api.Controllers;
 public class FnoController : ControllerBase
 {
     private readonly ILiveMarketDataService _marketData;
+    private readonly INseOptionChainService _nseOptions;
     private readonly ILogger<FnoController> _logger;
     private static readonly Random _rng = new();
 
@@ -63,9 +64,10 @@ public class FnoController : ControllerBase
         new("STOXX50", "Euro STOXX 50", 5100m, "Global", "index", "^STOXX50E"),
     };
 
-    public FnoController(ILiveMarketDataService marketData, ILogger<FnoController> logger)
+    public FnoController(ILiveMarketDataService marketData, INseOptionChainService nseOptions, ILogger<FnoController> logger)
     {
         _marketData = marketData;
+        _nseOptions = nseOptions;
         _logger = logger;
     }
 
@@ -135,21 +137,59 @@ public class FnoController : ControllerBase
         if (instrument == null)
             return NotFound(new { success = false, error = "Symbol not found" });
 
-        // Fetch live spot price
-        var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
-        var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
-        var strikeInterval = GetStrikeInterval(spotPrice);
-        var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
-
-        // Generate expiries (next 4 Thursdays)
-        var expiries = GetUpcomingExpiries(4);
-        var selectedExpiry = expiry ?? expiries.First();
-
-        // Generate options chain around ATM
-        var strikes = Enumerable.Range(-10, 21).Select(i => atmStrike + i * strikeInterval).ToList();
+        // Try to get LIVE option chain from NSE first
+        var nseChain = await _nseOptions.GetFullChainAsync(symbol, expiry);
         
-        var calls = strikes.Select(strike => GenerateOption(symbol, strike, "CE", spotPrice, selectedExpiry)).ToList();
-        var puts = strikes.Select(strike => GenerateOption(symbol, strike, "PE", spotPrice, selectedExpiry)).ToList();
+        if (nseChain != null && nseChain.Options.Count > 0)
+        {
+            // USE REAL NSE DATA
+            var spotPrice = nseChain.SpotPrice > 0 ? nseChain.SpotPrice : instrument.BasePrice;
+            var strikeInterval = GetStrikeInterval(spotPrice);
+            var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
+            
+            // Use NSE expiries, convert format
+            var expiries = nseChain.Expiries.Take(12).ToList();
+            var selectedExpiry = expiry ?? (expiries.Count > 0 ? expiries[0] : GetUpcomingExpiries(4).First());
+
+            // Build calls/puts from live data
+            var strikes = Enumerable.Range(-10, 21).Select(i => atmStrike + i * strikeInterval).ToList();
+            
+            var calls = strikes.Select(strike =>
+            {
+                var key = $"{strike:F0}_CE";
+                if (nseChain.Options.TryGetValue(key, out var liveOpt) && liveOpt.LastPrice > 0)
+                    return BuildLiveOption(symbol, strike, "CE", spotPrice, selectedExpiry, liveOpt);
+                return GenerateOption(symbol, strike, "CE", spotPrice, selectedExpiry);
+            }).ToList();
+
+            var puts = strikes.Select(strike =>
+            {
+                var key = $"{strike:F0}_PE";
+                if (nseChain.Options.TryGetValue(key, out var liveOpt) && liveOpt.LastPrice > 0)
+                    return BuildLiveOption(symbol, strike, "PE", spotPrice, selectedExpiry, liveOpt);
+                return GenerateOption(symbol, strike, "PE", spotPrice, selectedExpiry);
+            }).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                data = new { underlying = symbol, spotPrice, expiries, calls, puts, source = "NSE_LIVE" },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        // FALLBACK: Use Yahoo spot + Black-Scholes formula
+        var liveQuote = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        var fallbackSpot = (liveQuote != null && liveQuote.Price > 0) ? liveQuote.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
+        var fallbackInterval = GetStrikeInterval(fallbackSpot);
+        var fallbackAtm = Math.Round(fallbackSpot / fallbackInterval) * fallbackInterval;
+
+        var fallbackExpiries = GetUpcomingExpiries(4);
+        var fallbackSelectedExpiry = expiry ?? fallbackExpiries.First();
+
+        var fallbackStrikes = Enumerable.Range(-10, 21).Select(i => fallbackAtm + i * fallbackInterval).ToList();
+        var fallbackCalls = fallbackStrikes.Select(strike => GenerateOption(symbol, strike, "CE", fallbackSpot, fallbackSelectedExpiry)).ToList();
+        var fallbackPuts = fallbackStrikes.Select(strike => GenerateOption(symbol, strike, "PE", fallbackSpot, fallbackSelectedExpiry)).ToList();
 
         return Ok(new
         {
@@ -157,10 +197,11 @@ public class FnoController : ControllerBase
             data = new
             {
                 underlying = symbol,
-                spotPrice,
-                expiries,
-                calls,
-                puts
+                spotPrice = fallbackSpot,
+                expiries = fallbackExpiries,
+                calls = fallbackCalls,
+                puts = fallbackPuts,
+                source = "CALCULATED"
             },
             timestamp = DateTime.UtcNow
         });
@@ -187,7 +228,7 @@ public class FnoController : ControllerBase
         var resistance = atmStrike + strikeInterval * 3;
         var maxPain = atmStrike + (decimal)(_rng.Next(-2, 3)) * strikeInterval;
 
-        var signals = GenerateActiveSignals(symbol, spotPrice, atmStrike, strikeInterval);
+        var signals = await GenerateActiveSignalsAsync(symbol, spotPrice, atmStrike, strikeInterval);
 
         var summary = GenerateAiSummary(symbol, trend, pcrRatio, spotPrice, support, resistance);
 
@@ -221,24 +262,34 @@ public class FnoController : ControllerBase
         var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
         var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         
-        // Calculate option price using same formula as options chain
-        var intrinsic = type == "CE" ? Math.Max(0, spotPrice - strike) : Math.Max(0, strike - spotPrice);
-        var istNow = DateTime.UtcNow.AddHours(5.5);
-        var expiryDate = DateTime.Parse(expiry).Date;
-        var daysToExp = Math.Max(0, (expiryDate - istNow.Date).TotalDays);
-        double hoursLeft;
-        if (daysToExp == 0)
-            hoursLeft = Math.Max(0.1, 15.5 - istNow.TimeOfDay.TotalHours);
+        // Try LIVE NSE option price first
+        var nseOpt = await _nseOptions.GetOptionPriceAsync(symbol, strike, type, expiry);
+        decimal optionPrice;
+        if (nseOpt != null && nseOpt.LastPrice > 0)
+        {
+            optionPrice = nseOpt.LastPrice;
+        }
         else
-            hoursLeft = Math.Max(0, 15.5 - istNow.TimeOfDay.TotalHours) + (daysToExp - 1) * 6.25 + 6.25;
-        var annTime = hoursLeft / 1575.0;
-        var vol = daysToExp == 0 ? 0.09 : Math.Min(0.10 + daysToExp * 0.005, 0.16);
-        var atmTV = 0.4 * (double)spotPrice * vol * Math.Sqrt(annTime);
-        var oneSigma = Math.Max(1, (double)spotPrice * vol * Math.Sqrt(annTime));
-        var sigDist = Math.Abs((double)(strike - spotPrice)) / oneSigma;
-        var decay = Math.Exp(-0.5 * sigDist * sigDist);
-        var timeValue = (decimal)(atmTV * decay);
-        var optionPrice = Math.Max(0.05m, Math.Round(intrinsic + timeValue, 2));
+        {
+            // Fallback: Calculate option price using Black-Scholes approximation
+            var intrinsic = type == "CE" ? Math.Max(0, spotPrice - strike) : Math.Max(0, strike - spotPrice);
+            var istNow = DateTime.UtcNow.AddHours(5.5);
+            var expiryDate = DateTime.Parse(expiry).Date;
+            var daysToExp = Math.Max(0, (expiryDate - istNow.Date).TotalDays);
+            double hoursLeft;
+            if (daysToExp == 0)
+                hoursLeft = Math.Max(0.1, 15.5 - istNow.TimeOfDay.TotalHours);
+            else
+                hoursLeft = Math.Max(0, 15.5 - istNow.TimeOfDay.TotalHours) + (daysToExp - 1) * 6.25 + 6.25;
+            var annTime = hoursLeft / 1575.0;
+            var vol = daysToExp == 0 ? 0.09 : Math.Min(0.10 + daysToExp * 0.005, 0.16);
+            var atmTV = 0.4 * (double)spotPrice * vol * Math.Sqrt(annTime);
+            var oneSigma = Math.Max(1, (double)spotPrice * vol * Math.Sqrt(annTime));
+            var sigDist = Math.Abs((double)(strike - spotPrice)) / oneSigma;
+            var decay = Math.Exp(-0.5 * sigDist * sigDist);
+            var timeValue = (decimal)(atmTV * decay);
+            optionPrice = Math.Max(0.05m, Math.Round(intrinsic + timeValue, 2));
+        }
 
         // Display name
         var expiryLabel = expiry;
@@ -326,7 +377,7 @@ public class FnoController : ControllerBase
         var strikeInterval = GetStrikeInterval(spotPrice);
         var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
 
-        var signals = GenerateActiveSignals(symbol, spotPrice, atmStrike, strikeInterval);
+        var signals = await GenerateActiveSignalsAsync(symbol, spotPrice, atmStrike, strikeInterval);
         return Ok(new { success = true, data = signals, timestamp = DateTime.UtcNow });
     }
 
@@ -362,6 +413,39 @@ public class FnoController : ControllerBase
     }
 
     #region Helpers
+
+    /// <summary>Build option response from LIVE NSE data</summary>
+    private object BuildLiveOption(string symbol, decimal strike, string optionType, decimal spot, string expiry, NseOptionData live)
+    {
+        var expiryLabel = expiry;
+        try { expiryLabel = DateTime.Parse(expiry).ToString("dd MMM"); } catch { }
+        var optionLabel = optionType == "CE" ? "Call" : "Put";
+        var displayName = $"{symbol} {expiryLabel} {strike:N0} {optionLabel}";
+        var signal = GenerateOptionSignal(optionType, spot, strike, live.OpenInterest, live.OiChange);
+
+        return new
+        {
+            symbol,
+            underlying = symbol,
+            strikePrice = strike,
+            optionType,
+            expiry,
+            displayName,
+            lastPrice = live.LastPrice,
+            change = Math.Round(live.Change, 2),
+            changePercent = live.LastPrice > 0 ? Math.Round(live.Change / (live.LastPrice - live.Change) * 100, 2) : 0,
+            volume = live.Volume,
+            openInterest = (decimal)live.OpenInterest,
+            oiChange = (decimal)live.OiChange,
+            impliedVolatility = live.ImpliedVolatility,
+            bidPrice = live.BidPrice,
+            askPrice = live.AskPrice,
+            signal = signal.action,
+            signalConfidence = signal.confidence,
+            signalReason = signal.reason,
+            source = "NSE_LIVE"
+        };
+    }
 
     private decimal GenerateChange(decimal basePrice)
     {
@@ -524,7 +608,7 @@ public class FnoController : ControllerBase
         return ("Hold", _rng.Next(30, 55), "No clear directional bias — wait for confirmation");
     }
 
-    private List<object> GenerateActiveSignals(string symbol, decimal spot, decimal atm, decimal interval)
+    private async Task<List<object>> GenerateActiveSignalsAsync(string symbol, decimal spot, decimal atm, decimal interval)
     {
         var strategies = new[]
         {
@@ -543,6 +627,9 @@ public class FnoController : ControllerBase
         var nearestExpiryDate = DateTime.Parse(nearestExpiry);
         var daysToExpiry = Math.Max(0.1, (nearestExpiryDate - DateTime.UtcNow).TotalDays);
 
+        // Try to get live NSE option chain for accurate prices
+        var nseChain = await _nseOptions.GetFullChainAsync(symbol, nearestExpiry);
+
         var signals = new List<object>();
         var count = _rng.Next(2, 5);
         for (int i = 0; i < count; i++)
@@ -553,24 +640,35 @@ public class FnoController : ControllerBase
             var strike = atm + strikeOffset * interval;
             var strategy = strategies[_rng.Next(strategies.Length)];
 
-            // Calculate realistic entry price using same Gaussian decay model
             var optionType = isCe ? "CE" : "PE";
-            var intrinsic = isCe ? Math.Max(0, spot - strike) : Math.Max(0, strike - spot);
-            var istNow = DateTime.UtcNow.AddHours(5.5);
-            var daysLeft = Math.Max(0, (nearestExpiryDate.Date - istNow.Date).TotalDays);
-            double hoursLeft;
-            if (daysLeft == 0)
-                hoursLeft = Math.Max(0.1, 15.5 - istNow.TimeOfDay.TotalHours);
+            decimal entry;
+
+            // Try live NSE price first
+            var nseKey = $"{strike:F0}_{optionType}";
+            if (nseChain != null && nseChain.Options.TryGetValue(nseKey, out var liveOpt) && liveOpt.LastPrice > 0)
+            {
+                entry = liveOpt.LastPrice;
+            }
             else
-                hoursLeft = Math.Max(0, 15.5 - istNow.TimeOfDay.TotalHours) + (daysLeft - 1) * 6.25 + 6.25;
-            var annTime = hoursLeft / 1575.0;
-            var vol = daysLeft == 0 ? 0.09 : Math.Min(0.10 + daysLeft * 0.005, 0.16);
-            var atmTV = 0.4 * (double)spot * vol * Math.Sqrt(annTime);
-            var oneSigma = Math.Max(1, (double)spot * vol * Math.Sqrt(annTime));
-            var sigDist = Math.Abs((double)(strike - spot)) / oneSigma;
-            var decay = Math.Exp(-0.5 * sigDist * sigDist);
-            var timeValue = (decimal)(atmTV * decay);
-            var entry = Math.Max(0.05m, Math.Round(intrinsic + timeValue, 2));
+            {
+                // Fallback: Calculate using Gaussian decay model
+                var intrinsic = isCe ? Math.Max(0, spot - strike) : Math.Max(0, strike - spot);
+                var istNow = DateTime.UtcNow.AddHours(5.5);
+                var daysLeft = Math.Max(0, (nearestExpiryDate.Date - istNow.Date).TotalDays);
+                double hoursLeft;
+                if (daysLeft == 0)
+                    hoursLeft = Math.Max(0.1, 15.5 - istNow.TimeOfDay.TotalHours);
+                else
+                    hoursLeft = Math.Max(0, 15.5 - istNow.TimeOfDay.TotalHours) + (daysLeft - 1) * 6.25 + 6.25;
+                var annTime = hoursLeft / 1575.0;
+                var vol = daysLeft == 0 ? 0.09 : Math.Min(0.10 + daysLeft * 0.005, 0.16);
+                var atmTV = 0.4 * (double)spot * vol * Math.Sqrt(annTime);
+                var oneSigma = Math.Max(1, (double)spot * vol * Math.Sqrt(annTime));
+                var sigDist = Math.Abs((double)(strike - spot)) / oneSigma;
+                var decay = Math.Exp(-0.5 * sigDist * sigDist);
+                var timeValue = (decimal)(atmTV * decay);
+                entry = Math.Max(0.05m, Math.Round(intrinsic + timeValue, 2));
+            }
 
             // Display name: "26 May 24000 Call"
             var displayName = $"{nearestExpiryDate:dd MMM} {strike:N0} {(isCe ? "Call" : "Put")}";

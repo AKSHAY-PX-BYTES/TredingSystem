@@ -189,6 +189,7 @@ builder.Services.AddHttpClient("YahooFinance", client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 builder.Services.AddSingleton<ILiveMarketDataService, YahooFinanceService>();
+builder.Services.AddSingleton<INseOptionChainService, NseOptionChainService>();
 builder.Services.AddSingleton<IMarketExchangeService, MarketExchangeService>();
 
 // Background service for real-time updates
