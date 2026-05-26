@@ -221,15 +221,24 @@ public class FnoController : ControllerBase
         var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
         var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         
-        // Calculate realistic option price using Black-Scholes ATM approximation
+        // Calculate option price using same formula as options chain
         var intrinsic = type == "CE" ? Math.Max(0, spotPrice - strike) : Math.Max(0, strike - spotPrice);
-        var distancePercent = Math.Abs((double)(strike - spotPrice) / (double)spotPrice) * 100;
-        var daysToExp = Math.Max(0, (DateTime.Parse(expiry).Date - DateTime.UtcNow.AddHours(5.5).Date).TotalDays);
-        var hoursLeft = daysToExp * 6.25 + 2;
-        if (daysToExp == 0) hoursLeft = Math.Max(0.5, 15.5 - DateTime.UtcNow.AddHours(5.5).TimeOfDay.TotalHours);
-        var annTime = hoursLeft / (252.0 * 6.25);
-        var timeValue = (decimal)(0.4 * (double)spotPrice * 0.12 * Math.Sqrt(annTime) * Math.Exp(-distancePercent * 0.8));
-        var optionPrice = Math.Max(0.5m, Math.Round(intrinsic + timeValue, 2));
+        var istNow = DateTime.UtcNow.AddHours(5.5);
+        var expiryDate = DateTime.Parse(expiry).Date;
+        var daysToExp = Math.Max(0, (expiryDate - istNow.Date).TotalDays);
+        double hoursLeft;
+        if (daysToExp == 0)
+            hoursLeft = Math.Max(0.1, 15.5 - istNow.TimeOfDay.TotalHours);
+        else
+            hoursLeft = Math.Max(0, 15.5 - istNow.TimeOfDay.TotalHours) + (daysToExp - 1) * 6.25 + 6.25;
+        var annTime = hoursLeft / 1575.0;
+        var vol = daysToExp == 0 ? 0.09 : Math.Min(0.10 + daysToExp * 0.005, 0.16);
+        var atmTV = 0.4 * (double)spotPrice * vol * Math.Sqrt(annTime);
+        var oneSigma = Math.Max(1, (double)spotPrice * vol * Math.Sqrt(annTime));
+        var sigDist = Math.Abs((double)(strike - spotPrice)) / oneSigma;
+        var decay = Math.Exp(-0.5 * sigDist * sigDist);
+        var timeValue = (decimal)(atmTV * decay);
+        var optionPrice = Math.Max(0.05m, Math.Round(intrinsic + timeValue, 2));
 
         // Display name
         var expiryLabel = expiry;
@@ -404,25 +413,56 @@ public class FnoController : ControllerBase
     {
         var intrinsic = optionType == "CE" ? Math.Max(0, spot - strike) : Math.Max(0, strike - spot);
         
-        // Realistic time value using proper Black-Scholes ATM approximation: C ≈ 0.4 * S * σ * √T
-        var daysToExpiry = Math.Max(0, (DateTime.Parse(expiry).Date - DateTime.UtcNow.AddHours(5.5).Date).TotalDays);
-        var hoursToExpiry = daysToExpiry * 6.25 + 2; // trading hours remaining
-        if (daysToExpiry == 0) hoursToExpiry = Math.Max(0.25, 15.5 - DateTime.UtcNow.AddHours(5.5).TimeOfDay.TotalHours);
+        // Calculate time to expiry in trading hours
+        var istNow = DateTime.UtcNow.AddHours(5.5);
+        var expiryDate = DateTime.Parse(expiry).Date;
+        var daysToExpiry = Math.Max(0, (expiryDate - istNow.Date).TotalDays);
         
-        var distancePercent = Math.Abs((double)(strike - spot) / (double)spot) * 100;
+        // Trading hours remaining (market: 9:15 AM to 3:30 PM = 6.25 hours)
+        double hoursToExpiry;
+        if (daysToExpiry == 0)
+        {
+            // Same day: hours left until 3:30 PM IST
+            var marketClose = 15.5; // 3:30 PM
+            hoursToExpiry = Math.Max(0.1, marketClose - istNow.TimeOfDay.TotalHours);
+        }
+        else
+        {
+            // Future days: remaining today + full days
+            var marketClose = 15.5;
+            var hoursLeftToday = Math.Max(0, marketClose - istNow.TimeOfDay.TotalHours);
+            hoursToExpiry = hoursLeftToday + (daysToExpiry - 1) * 6.25 + 6.25;
+        }
         
-        // Annualized time fraction (trading hours only)
-        var annualizedTime = hoursToExpiry / (252.0 * 6.25);
-        // Nifty weekly IV is typically 11-14%, use realistic value
-        var volatility = 0.11 + _rng.NextDouble() * 0.03;
-        // Correct ATM approximation: 0.4 * S * σ * √T (the 0.4 is the N'(0)/√(2π) coefficient)
-        var baseTimeValue = (decimal)(0.4 * (double)spot * volatility * Math.Sqrt(annualizedTime));
-        // OTM options decay exponentially with distance from ATM
-        var decayFactor = (decimal)Math.Exp(-distancePercent * 0.8);
-        var timeValue = Math.Round(baseTimeValue * decayFactor, 2);
+        var distanceFromATM = Math.Abs((double)(strike - spot));
+        var distancePercent = distanceFromATM / (double)spot * 100;
         
+        // Annualized time (trading hours in a year: 252 days × 6.25 hours = 1575)
+        var annualizedTime = hoursToExpiry / 1575.0;
+        
+        // Nifty realized vol: ~10-11% annualized for weekly, slightly higher for longer
+        // FIXED volatility (no random) to ensure consistency
+        var volatility = daysToExpiry == 0 ? 0.09 : (0.10 + daysToExpiry * 0.005);
+        volatility = Math.Min(volatility, 0.16); // cap at 16%
+        
+        // Black-Scholes ATM approximation: C ≈ 0.4 * S * σ * √T
+        var atmTimeValue = 0.4 * (double)spot * volatility * Math.Sqrt(annualizedTime);
+        
+        // OTM decay: use steeper Gaussian-like decay based on distance in sigma units
+        // 1 sigma move = spot * σ * √T (in price terms)
+        var oneSigma = (double)spot * volatility * Math.Sqrt(annualizedTime);
+        if (oneSigma < 1) oneSigma = 1; // prevent division by zero
+        var sigmaDistance = distanceFromATM / oneSigma;
+        
+        // Gaussian decay: options lose value rapidly beyond 1 sigma OTM
+        var decayFactor = Math.Exp(-0.5 * sigmaDistance * sigmaDistance);
+        
+        var timeValue = (decimal)(atmTimeValue * decayFactor);
         var premium = Math.Round(intrinsic + timeValue, 2);
-        if (premium < 0.5m) premium = Math.Round(0.5m + (decimal)_rng.NextDouble() * 1.5m, 2);
+        
+        // Very deep OTM minimum (below ₹1 shows as small value)
+        if (premium < 0.5m) premium = Math.Round(0.25m + (decimal)(0.5 * Math.Exp(-sigmaDistance)), 2);
+        if (premium < 0.05m) premium = 0.05m;
         
         var change = Math.Round((decimal)(_rng.NextDouble() - 0.45) * premium * 0.08m, 2);
         var iv = intrinsic > 0 
@@ -514,18 +554,24 @@ public class FnoController : ControllerBase
             var strike = atm + strikeOffset * interval;
             var strategy = strategies[_rng.Next(strategies.Length)];
 
-            // Calculate realistic entry price based on Black-Scholes-like model
+            // Calculate realistic entry price using same Gaussian decay model
             var optionType = isCe ? "CE" : "PE";
             var intrinsic = isCe ? Math.Max(0, spot - strike) : Math.Max(0, strike - spot);
-            var distancePercent = Math.Abs((double)(strike - spot) / (double)spot) * 100;
-            var hoursLeft = daysToExpiry * 6.25 + 2;
-            if (daysToExpiry < 1) hoursLeft = Math.Max(0.5, 15.5 - DateTime.UtcNow.AddHours(5.5).TimeOfDay.TotalHours);
-            var annTime = hoursLeft / (252.0 * 6.25);
-            var vol = 0.11 + _rng.NextDouble() * 0.03;
-            var baseTimeValue = (decimal)(0.4 * (double)spot * vol * Math.Sqrt(annTime));
-            var decayFactor = (decimal)Math.Exp(-distancePercent * 0.8);
-            var timeValue = Math.Round(baseTimeValue * decayFactor, 2);
-            var entry = Math.Max(0.5m, Math.Round(intrinsic + timeValue, 2));
+            var istNow = DateTime.UtcNow.AddHours(5.5);
+            var daysLeft = Math.Max(0, (nearestExpiryDate.Date - istNow.Date).TotalDays);
+            double hoursLeft;
+            if (daysLeft == 0)
+                hoursLeft = Math.Max(0.1, 15.5 - istNow.TimeOfDay.TotalHours);
+            else
+                hoursLeft = Math.Max(0, 15.5 - istNow.TimeOfDay.TotalHours) + (daysLeft - 1) * 6.25 + 6.25;
+            var annTime = hoursLeft / 1575.0;
+            var vol = daysLeft == 0 ? 0.09 : Math.Min(0.10 + daysLeft * 0.005, 0.16);
+            var atmTV = 0.4 * (double)spot * vol * Math.Sqrt(annTime);
+            var oneSigma = Math.Max(1, (double)spot * vol * Math.Sqrt(annTime));
+            var sigDist = Math.Abs((double)(strike - spot)) / oneSigma;
+            var decay = Math.Exp(-0.5 * sigDist * sigDist);
+            var timeValue = (decimal)(atmTV * decay);
+            var entry = Math.Max(0.05m, Math.Round(intrinsic + timeValue, 2));
 
             // Display name: "26 May 24000 Call"
             var displayName = $"{nearestExpiryDate:dd MMM} {strike:N0} {(isCe ? "Call" : "Put")}";
