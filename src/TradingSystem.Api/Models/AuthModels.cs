@@ -4,8 +4,8 @@ namespace TradingSystem.Api.Models;
 
 public class LoginRequest
 {
-    [Required(ErrorMessage = "Username is required")]
-    [StringLength(50, MinimumLength = 3)]
+    [Required(ErrorMessage = "Username or Email is required")]
+    [StringLength(100, MinimumLength = 3)]
     public string Username { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Password is required")]

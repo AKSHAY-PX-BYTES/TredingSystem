@@ -95,16 +95,19 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
-        _logger.LogInformation("Login attempt for user: {Username}", request.Username);
+        _logger.LogInformation("Login attempt for: {Identifier}", request.Username);
 
         using var db = CreateDbContext();
+        
+        // Allow login with username OR email
+        var identifier = request.Username.Trim().ToLower();
         var user = await db.Users
-            .FirstOrDefaultAsync(u => u.Username.ToLower() == request.Username.ToLower());
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == identifier || u.Email.ToLower() == identifier);
 
         if (user == null)
         {
-            _logger.LogWarning("Login failed: user '{Username}' not found", request.Username);
-            return new LoginResponse { Success = false, Error = "Invalid username or password" };
+            _logger.LogWarning("Login failed: '{Identifier}' not found (checked username and email)", request.Username);
+            return new LoginResponse { Success = false, Error = "Invalid username/email or password" };
         }
 
         // Account lockout check

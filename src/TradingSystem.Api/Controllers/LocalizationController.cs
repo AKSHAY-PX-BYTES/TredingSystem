@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradingSystem.Api.Models;
 using TradingSystem.Api.Services;
 
 namespace TradingSystem.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("localization")]
 [Produces("application/json")]
