@@ -154,10 +154,13 @@
             <NavLink class="sidebar-link" href="plans" @onclick="CloseSidebar">
                 <span class="sidebar-icon">🏷️</span><span>Plans & Pricing</span>
             </NavLink>
+            <NavLink class="sidebar-link" href="settings" @onclick="CloseSidebar">
+                <span class="sidebar-icon">⚙️</span><span>Settings</span>
+            </NavLink>
             @if (isAdmin)
             {
                 <NavLink class="sidebar-link" href="admin" @onclick="CloseSidebar">
-                    <span class="sidebar-icon">⚙️</span><span>Admin Panel</span>
+                    <span class="sidebar-icon">🛠️</span><span>Admin Panel</span>
                 </NavLink>
             }
         </nav>
