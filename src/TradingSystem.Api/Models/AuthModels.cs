@@ -64,30 +64,24 @@ public class RegisterRequest
     [Compare("Password", ErrorMessage = "Passwords do not match")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    // New profile fields
-    [Required(ErrorMessage = "First name is required")]
-    [StringLength(50, MinimumLength = 1)]
-    public string FirstName { get; set; } = string.Empty;
+    // New profile fields (optional during signup)
+    [StringLength(50)]
+    public string? FirstName { get; set; }
 
-    [Required(ErrorMessage = "Last name is required")]
-    [StringLength(50, MinimumLength = 1)]
-    public string LastName { get; set; } = string.Empty;
+    [StringLength(50)]
+    public string? LastName { get; set; }
 
-    [Required(ErrorMessage = "Country is required")]
-    public string Country { get; set; } = string.Empty;
+    public string? Country { get; set; }
 
     public DateTime? DateOfBirth { get; set; }
 
     public string TradingExperience { get; set; } = "None"; // None, Beginner, Intermediate, Advanced, Expert
 
-    // Legal consents (all required)
-    [Range(typeof(bool), "true", "true", ErrorMessage = "You must acknowledge that trading involves financial risk")]
+    // Legal consents (optional - will default to false if not provided)
     public bool ConsentFinancialRisk { get; set; }
 
-    [Range(typeof(bool), "true", "true", ErrorMessage = "You must agree to the Terms and Conditions")]
     public bool ConsentTermsAndConditions { get; set; }
 
-    [Range(typeof(bool), "true", "true", ErrorMessage = "You must agree to the Privacy Policy")]
     public bool ConsentPrivacyPolicy { get; set; }
 
     public bool ConsentAiSignals { get; set; } = true;
