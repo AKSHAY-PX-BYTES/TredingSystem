@@ -479,14 +479,7 @@
     {
         // Admin always sees everything
         if (isAdmin) return true;
-        if (!FeatureFlagService.IsEnabled(featureKey)) return false;
-        
-        // Free users can only see limited features
-        if (userPlan == "Free")
-        {
-            var freeFeatures = new HashSet<string> { "news", "notifications" };
-            return freeFeatures.Contains(featureKey);
-        }
-        return true;
+        // Show all features in sidebar (pages will show blur overlay for free users)
+        return FeatureFlagService.IsEnabled(featureKey);
     }
 }

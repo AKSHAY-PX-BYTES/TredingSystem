@@ -10,6 +10,19 @@
 <FeatureGate FeatureKey="markets">
 <PageTitle>Markets - AI Trading System</PageTitle>
 
+<div class="@(isFreeUser ? "premium-blur-container" : "")" style="min-height: 70vh;">
+@if (isFreeUser)
+{
+    <div class="premium-locked-overlay">
+        <div class="premium-lock-card">
+            <span class="lock-icon">🔒</span>
+            <h2>Upgrade to Unlock Markets</h2>
+            <p>Get real-time stock prices, analysis, and detailed market data across global exchanges.</p>
+            <a href="/plans" class="premium-upgrade-btn">⚡ View Plans & Upgrade</a>
+        </div>
+    </div>
+}
+
 <!-- Top Bar -->
 <div class="mkt-topbar">
     <div class="mkt-topbar-left">
@@ -414,6 +427,7 @@ else if (exchangeData != null)
         </div>
     </div>
 }
+</div>
 </FeatureGate>
 
 @code {
@@ -442,11 +456,6 @@ else if (exchangeData != null)
     {
         Currency.OnCurrencyChanged += OnCurrencyChanged;
         isFreeUser = await PlanAccess.IsFreeUserAsync();
-        if (isFreeUser)
-        {
-            Navigation.NavigateTo("/plans");
-            return;
-        }
         await LoadExchangeData();
 
         // Auto-refresh every 30 seconds for live prices

@@ -8,7 +8,18 @@
 
 <PageTitle>@Symbol F&O Options Chain</PageTitle>
 
-<div class="fno-detail-container">
+<div class="fno-detail-container @(isFreeUser ? "premium-blur-container" : "")">
+    @if (isFreeUser)
+    {
+        <div class="premium-locked-overlay">
+            <div class="premium-lock-card">
+                <span class="lock-icon">🔒</span>
+                <h2>Upgrade to Unlock Options Chain</h2>
+                <p>Get live option chains, Greeks, and AI signals for @Symbol.</p>
+                <a href="/plans" class="premium-upgrade-btn">⚡ View Plans & Upgrade</a>
+            </div>
+        </div>
+    }
     <!-- Back & Header -->
     <div class="fno-detail-header">
         <button class="btn-back" @onclick='() => Navigation.NavigateTo("/fno")'>← Back to F&O</button>
@@ -366,6 +377,7 @@
 @code {
     [Parameter] public string Symbol { get; set; } = "";
     
+    private bool isFreeUser = false;
     private OptionsChain? optionsChain;
     private FnoAnalysis? analysis;
     private FnoChartData? chartData;
@@ -388,11 +400,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (await PlanAccess.IsFreeUserAsync())
-        {
-            Navigation.NavigateTo("/plans");
-            return;
-        }
+        isFreeUser = await PlanAccess.IsFreeUserAsync();
+        if (isFreeUser) return;
         await LoadData();
         // Auto-refresh every 30 seconds
         refreshTimer = new System.Threading.Timer(async _ =>

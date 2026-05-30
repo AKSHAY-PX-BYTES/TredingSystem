@@ -10,7 +10,18 @@
 <FeatureGate FeatureKey="watchlist">
 <PageTitle>My Watchlist - AI Trader</PageTitle>
 
-<div class="watchlist-page">
+<div class="watchlist-page @(isFreeUser ? "premium-blur-container" : "")">
+    @if (isFreeUser)
+    {
+        <div class="premium-locked-overlay">
+            <div class="premium-lock-card">
+                <span class="lock-icon">🔒</span>
+                <h2>Upgrade to Unlock Watchlist</h2>
+                <p>Create unlimited watchlists and track your favorite stocks in real-time.</p>
+                <a href="/plans" class="premium-upgrade-btn">⚡ View Plans & Upgrade</a>
+            </div>
+        </div>
+    }
     <div class="watchlist-header">
         <div>
             <h1>📋 My Watchlist</h1>
@@ -142,13 +153,12 @@
     private List<WatchlistItem> watchlist = new();
     private bool isRefreshing = false;
 
+    private bool isFreeUser = false;
+
     protected override async Task OnInitializedAsync()
     {
-        if (await PlanAccess.IsFreeUserAsync())
-        {
-            Navigation.NavigateTo("/plans");
-            return;
-        }
+        isFreeUser = await PlanAccess.IsFreeUserAsync();
+        if (isFreeUser) return;
         WatchlistService.OnWatchlistChanged += OnWatchlistChanged;
         Currency.OnCurrencyChanged += StateHasChanged;
         await LoadWatchlist();

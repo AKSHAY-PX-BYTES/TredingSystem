@@ -6,7 +6,18 @@
 
 <PageTitle>F&O - Futures & Options</PageTitle>
 
-<div class="fno-container">
+<div class="fno-container @(isFreeUser ? "premium-blur-container" : "")">
+    @if (isFreeUser)
+    {
+        <div class="premium-locked-overlay">
+            <div class="premium-lock-card">
+                <span class="lock-icon">🔒</span>
+                <h2>Upgrade to Unlock F&O</h2>
+                <p>Access live futures & options data, option chains, and AI-powered trading signals.</p>
+                <a href="/plans" class="premium-upgrade-btn">⚡ View Plans & Upgrade</a>
+            </div>
+        </div>
+    }
     <div class="fno-header">
         <div class="fno-header-top">
             <h1>📊 Futures & Options</h1>
@@ -177,13 +188,11 @@
         _ => FilteredIndices.OrderBy(i => i.Name)
     };
 
+    private bool isFreeUser = false;
+
     protected override async Task OnInitializedAsync()
     {
-        if (await PlanAccess.IsFreeUserAsync())
-        {
-            Navigation.NavigateTo("/plans");
-            return;
-        }
+        isFreeUser = await PlanAccess.IsFreeUserAsync();
         await LoadData();
     }
 

@@ -4843,6 +4843,70 @@ input:checked + .slider:before { transform: translateX(22px); }
     pointer-events: none;
 }
 
+/* ===================== PREMIUM BLUR OVERLAY ===================== */
+.premium-blur-container {
+    position: relative;
+    min-height: 60vh;
+    overflow: hidden;
+}
+.premium-blur-container > *:not(.premium-locked-overlay) {
+    filter: blur(6px);
+    pointer-events: none;
+    user-select: none;
+}
+.premium-locked-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    background: rgba(10, 10, 30, 0.4);
+    backdrop-filter: blur(2px);
+}
+.premium-lock-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.premium-lock-card .lock-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+.premium-lock-card h2 {
+    font-size: 1.3rem;
+    margin: 0 0 0.5rem;
+    color: var(--text-primary, #1a1a2e);
+}
+.premium-lock-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #666);
+    margin: 0 0 1.5rem;
+    line-height: 1.5;
+}
+.premium-upgrade-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.premium-upgrade-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
 /* ============================================
    AI AGENT DASHBOARD
    ============================================ */

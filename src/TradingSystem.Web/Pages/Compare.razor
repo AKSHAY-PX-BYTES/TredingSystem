@@ -8,7 +8,18 @@
 <FeatureGate FeatureKey="compare">
 <PageTitle>Compare Stocks - AI Trader</PageTitle>
 
-<div class="compare-page">
+<div class="compare-page @(isFreeUser ? "premium-blur-container" : "")">
+    @if (isFreeUser)
+    {
+        <div class="premium-locked-overlay">
+            <div class="premium-lock-card">
+                <span class="lock-icon">🔒</span>
+                <h2>Upgrade to Unlock Compare</h2>
+                <p>Compare multiple stocks side by side with real-time data and key metrics.</p>
+                <a href="/plans" class="premium-upgrade-btn">⚡ View Plans & Upgrade</a>
+            </div>
+        </div>
+    }
     <div class="compare-header">
         <h1>📊 Stock Comparison</h1>
         <p class="compare-subtitle">Compare up to 4 stocks side-by-side</p>
@@ -217,15 +228,12 @@
     private string[] selectedSymbols = new string[4] { "", "", "", "" };
     private List<StockQuote> quotes = new();
     private bool isLoading = false;
+    private bool isFreeUser = false;
     private string? error;
 
     protected override async Task OnInitializedAsync()
     {
-        if (await PlanAccess.IsFreeUserAsync())
-        {
-            Navigation.NavigateTo("/plans");
-            return;
-        }
+        isFreeUser = await PlanAccess.IsFreeUserAsync();
     }
 
     private void OnSymbolChanged(int index, string? value)

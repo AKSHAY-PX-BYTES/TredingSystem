@@ -11,7 +11,18 @@
 <FeatureGate FeatureKey="charts">
 <PageTitle>Advanced Charts - AI Trader</PageTitle>
 
-<div class="charts-page">
+<div class="charts-page @(isFreeUser ? "premium-blur-container" : "")">
+    @if (isFreeUser)
+    {
+        <div class="premium-locked-overlay">
+            <div class="premium-lock-card">
+                <span class="lock-icon">🔒</span>
+                <h2>Upgrade to Unlock Charts</h2>
+                <p>Get advanced candlestick charts, technical indicators, and real-time data.</p>
+                <a href="/plans" class="premium-upgrade-btn">⚡ View Plans & Upgrade</a>
+            </div>
+        </div>
+    }
     <div class="charts-header">
         <div class="charts-title-section">
             <h1>📈 Advanced Charts</h1>
@@ -147,6 +158,7 @@
 @code {
     [Parameter] public string? Symbol { get; set; }
 
+    private bool isFreeUser = false;
     private string symbolInput = "";
     private string currentSymbol = "";
     private string chartType = "candlestick";
@@ -182,11 +194,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (await PlanAccess.IsFreeUserAsync())
-        {
-            Navigation.NavigateTo("/plans");
-            return;
-        }
+        isFreeUser = await PlanAccess.IsFreeUserAsync();
+        if (isFreeUser) return;
         Currency.OnCurrencyChanged += OnCurrencyChanged;
         if (!string.IsNullOrEmpty(Symbol))
         {
