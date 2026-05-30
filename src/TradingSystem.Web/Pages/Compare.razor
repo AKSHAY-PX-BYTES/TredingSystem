@@ -3,6 +3,7 @@
 @inject IMarketApiService MarketApi
 @inject ICurrencyService Currency
 @inject NavigationManager Navigation
+@inject IPlanAccessService PlanAccess
 
 <FeatureGate FeatureKey="compare">
 <PageTitle>Compare Stocks - AI Trader</PageTitle>
@@ -217,6 +218,15 @@
     private List<StockQuote> quotes = new();
     private bool isLoading = false;
     private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await PlanAccess.IsFreeUserAsync())
+        {
+            Navigation.NavigateTo("/plans");
+            return;
+        }
+    }
 
     private void OnSymbolChanged(int index, string? value)
     {

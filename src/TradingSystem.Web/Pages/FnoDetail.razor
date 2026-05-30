@@ -3,6 +3,7 @@
 @inject IFnoApiService FnoApi
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IPlanAccessService PlanAccess
 @implements IDisposable
 
 <PageTitle>@Symbol F&O Options Chain</PageTitle>
@@ -387,6 +388,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (await PlanAccess.IsFreeUserAsync())
+        {
+            Navigation.NavigateTo("/plans");
+            return;
+        }
         await LoadData();
         // Auto-refresh every 30 seconds
         refreshTimer = new System.Threading.Timer(async _ =>

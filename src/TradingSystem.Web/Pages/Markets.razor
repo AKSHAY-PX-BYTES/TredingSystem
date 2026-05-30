@@ -442,6 +442,11 @@ else if (exchangeData != null)
     {
         Currency.OnCurrencyChanged += OnCurrencyChanged;
         isFreeUser = await PlanAccess.IsFreeUserAsync();
+        if (isFreeUser)
+        {
+            Navigation.NavigateTo("/plans");
+            return;
+        }
         await LoadExchangeData();
 
         // Auto-refresh every 30 seconds for live prices

@@ -5,6 +5,7 @@
 @inject IMarketApiService MarketApi
 @inject ICurrencyService Currency
 @inject NavigationManager Navigation
+@inject IPlanAccessService PlanAccess
 
 <FeatureGate FeatureKey="watchlist">
 <PageTitle>My Watchlist - AI Trader</PageTitle>
@@ -143,6 +144,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (await PlanAccess.IsFreeUserAsync())
+        {
+            Navigation.NavigateTo("/plans");
+            return;
+        }
         WatchlistService.OnWatchlistChanged += OnWatchlistChanged;
         Currency.OnCurrencyChanged += StateHasChanged;
         await LoadWatchlist();

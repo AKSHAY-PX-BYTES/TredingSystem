@@ -91,9 +91,12 @@
                     <span class="sidebar-icon">📊</span><span>Markets</span>
                 </NavLink>
             }
-            <NavLink class="sidebar-link" href="fno" @onclick="CloseSidebar">
-                <span class="sidebar-icon">📉</span><span>F&O Options</span>
-            </NavLink>
+            @if (IsFeatureVisible("fno"))
+            {
+                <NavLink class="sidebar-link" href="fno" @onclick="CloseSidebar">
+                    <span class="sidebar-icon">📉</span><span>F&O Options</span>
+                </NavLink>
+            }
             @if (IsFeatureVisible("watchlist"))
             {
                 <NavLink class="sidebar-link" href="watchlist" @onclick="CloseSidebar">
@@ -195,9 +198,12 @@
                 <span>📊</span><span>Markets</span>
             </NavLink>
         }
-        <NavLink class="mobile-nav-item" href="fno">
-            <span>📉</span><span>F&O</span>
-        </NavLink>
+        @if (IsFeatureVisible("fno"))
+        {
+            <NavLink class="mobile-nav-item" href="fno">
+                <span>📉</span><span>F&O</span>
+            </NavLink>
+        }
         @if (IsFeatureVisible("watchlist"))
         {
             <NavLink class="mobile-nav-item" href="watchlist">
@@ -472,6 +478,15 @@
     private bool IsFeatureVisible(string featureKey)
     {
         // Admin always sees everything
-        return isAdmin || FeatureFlagService.IsEnabled(featureKey);
+        if (isAdmin) return true;
+        if (!FeatureFlagService.IsEnabled(featureKey)) return false;
+        
+        // Free users can only see limited features
+        if (userPlan == "Free")
+        {
+            var freeFeatures = new HashSet<string> { "news", "notifications" };
+            return freeFeatures.Contains(featureKey);
+        }
+        return true;
     }
 }
