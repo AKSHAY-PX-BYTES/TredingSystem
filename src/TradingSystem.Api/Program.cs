@@ -439,6 +439,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
+app.UseCors("AllowFrontend");
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<RateLimitingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -455,7 +456,6 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Ena
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

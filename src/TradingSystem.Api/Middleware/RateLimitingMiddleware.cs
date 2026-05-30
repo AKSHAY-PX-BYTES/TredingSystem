@@ -69,7 +69,7 @@ public class RateLimitingMiddleware
                 context.Response.Headers["X-RateLimit-Limit"] = maxRequests.ToString();
                 context.Response.Headers["X-RateLimit-Remaining"] = "0";
                 context.Response.ContentType = "application/json";
-                context.Response.WriteAsync("{\"success\":false,\"error\":\"Too many requests. Please slow down and try again later.\"}");
+                await context.Response.WriteAsync("{\"success\":false,\"error\":\"Too many requests. Please slow down and try again later.\"}");
                 return;
             }
             
