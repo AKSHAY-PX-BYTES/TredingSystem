@@ -48,6 +48,8 @@ public class RateLimitingMiddleware
         
         var entry = _clients.GetOrAdd(key, _ => new RateLimitEntry());
         
+        bool rateLimited = false;
+        
         lock (entry)
         {
             var now = DateTime.UtcNow;
@@ -63,23 +65,30 @@ public class RateLimitingMiddleware
             {
                 _logger.LogWarning("Rate limit [{Tier}] exceeded for IP {ClientIp} on {Method} {Path} ({Count}/{Max})",
                     tierKey, clientIp, method, path, entry.RequestCount, maxRequests);
-                
-                context.Response.StatusCode = 429;
-                context.Response.Headers["Retry-After"] = windowSeconds.ToString();
-                context.Response.Headers["X-RateLimit-Limit"] = maxRequests.ToString();
-                context.Response.Headers["X-RateLimit-Remaining"] = "0";
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync("{\"success\":false,\"error\":\"Too many requests. Please slow down and try again later.\"}");
-                return;
+                rateLimited = true;
             }
             
             // Add rate limit headers for transparency
-            context.Response.OnStarting(() =>
+            if (!rateLimited)
             {
-                context.Response.Headers["X-RateLimit-Limit"] = maxRequests.ToString();
-                context.Response.Headers["X-RateLimit-Remaining"] = Math.Max(0, maxRequests - entry.RequestCount).ToString();
-                return Task.CompletedTask;
-            });
+                context.Response.OnStarting(() =>
+                {
+                    context.Response.Headers["X-RateLimit-Limit"] = maxRequests.ToString();
+                    context.Response.Headers["X-RateLimit-Remaining"] = Math.Max(0, maxRequests - entry.RequestCount).ToString();
+                    return Task.CompletedTask;
+                });
+            }
+        }
+
+        if (rateLimited)
+        {
+            context.Response.StatusCode = 429;
+            context.Response.Headers["Retry-After"] = windowSeconds.ToString();
+            context.Response.Headers["X-RateLimit-Limit"] = maxRequests.ToString();
+            context.Response.Headers["X-RateLimit-Remaining"] = "0";
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"success\":false,\"error\":\"Too many requests. Please slow down and try again later.\"}");
+            return;
         }
 
         // Periodic cleanup (every 5 minutes)
