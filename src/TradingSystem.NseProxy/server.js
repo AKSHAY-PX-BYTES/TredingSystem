@@ -1,7 +1,7 @@
 // Tiny NSE option-chain proxy.
-// Deploy this on an India-reachable host (Oracle Cloud Mumbai free VM, Render Singapore,
-// Railway, Fly.io ap-south, your own PC, etc.). NSE blocks most foreign/datacenter IPs,
-// so the host MUST be able to reach https://www.nseindia.com successfully.
+// Deploy this on an India-reachable host (Render Singapore, Railway, your own PC via
+// Cloudflare Tunnel, etc.). NSE blocks most foreign/datacenter IPs, so the host MUST
+// be able to reach https://www.nseindia.com successfully.
 //
 // Your TradingSystem.Api points at this via:  "Nse:ProxyBaseUrl": "https://<this-host>/option-chain"
 // The API calls:  GET /option-chain?symbol=NIFTY  -> returns NSE's raw option-chain JSON.

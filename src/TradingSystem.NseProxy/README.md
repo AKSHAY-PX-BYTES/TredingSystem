@@ -45,8 +45,6 @@ These regions/providers generally reach NSE successfully:
 3. **Your own PC / Raspberry Pi at home** (Indian broadband, NO card)
    - Run `npm start`, then expose it with Cloudflare Tunnel or ngrok to get a public HTTPS URL.
 
-> Note: Fly.io now requires billing info even on the free allowance — use Render instead.
-
 ### Docker
 
 ```powershell
