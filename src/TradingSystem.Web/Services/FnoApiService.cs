@@ -44,8 +44,10 @@ public class FnoApiService : IFnoApiService
 
     public async Task<FnoChartData?> GetChartDataAsync(string symbol, string optionType, decimal strike, string expiry)
     {
-        var response = await _http.GetFromJsonAsync<ApiResponse<FnoChartData>>(
-            $"fno/chart/{symbol}?type={optionType}&strike={strike}&expiry={expiry}");
+        if (string.IsNullOrWhiteSpace(expiry) || strike <= 0)
+            return null;
+        var url = $"fno/chart/{symbol}?type={Uri.EscapeDataString(optionType)}&strike={strike}&expiry={Uri.EscapeDataString(expiry)}";
+        var response = await _http.GetFromJsonAsync<ApiResponse<FnoChartData>>(url);
         return response?.Data;
     }
 

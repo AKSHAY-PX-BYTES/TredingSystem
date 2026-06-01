@@ -468,10 +468,19 @@
     private async Task OpenChart(OptionsContract? contract)
     {
         if (contract == null) return;
-        var expiryLabel = selectedExpiry;
-        try { expiryLabel = DateTime.Parse(selectedExpiry).ToString("dd MMM"); } catch { }
+        // Resolve a valid expiry: prefer the contract's own expiry, then the selected one, then the first available.
+        var expiry = !string.IsNullOrWhiteSpace(contract.Expiry)
+            ? contract.Expiry
+            : selectedExpiry;
+        if (string.IsNullOrWhiteSpace(expiry) && optionsChain?.Expiries?.Any() == true)
+            expiry = optionsChain.Expiries.First();
+        if (string.IsNullOrWhiteSpace(expiry))
+            return; // No valid expiry — don't call the chart endpoint with an empty value.
+
+        var expiryLabel = expiry;
+        try { expiryLabel = DateTime.Parse(expiry).ToString("dd MMM"); } catch { }
         selectedOption = $"{Symbol} {expiryLabel} {contract.StrikePrice:N0} {contract.OptionType}";
-        chartData = await FnoApi.GetChartDataAsync(Symbol, contract.OptionType, contract.StrikePrice, selectedExpiry);
+        chartData = await FnoApi.GetChartDataAsync(Symbol, contract.OptionType, contract.StrikePrice, expiry);
         if (chartData != null && chartData.Candles.Any())
         {
             minPrice = chartData.Candles.Min(c => c.Low);

@@ -297,6 +297,29 @@ public class FnoController : ControllerBase
         if (instrument == null)
             return NotFound(new { success = false, error = "Symbol not found" });
 
+        // Validate inputs — never throw a 400/500 on missing query params.
+        type = (type ?? string.Empty).Trim().ToUpperInvariant();
+        if (type != "CE" && type != "PE")
+            type = "CE";
+
+        if (string.IsNullOrWhiteSpace(expiry) || strike <= 0)
+        {
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    symbol,
+                    displayName = $"{symbol} {strike:N0} {(type == "CE" ? "Call" : "Put")}",
+                    source = "UNAVAILABLE",
+                    isLive = false,
+                    dataMessage = "Select a valid expiry and strike to view the option chart.",
+                    candles = new List<object>()
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
         var live = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
         var spotPrice = (live != null && live.Price > 0) ? live.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         
@@ -330,7 +353,7 @@ public class FnoController : ControllerBase
             // Fallback: Calculate option price using Black-Scholes approximation
             var intrinsic = type == "CE" ? Math.Max(0, spotPrice - strike) : Math.Max(0, strike - spotPrice);
             var istNow = DateTime.UtcNow.AddHours(5.5);
-            var expiryDate = DateTime.Parse(expiry).Date;
+            var expiryDate = DateTime.TryParse(expiry, out var parsedExp) ? parsedExp.Date : istNow.Date.AddDays(7);
             var daysToExp = Math.Max(0, (expiryDate - istNow.Date).TotalDays);
             double hoursLeft;
             if (daysToExp == 0)
