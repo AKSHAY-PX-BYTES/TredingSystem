@@ -36,13 +36,16 @@ npm start
 
 These regions/providers generally reach NSE successfully:
 
-1. **Oracle Cloud Free Tier — Mumbai/Hyderabad** (best free option: always-free Arm VM)
+1. **Render — Singapore region (NO credit card required)** ⭐ recommended
+   - Free web service, Singapore region usually reaches NSE.
+   - Uses the included `render.yaml` (Blueprint) — just connect the repo.
+2. **Oracle Cloud Free Tier — Mumbai/Hyderabad** (always-free Arm VM; requires card for signup)
    - Create an Always-Free VM in the `ap-mumbai-1` region.
    - Install Node 20, copy this folder, run `npm install && npm start` (use `pm2` or a systemd unit to keep it alive).
-2. **Railway / Render / Fly.io** with an **ap-south / Singapore** region (Singapore usually works; US does not).
-   - Fly.io: `fly launch` then set primary region to `sin` or `bom`.
-3. **Your own PC / Raspberry Pi at home** (Indian broadband)
+3. **Your own PC / Raspberry Pi at home** (Indian broadband, NO card)
    - Run `npm start`, then expose it with Cloudflare Tunnel or ngrok to get a public HTTPS URL.
+
+> Note: Fly.io now requires billing info even on the free allowance — use Render instead.
 
 ### Docker
 
