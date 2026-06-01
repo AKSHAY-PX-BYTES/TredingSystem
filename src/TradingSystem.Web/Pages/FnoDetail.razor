@@ -277,6 +277,29 @@
                     <h2>Options Chain — Spot: ₹@optionsChain.SpotPrice.ToString("N2")</h2>
                 </div>
 
+                @if (string.Equals(optionsChain.Source, "UNAVAILABLE", StringComparison.OrdinalIgnoreCase) || (!optionsChain.Calls.Any() && !optionsChain.Puts.Any()))
+                {
+                    <div class="market-unavailable">
+                        <div class="market-unavailable-icon">📵</div>
+                        <h3>Market Data Unavailable</h3>
+                        <p>@(string.IsNullOrEmpty(optionsChain.DataMessage)
+                            ? "Live option-chain data for this instrument is currently unavailable. Prices are not shown to avoid displaying inaccurate values."
+                            : optionsChain.DataMessage)</p>
+                        <p class="market-unavailable-hint">Please try again during market hours, or check back shortly.</p>
+                    </div>
+                }
+                else
+                {
+                    @if (string.Equals(optionsChain.Source, "ESTIMATED", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <div class="market-estimated-banner">
+                            ⚠️ @(string.IsNullOrEmpty(optionsChain.DataMessage) ? "Estimated prices (model-based, NOT live market data)." : optionsChain.DataMessage)
+                        </div>
+                    }
+                    else if (optionsChain.IsLive)
+                    {
+                        <div class="market-live-banner">🟢 LIVE market data</div>
+                    }
                 <!-- All Available Expiries grouped by month -->
                 <div class="expiry-group-container">
                     @foreach (var group in GroupedExpiries)
@@ -369,6 +392,7 @@
                         </tbody>
                     </table>
                 </div>
+                }
             </div>
         }
     }
@@ -568,6 +592,15 @@
     .options-section { margin-top: 24px; }
     .options-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
     .options-header h2 { font-size: 1.2rem; margin: 0; }
+
+    /* Data provenance banners */
+    .market-unavailable { text-align: center; padding: 48px 24px; border: 1px dashed var(--border); border-radius: 12px; background: var(--card-bg); }
+    .market-unavailable-icon { font-size: 2.6rem; margin-bottom: 8px; }
+    .market-unavailable h3 { margin: 0 0 8px; font-size: 1.15rem; color: var(--text-primary); }
+    .market-unavailable p { margin: 4px auto; max-width: 520px; color: var(--text-secondary); font-size: 0.9rem; }
+    .market-unavailable-hint { font-style: italic; opacity: 0.8; }
+    .market-estimated-banner { padding: 10px 14px; margin-bottom: 14px; border-radius: 8px; background: rgba(255,171,0,0.12); border: 1px solid rgba(255,171,0,0.4); color: #b26a00; font-size: 0.85rem; font-weight: 600; }
+    .market-live-banner { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; margin-bottom: 14px; border-radius: 20px; background: rgba(0,200,83,0.12); border: 1px solid rgba(0,200,83,0.35); color: #00a046; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.3px; }
     .expiry-selector { display: flex; gap: 8px; }
     .expiry-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
     .expiry-btn.active { background: var(--primary); color: white; border-color: var(--primary); }

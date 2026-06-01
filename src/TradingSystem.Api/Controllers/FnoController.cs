@@ -13,6 +13,7 @@ public class FnoController : ControllerBase
     private readonly ILiveMarketDataService _marketData;
     private readonly INseOptionChainService _nseOptions;
     private readonly ILogger<FnoController> _logger;
+    private readonly bool _allowSyntheticData;
     private static readonly Random _rng = new();
 
     // F&O instruments with their details - Indian Indices
@@ -64,11 +65,14 @@ public class FnoController : ControllerBase
         new("STOXX50", "Euro STOXX 50", 5100m, "Global", "index", "^STOXX50E"),
     };
 
-    public FnoController(ILiveMarketDataService marketData, INseOptionChainService nseOptions, ILogger<FnoController> logger)
+    public FnoController(ILiveMarketDataService marketData, INseOptionChainService nseOptions, ILogger<FnoController> logger, IConfiguration configuration)
     {
         _marketData = marketData;
         _nseOptions = nseOptions;
         _logger = logger;
+        // Synthetic/estimated option pricing is DISABLED by default. Real live market data only.
+        // Set "Fno:AllowSyntheticData": true in configuration ONLY for demo/offline environments.
+        _allowSyntheticData = configuration.GetValue<bool>("Fno:AllowSyntheticData", false);
     }
 
     /// <summary>Get all F&O indices with live prices from Yahoo Finance</summary>
@@ -139,48 +143,80 @@ public class FnoController : ControllerBase
 
         // Try to get LIVE option chain from NSE first
         var nseChain = await _nseOptions.GetFullChainAsync(symbol, expiry);
-        
+
         if (nseChain != null && nseChain.Options.Count > 0)
         {
-            // USE REAL NSE DATA
+            // USE REAL LIVE DATA ONLY — no synthetic fill-ins
             var spotPrice = nseChain.SpotPrice > 0 ? nseChain.SpotPrice : instrument.BasePrice;
-            var strikeInterval = GetStrikeInterval(spotPrice);
-            var atmStrike = Math.Round(spotPrice / strikeInterval) * strikeInterval;
-            
-            // Use NSE expiries, convert format
+
+            // Use live expiries directly from the feed
             var expiries = nseChain.Expiries.Take(12).ToList();
             var selectedExpiry = expiry ?? (expiries.Count > 0 ? expiries[0] : GetUpcomingExpiries(4).First());
 
-            // Build calls/puts from live data
-            var strikes = Enumerable.Range(-10, 21).Select(i => atmStrike + i * strikeInterval).ToList();
-            
-            var calls = strikes.Select(strike =>
-            {
-                var key = $"{strike:F0}_CE";
-                if (nseChain.Options.TryGetValue(key, out var liveOpt) && liveOpt.LastPrice > 0)
-                    return BuildLiveOption(symbol, strike, "CE", spotPrice, selectedExpiry, liveOpt);
-                return GenerateOption(symbol, strike, "CE", spotPrice, selectedExpiry);
-            }).ToList();
+            // Derive the actual strikes present in the LIVE feed (do NOT fabricate missing strikes)
+            var liveStrikes = nseChain.Options.Keys
+                .Select(k => k.Split('_'))
+                .Where(parts => parts.Length == 2 && decimal.TryParse(parts[0], out _))
+                .Select(parts => decimal.Parse(parts[0]))
+                .Distinct()
+                .OrderBy(s => s)
+                .ToList();
 
-            var puts = strikes.Select(strike =>
+            var calls = new List<object>();
+            var puts = new List<object>();
+            foreach (var strike in liveStrikes)
             {
-                var key = $"{strike:F0}_PE";
-                if (nseChain.Options.TryGetValue(key, out var liveOpt) && liveOpt.LastPrice > 0)
-                    return BuildLiveOption(symbol, strike, "PE", spotPrice, selectedExpiry, liveOpt);
-                return GenerateOption(symbol, strike, "PE", spotPrice, selectedExpiry);
-            }).ToList();
+                if (nseChain.Options.TryGetValue($"{strike:F0}_CE", out var liveCall) && liveCall.LastPrice > 0)
+                    calls.Add(BuildLiveOption(symbol, strike, "CE", spotPrice, selectedExpiry, liveCall));
+                if (nseChain.Options.TryGetValue($"{strike:F0}_PE", out var livePut) && livePut.LastPrice > 0)
+                    puts.Add(BuildLiveOption(symbol, strike, "PE", spotPrice, selectedExpiry, livePut));
+            }
 
             return Ok(new
             {
                 success = true,
-                data = new { underlying = symbol, spotPrice, expiries, calls, puts, source = "NSE_LIVE" },
+                data = new
+                {
+                    underlying = symbol,
+                    spotPrice,
+                    expiries,
+                    calls,
+                    puts,
+                    source = "LIVE",
+                    isLive = true,
+                    dataMessage = (string?)null
+                },
                 timestamp = DateTime.UtcNow
             });
         }
 
-        // FALLBACK: Use Yahoo spot + Black-Scholes formula
-        var liveQuote = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
-        var fallbackSpot = (liveQuote != null && liveQuote.Price > 0) ? liveQuote.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
+        // No live option chain available.
+        if (!_allowSyntheticData)
+        {
+            // Per requirement: never display generated values. Surface a clear "unavailable" state instead.
+            _logger.LogWarning("Live option chain unavailable for {Symbol}. Returning UNAVAILABLE (synthetic data disabled).", symbol);
+            var liveSpot = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    underlying = symbol,
+                    spotPrice = (liveSpot != null && liveSpot.Price > 0) ? liveSpot.Price : 0m,
+                    expiries = new List<string>(),
+                    calls = new List<object>(),
+                    puts = new List<object>(),
+                    source = "UNAVAILABLE",
+                    isLive = false,
+                    dataMessage = "Live market data is currently unavailable for this instrument. Option prices are not shown to avoid displaying inaccurate values."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        // OPT-IN ESTIMATED MODE (Fno:AllowSyntheticData = true) — for demo/offline only, clearly flagged as estimated
+        var fallbackQuote = await _marketData.FetchQuoteAsync(instrument.YahooTicker);
+        var fallbackSpot = (fallbackQuote != null && fallbackQuote.Price > 0) ? fallbackQuote.Price : instrument.BasePrice + GenerateChange(instrument.BasePrice);
         var fallbackInterval = GetStrikeInterval(fallbackSpot);
         var fallbackAtm = Math.Round(fallbackSpot / fallbackInterval) * fallbackInterval;
 
@@ -201,7 +237,9 @@ public class FnoController : ControllerBase
                 expiries = fallbackExpiries,
                 calls = fallbackCalls,
                 puts = fallbackPuts,
-                source = "CALCULATED"
+                source = "ESTIMATED",
+                isLive = false,
+                dataMessage = "Estimated prices (model-based, NOT live market data)."
             },
             timestamp = DateTime.UtcNow
         });
@@ -268,6 +306,24 @@ public class FnoController : ControllerBase
         if (nseOpt != null && nseOpt.LastPrice > 0)
         {
             optionPrice = nseOpt.LastPrice;
+        }
+        else if (!_allowSyntheticData)
+        {
+            // No live price available and synthetic data disabled — do not fabricate a chart.
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    symbol,
+                    displayName = $"{symbol} {strike:N0} {(type == "CE" ? "Call" : "Put")}",
+                    source = "UNAVAILABLE",
+                    isLive = false,
+                    dataMessage = "Live price for this option is currently unavailable. Chart data is not shown to avoid displaying inaccurate values.",
+                    candles = new List<object>()
+                },
+                timestamp = DateTime.UtcNow
+            });
         }
         else
         {

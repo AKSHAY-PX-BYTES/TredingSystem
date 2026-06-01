@@ -600,6 +600,10 @@ public class OptionsChain
     public List<string> Expiries { get; set; } = new();
     public List<OptionsContract> Calls { get; set; } = new();
     public List<OptionsContract> Puts { get; set; } = new();
+    // Data provenance: "LIVE" = real market data, "UNAVAILABLE" = no live feed, "ESTIMATED" = model-based (demo only)
+    public string Source { get; set; } = string.Empty;
+    public bool IsLive { get; set; }
+    public string? DataMessage { get; set; }
 }
 
 public class FnoSignal
