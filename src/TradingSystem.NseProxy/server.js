@@ -39,21 +39,54 @@ const respCache = new Map(); // symbol -> { at, body }
 const RESP_TTL_MS = 3000; // 3s cache to be gentle on NSE
 
 async function refreshCookies() {
-  // Visit NSE homepage + option-chain page to obtain cookies.
-  const res = await fetch("https://www.nseindia.com/option-chain", {
-    headers: BROWSER_HEADERS,
-  });
-  // Collect Set-Cookie headers (Node 18+ exposes getSetCookie()).
-  const setCookies =
-    typeof res.headers.getSetCookie === "function"
-      ? res.headers.getSetCookie()
-      : [res.headers.get("set-cookie")].filter(Boolean);
-  if (setCookies && setCookies.length) {
-    cookieJar = setCookies.map((c) => c.split(";")[0]).join("; ");
-    cookieFetchedAt = Date.now();
+  // NSE only returns API data to sessions that look like a real browser flow.
+  // Warm up by visiting the homepage first, then the option-chain page,
+  // accumulating cookies across both requests.
+  cookieJar = "";
+  const warmupUrls = [
+    "https://www.nseindia.com/",
+    "https://www.nseindia.com/option-chain",
+  ];
+
+  const jar = {};
+  for (const url of warmupUrls) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          ...BROWSER_HEADERS,
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Upgrade-Insecure-Requests": "1",
+          Cookie: serializeJar(jar),
+        },
+        redirect: "follow",
+      });
+      const setCookies =
+        typeof res.headers.getSetCookie === "function"
+          ? res.headers.getSetCookie()
+          : [res.headers.get("set-cookie")].filter(Boolean);
+      for (const c of setCookies) {
+        if (!c) continue;
+        const [pair] = c.split(";");
+        const idx = pair.indexOf("=");
+        if (idx > 0) jar[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim();
+      }
+      await res.text().catch(() => {});
+    } catch (e) {
+      console.error("warmup fetch failed:", url, e.message);
+    }
   }
-  // Drain body so the connection is reused cleanly.
-  await res.text().catch(() => {});
+
+  cookieJar = serializeJar(jar);
+  cookieFetchedAt = Date.now();
+}
+
+function serializeJar(jar) {
+  return Object.entries(jar)
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
 }
 
 async function ensureCookies() {
@@ -72,8 +105,9 @@ async function fetchOptionChain(symbol) {
     headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
   });
 
-  // If session expired (401/403), refresh cookies once and retry.
-  if (res.status === 401 || res.status === 403) {
+  // NSE returns 401/403 (and sometimes 404) when the session isn't recognized.
+  // Refresh cookies once and retry.
+  if (res.status === 401 || res.status === 403 || res.status === 404) {
     await refreshCookies();
     res = await fetch(url, {
       headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
@@ -92,6 +126,29 @@ async function fetchOptionChain(symbol) {
 }
 
 app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+// Diagnostic endpoint: shows whether this host can reach NSE and what it returns.
+app.get("/debug", async (_req, res) => {
+  const out = { time: new Date().toISOString() };
+  try {
+    await refreshCookies();
+    out.cookieCount = cookieJar ? cookieJar.split(";").length : 0;
+    out.cookiePreview = cookieJar.slice(0, 80);
+
+    const url =
+      "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY";
+    const r = await fetch(url, {
+      headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
+    });
+    out.nseStatus = r.status;
+    const text = await r.text().catch(() => "");
+    out.bodyPreview = text.slice(0, 200);
+    out.looksLikeJson = text.trimStart().startsWith("{");
+  } catch (e) {
+    out.error = e.message;
+  }
+  res.json(out);
+});
 
 app.get("/option-chain", async (req, res) => {
   try {
