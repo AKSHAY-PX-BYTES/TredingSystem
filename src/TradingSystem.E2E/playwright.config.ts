@@ -2,8 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 import { env } from './src/config/env';
 
 /**
- * Playwright configuration — headless, CI-ready, multi-project (browsers + viewports),
+ * Playwright configuration — headless, CI-ready, Chromium-only,
  * with professional HTML + JSON reporting and trace/screenshot/video on failure.
+ * Responsive tests emulate mobile/tablet/desktop viewports within Chromium.
  *
  * Docs: https://playwright.dev/docs/test-configuration
  */
@@ -43,22 +44,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 7'] },
-    },
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 14'] },
     },
   ],
 });

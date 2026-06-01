@@ -16,7 +16,7 @@ application (Blazor WASM frontend + ASP.NET Core API). Runs **headless**, genera
 | Reporting | Built-in **HTML** + JSON + JUnit |
 | Email | `nodemailer` (SMTP) |
 | CI/CD | GitHub Actions (`.github/workflows/e2e-tests.yml`) |
-| Browsers | Chromium, Firefox, WebKit + mobile emulation |
+| Browsers | Chromium (responsive tests emulate mobile/tablet viewports) |
 
 ---
 
