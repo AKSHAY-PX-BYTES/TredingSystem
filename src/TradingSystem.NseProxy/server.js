@@ -95,23 +95,39 @@ async function ensureCookies() {
   }
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function fetchOptionChain(symbol) {
   await ensureCookies();
   const url = `https://www.nseindia.com/api/option-chain-indices?symbol=${encodeURIComponent(
     symbol
   )}`;
 
-  let res = await fetch(url, {
-    headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
+  const apiHeaders = () => ({
+    ...BROWSER_HEADERS,
+    Accept: "application/json, text/plain, */*",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "X-Requested-With": "XMLHttpRequest",
+    Cookie: cookieJar,
   });
 
-  // NSE returns 401/403 (and sometimes 404) when the session isn't recognized.
-  // Refresh cookies once and retry.
-  if (res.status === 401 || res.status === 403 || res.status === 404) {
+  // Akamai sometimes lets the 2nd/3rd call through within a primed session.
+  let res;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    // Prime a lightweight API first to help validate the session.
+    try {
+      await fetch("https://www.nseindia.com/api/marketStatus", {
+        headers: apiHeaders(),
+      }).then((r) => r.text().catch(() => {}));
+    } catch {}
+
+    res = await fetch(url, { headers: apiHeaders() });
+    if (res.ok) break;
+
+    // Refresh cookies and back off before retrying.
     await refreshCookies();
-    res = await fetch(url, {
-      headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
-    });
+    await sleep(400 * attempt);
   }
 
   if (!res.ok) {

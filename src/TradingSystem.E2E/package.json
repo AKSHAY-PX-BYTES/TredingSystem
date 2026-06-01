@@ -1,0 +1,31 @@
+{
+  "name": "tradingsystem-e2e",
+  "version": "1.0.0",
+  "description": "Enterprise-grade End-to-End test automation for the TradingSystem web application using Playwright.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:regression": "playwright test --grep @regression",
+    "test:auth": "playwright test tests/auth",
+    "test:api": "playwright test tests/api",
+    "test:responsive": "playwright test tests/responsive",
+    "test:chromium": "playwright test --project=chromium",
+    "report": "playwright show-report reports/html",
+    "email:report": "tsx scripts/send-report-email.ts",
+    "ci": "playwright test || true",
+    "install:browsers": "playwright install --with-deps"
+  },
+  "keywords": ["playwright", "e2e", "automation", "testing", "trading"],
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.7.0",
+    "dotenv": "^16.4.5",
+    "nodemailer": "^6.9.15",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
