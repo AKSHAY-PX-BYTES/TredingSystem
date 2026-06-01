@@ -1,0 +1,28 @@
+# Fly.io configuration for the TradingSystem NSE proxy.
+# Region "bom" = Mumbai, India (reaches nseindia.com). Change app name after `fly launch` if taken.
+app = "tradingsystem-nse-proxy"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+
+[env]
+  PORT = "8080"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

@@ -39,6 +39,7 @@ public class NseOptionChainService : INseOptionChainService
 {
     private readonly ILogger<NseOptionChainService> _logger;
     private readonly IHttpClientFactory _httpFactory;
+    private readonly string? _proxyBaseUrl;
     private readonly ConcurrentDictionary<string, (DateTime CachedAt, NseOptionChainResult Data)> _cache = new();
     private static readonly SemaphoreSlim _semaphore = new(2, 2);
     private const int CACHE_SECONDS = 10; // 10-second cache for near real-time
@@ -67,10 +68,13 @@ public class NseOptionChainService : INseOptionChainService
         ["MIDCPNIFTY"] = "MIDCPNIFTY",
     };
 
-    public NseOptionChainService(IHttpClientFactory httpFactory, ILogger<NseOptionChainService> logger)
+    public NseOptionChainService(IHttpClientFactory httpFactory, ILogger<NseOptionChainService> logger, IConfiguration configuration)
     {
         _httpFactory = httpFactory;
         _logger = logger;
+        // Optional India-hosted proxy that returns NSE's option-chain JSON.
+        // Set "Nse:ProxyBaseUrl" to a reachable endpoint, e.g. "https://my-india-proxy.example.com/option-chain"
+        _proxyBaseUrl = configuration["Nse:ProxyBaseUrl"];
     }
 
     public async Task<NseOptionData?> GetOptionPriceAsync(string symbol, decimal strike, string optionType, string expiry)
@@ -111,6 +115,15 @@ public class NseOptionChainService : INseOptionChainService
                 _cache[cacheKey] = (DateTime.UtcNow, result);
                 _logger.LogInformation("LIVE options from Yahoo for {Symbol}: {Count} contracts, spot={Spot}",
                     symbol, result.Options.Count, result.SpotPrice);
+                return result;
+            }
+
+            // Most accurate for Indian indices: a configured India-hosted proxy returning NSE JSON
+            result = await FetchFromProxyAsync(symbol, expiry);
+            if (result != null && result.Options.Count > 0)
+            {
+                _cache[cacheKey] = (DateTime.UtcNow, result);
+                _logger.LogInformation("LIVE options from proxy for {Symbol}: {Count} contracts", symbol, result.Options.Count);
                 return result;
             }
 
@@ -262,6 +275,40 @@ public class NseOptionChainService : INseOptionChainService
             OiChange = 0, // Yahoo doesn't provide OI change directly
             Volume = GetLongProp(el, "volume"),
         };
+    }
+
+    /// <summary>
+    /// Optional India-hosted proxy returning NSE's standard option-chain JSON
+    /// (same shape as https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY).
+    /// This is the recommended way to get accurate live Indian option data from a cloud server.
+    /// </summary>
+    private async Task<NseOptionChainResult?> FetchFromProxyAsync(string symbol, string? expiry)
+    {
+        if (string.IsNullOrWhiteSpace(_proxyBaseUrl)) return null;
+        if (!NseSymbolMap.TryGetValue(symbol, out var nseKey)) return null;
+
+        try
+        {
+            var client = _httpFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
+            var sep = _proxyBaseUrl.Contains('?') ? "&" : "?";
+            var url = $"{_proxyBaseUrl}{sep}symbol={Uri.EscapeDataString(nseKey)}";
+
+            using var response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Proxy returned {Status} for {Symbol}", response.StatusCode, symbol);
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            return ParseNseResponse(json, expiry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Proxy option-chain fetch failed for {Symbol}", symbol);
+            return null;
+        }
     }
 
     /// <summary>
