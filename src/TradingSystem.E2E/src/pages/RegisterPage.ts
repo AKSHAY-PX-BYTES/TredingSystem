@@ -19,6 +19,10 @@ export class RegisterPage extends BasePage {
   readonly otpInput: Locator;
   readonly errorBanner: Locator;
   readonly successBanner: Locator;
+  /** Shown by <FeatureGate> when the "signup" feature flag is disabled. */
+  readonly featureDisabled: Locator;
+  /** Blazor's fatal unhandled-error bar. */
+  readonly blazorError: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -27,6 +31,22 @@ export class RegisterPage extends BasePage {
     this.otpInput = page.locator('#otp');
     this.errorBanner = page.locator('.login-error');
     this.successBanner = page.locator('.login-success');
+    this.featureDisabled = page.locator('.feature-disabled-page');
+    this.blazorError = page.locator('#blazor-error-ui');
+  }
+
+  /**
+   * True only when signup is intentionally gated off (FeatureGate shows the
+   * "Feature Unavailable" card). This is a legitimate reason to skip a test —
+   * unlike a crashed page, which should fail.
+   */
+  async isFeatureGated(): Promise<boolean> {
+    return this.featureDisabled.isVisible().catch(() => false);
+  }
+
+  /** True if Blazor's fatal error bar is showing (page crashed on boot). */
+  async hasFatalError(): Promise<boolean> {
+    return this.blazorError.isVisible().catch(() => false);
   }
 
   async enterEmail(email: string): Promise<void> {

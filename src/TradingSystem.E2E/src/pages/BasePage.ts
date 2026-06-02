@@ -7,7 +7,7 @@ import { gotoResilient } from '../utils/helpers';
  * (the app boots asynchronously, so we wait for the loading screen to clear).
  */
 export abstract class BasePage {
-  constructor(protected readonly page: Page) {}
+  constructor(public readonly page: Page) {}
 
   /** Relative path (e.g. "/markets") for this page; override in subclasses. */
   abstract readonly path: string;

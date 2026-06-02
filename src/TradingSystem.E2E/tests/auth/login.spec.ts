@@ -1,5 +1,5 @@
 import { test, expect } from '../../src/fixtures/test-fixtures';
-import { env, hasUserCreds } from '../../src/config/env';
+import { env } from '../../src/config/env';
 import { expectNoBlazorError } from '../../src/utils/helpers';
 
 /**
@@ -37,7 +37,6 @@ test.describe('Authentication › Login', () => {
   });
 
   test('valid credentials log the user in @smoke', async ({ loginPage }) => {
-    test.skip(!hasUserCreds(), 'TEST_USERNAME/TEST_PASSWORD not configured');
     await loginPage.goto();
     await loginPage.loginAndWait(env.credentials.username, env.credentials.password);
     expect(loginPage.page.url()).not.toContain('/login');

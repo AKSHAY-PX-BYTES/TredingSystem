@@ -12,13 +12,17 @@ export const env = {
   testEnv: process.env.TEST_ENV ?? 'production',
 
   credentials: {
-    username: process.env.TEST_USERNAME ?? '',
-    password: process.env.TEST_PASSWORD ?? '',
+    // Defaults point at the API's seeded "trader" account (Pro plan) so the
+    // suite runs end-to-end with zero skips out of the box. Override with real
+    // secrets in CI (TEST_USERNAME/TEST_PASSWORD) for a dedicated account.
+    username: process.env.TEST_USERNAME ?? 'trader',
+    password: process.env.TEST_PASSWORD ?? 'Trader@123',
   },
 
   admin: {
-    username: process.env.ADMIN_USERNAME ?? '',
-    password: process.env.ADMIN_PASSWORD ?? '',
+    // Seeded admin account — bypasses premium gating so admin-only flows run.
+    username: process.env.ADMIN_USERNAME ?? 'admin',
+    password: process.env.ADMIN_PASSWORD ?? 'Admin@123',
   },
 
   workers: process.env.WORKERS ? Number(process.env.WORKERS) : undefined,

@@ -8,12 +8,12 @@ import {
   SettingsPage,
   NavBar,
 } from '../pages';
-import { env, hasUserCreds } from '../config/env';
+import { env } from '../config/env';
 
 /**
- * Custom fixtures: inject page objects and an optional authenticated session.
- * Tests that need a logged-in user can use the `authedPage` fixture; it will
- * automatically skip if no credentials are configured.
+ * Custom fixtures: inject page objects and an authenticated session.
+ * Credentials default to the API's seeded "trader" account (see config/env),
+ * so the suite runs end-to-end without skipping. Override via env/secrets.
  */
 type Pages = {
   loginPage: LoginPage;
@@ -40,7 +40,7 @@ export const test = base.extend<Pages & AuthFixtures>({
   navBar: async ({ page }, use) => use(new NavBar(page)),
 
   authedPage: async ({ page }, use) => {
-    test.skip(!hasUserCreds(), 'TEST_USERNAME/TEST_PASSWORD not configured');
+    // No skip: credentials always resolve to a seeded dummy account by default.
     const login = new LoginPage(page);
     await login.goto();
     await login.loginAndWait(env.credentials.username, env.credentials.password);
