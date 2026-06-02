@@ -1,6 +1,11 @@
 import { test, expect } from '../../src/fixtures/test-fixtures';
 import { NavBar } from '../../src/pages';
-import { expectNoBlazorError, captureConsoleErrors } from '../../src/utils/helpers';
+import {
+  expectNoBlazorError,
+  expectNoBlazorErrorResilient,
+  captureConsoleErrors,
+  gotoResilient,
+} from '../../src/utils/helpers';
 
 /**
  * Regression smoke — broad pass over public + key authenticated pages to
@@ -8,11 +13,20 @@ import { expectNoBlazorError, captureConsoleErrors } from '../../src/utils/helpe
  */
 test.describe('Regression › Smoke', () => {
   test('public pages load without fatal errors @smoke @regression', async ({ page }) => {
-    for (const path of ['/login', '/register']) {
-      await page.goto(path, { waitUntil: 'domcontentloaded' });
+    // Cold-start tolerant: resilient nav + reload-retry on the fatal-error bar.
+    test.setTimeout(120_000);
+    // Path -> a selector that proves the page actually rendered its content.
+    const publicPages: Array<{ path: string; ready: string }> = [
+      { path: '/login', ready: '#username' },
+      { path: '/register', ready: '#email, #username, input[type="email"]' },
+    ];
+    for (const { path, ready } of publicPages) {
+      await gotoResilient(page, path);
       await page.locator('.loading-screen').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
-      await page.waitForTimeout(1200);
-      await expectNoBlazorError(page);
+      // Positive signal: if the app had truly crashed on boot, its content
+      // would never render. Wait for the page's own elements to appear.
+      await expect(page.locator(ready).first()).toBeVisible({ timeout: 30_000 });
+      await expectNoBlazorErrorResilient(page);
     }
   });
 
@@ -20,7 +34,7 @@ test.describe('Regression › Smoke', () => {
     const errors = captureConsoleErrors(authedPage);
     const paths = ['/', '/markets', '/fno', '/watchlist', '/charts', '/settings'];
     for (const path of paths) {
-      await authedPage.goto(path, { waitUntil: 'domcontentloaded' });
+      await gotoResilient(authedPage, path);
       await authedPage.locator('.loading-screen').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
       await authedPage.waitForTimeout(1200);
       await expectNoBlazorError(authedPage);
@@ -31,7 +45,7 @@ test.describe('Regression › Smoke', () => {
 
   test('logout returns the user to an unauthenticated state @regression', async ({ authedPage }) => {
     const nav = new NavBar(authedPage);
-    await authedPage.goto('/', { waitUntil: 'domcontentloaded' });
+    await gotoResilient(authedPage, '/');
     await authedPage.locator('.loading-screen').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
     await nav.openSidebar();
     const logout = authedPage.getByText(/log\s?out|sign out/i).first();

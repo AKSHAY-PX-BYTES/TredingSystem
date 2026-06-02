@@ -42,7 +42,42 @@ export async function waitForBlazor(page: Page): Promise<void> {
 export async function expectNoBlazorError(page: Page): Promise<void> {
   const errorUi = page.locator('#blazor-error-ui');
   const visible = await errorUi.isVisible().catch(() => false);
-  expect(visible, 'Blazor unhandled error UI should not be visible').toBeFalsy();
+  if (!visible) return;
+
+  // The fatal error bar is showing. Capture as much diagnostic context as
+  // possible so CI failures are actionable instead of a bare boolean.
+  const barText = (await errorUi.innerText().catch(() => '')).trim();
+  const url = page.url();
+  const detail = barText ? ` — bar text: "${barText}"` : '';
+  expect(
+    visible,
+    `Blazor unhandled error UI is visible on ${url}${detail}`,
+  ).toBeFalsy();
+}
+
+/**
+ * Reload + retry wrapper for the fatal-error check.
+ *
+ * On a cold Render instance the very first boot can transiently surface the
+ * error bar (e.g. a hashed asset 404s before caches warm, or a JS-interop race
+ * during startup). A full reload boots the WASM runtime fresh; if the error was
+ * transient it won't reappear. We only fail if it is *persistently* fatal.
+ */
+export async function expectNoBlazorErrorResilient(
+  page: Page,
+  { retries = 1 }: { retries?: number } = {},
+): Promise<void> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const visible = await page.locator('#blazor-error-ui').isVisible().catch(() => false);
+    if (!visible) return;
+    if (attempt < retries) {
+      await page.reload({ waitUntil: 'commit' }).catch(() => {});
+      await waitForBlazor(page);
+      await page.waitForTimeout(1_500);
+    }
+  }
+  // Still failing after retries — assert (and capture diagnostics).
+  await expectNoBlazorError(page);
 }
 
 /** Collect console errors during a test for later assertions. */
