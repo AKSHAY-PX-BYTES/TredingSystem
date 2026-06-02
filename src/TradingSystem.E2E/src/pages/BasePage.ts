@@ -1,4 +1,5 @@
 import { Page, Locator, expect } from '@playwright/test';
+import { gotoResilient } from '../utils/helpers';
 
 /**
  * BasePage — shared behavior for all page objects.
@@ -13,7 +14,7 @@ export abstract class BasePage {
 
   /** Navigate to this page's path and wait for the app to be interactive. */
   async goto(): Promise<void> {
-    await this.page.goto(this.path, { waitUntil: 'domcontentloaded' });
+    await gotoResilient(this.page, this.path);
     await this.waitForAppReady();
   }
 

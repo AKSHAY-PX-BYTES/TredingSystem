@@ -7,7 +7,7 @@ import 'dotenv/config';
  * the deployed environment.
  */
 export const env = {
-  baseURL: process.env.BASE_URL ?? 'https://tredingsystem.netlify.app',
+  baseURL: process.env.BASE_URL ?? 'https://tredingsystem-31vm.onrender.com',
   apiBaseURL: process.env.API_BASE_URL ?? 'https://tredingsystem-api.onrender.com',
   testEnv: process.env.TEST_ENV ?? 'production',
 

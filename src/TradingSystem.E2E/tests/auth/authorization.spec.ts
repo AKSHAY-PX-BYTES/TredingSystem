@@ -1,5 +1,6 @@
 import { test, expect } from '../../src/fixtures/test-fixtures';
 import { NavBar } from '../../src/pages';
+import { gotoResilient } from '../../src/utils/helpers';
 
 /**
  * Authorization — protected routes require authentication.
@@ -10,11 +11,16 @@ const protectedRoutes = ['/markets', '/fno', '/watchlist', '/charts', '/compare'
 test.describe('Authorization › Protected routes', () => {
   for (const route of protectedRoutes) {
     test(`unauthenticated access to ${route} redirects to login @regression`, async ({ page }) => {
-      await page.goto(route, { waitUntil: 'domcontentloaded' });
+      // Cold-start tolerant: resilient nav (up to 2× 60s) + splash + 30s poll can
+      // exceed the default 60s test budget, so widen it for these checks.
+      test.setTimeout(150_000);
+      // Resilient nav: Netlify cold start + Blazor WASM download can be slow,
+      // so navigate with waitUntil:'commit' and retry rather than a single goto.
+      await gotoResilient(page, route);
       await page.locator('.loading-screen').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
       // Blazor resolves the auth state client-side and then RedirectToLogin runs.
-      // Heavier pages (markets/fno) can take a moment, so poll until the redirect
-      // lands on /login or the login form renders, rather than a single fixed wait.
+      // Heavier pages (markets/fno) plus a cold WASM boot can take a while, so
+      // poll until the redirect lands on /login or the login form renders.
       await expect
         .poll(
           async () => {
@@ -22,7 +28,7 @@ test.describe('Authorization › Protected routes', () => {
             const hasLoginForm = await page.locator('#username').isVisible().catch(() => false);
             return onLogin || hasLoginForm;
           },
-          { message: `${route} should require auth`, timeout: 15_000 }
+          { message: `${route} should require auth`, timeout: 30_000 }
         )
         .toBe(true);
     });

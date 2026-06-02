@@ -2,6 +2,34 @@ import { Page, expect } from '@playwright/test';
 
 /** Misc reusable test helpers. */
 
+/**
+ * Navigate to a path resiliently.
+ *
+ * The frontend is a Blazor WASM SPA hosted on Netlify's free tier, so the
+ * first request after an idle period can be slow (cold start + multi-MB WASM
+ * download). We use `waitUntil: 'commit'` (resolves as soon as the server
+ * responds) instead of `domcontentloaded`/`load` so navigation doesn't block
+ * on every asset, and we retry once on a slow/cold first hit.
+ */
+export async function gotoResilient(
+  page: Page,
+  path: string,
+  { timeout = 60_000, retries = 1 }: { timeout?: number; retries?: number } = {},
+): Promise<void> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await page.goto(path, { waitUntil: 'commit', timeout });
+      return;
+    } catch (err) {
+      lastErr = err;
+      // Brief pause to let a cold Netlify instance finish warming up.
+      await page.waitForTimeout(1_000);
+    }
+  }
+  throw lastErr;
+}
+
 /** Wait until the Blazor app shell is mounted (loading splash gone). */
 export async function waitForBlazor(page: Page): Promise<void> {
   await page

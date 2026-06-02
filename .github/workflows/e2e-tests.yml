@@ -19,7 +19,7 @@ on:
       base_url:
         description: 'Frontend base URL to test against'
         required: false
-        default: 'https://tredingsystem.netlify.app'
+        default: 'https://tredingsystem-31vm.onrender.com'
   schedule:
     - cron: '30 2 * * *' # 02:30 UTC daily
 
@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 45
 
     env:
-      BASE_URL: ${{ github.event.inputs.base_url || vars.E2E_BASE_URL || 'https://tredingsystem.netlify.app' }}
+      BASE_URL: ${{ github.event.inputs.base_url || vars.E2E_BASE_URL || 'https://tredingsystem-31vm.onrender.com' }}
       API_BASE_URL: ${{ vars.E2E_API_BASE_URL || 'https://tredingsystem-api.onrender.com' }}
       TEST_ENV: ${{ vars.E2E_TEST_ENV || 'production' }}
       TEST_USERNAME: ${{ secrets.E2E_TEST_USERNAME }}

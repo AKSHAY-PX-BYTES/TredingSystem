@@ -32,7 +32,9 @@ export default defineConfig({
     baseURL: env.baseURL,
     headless: true,
     actionTimeout: 15_000,
-    navigationTimeout: 45_000,
+    // Netlify free-tier cold start + multi-MB Blazor WASM download can make the
+    // first navigation slow, so allow a generous navigation budget.
+    navigationTimeout: 60_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
