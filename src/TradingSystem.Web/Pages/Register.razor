@@ -48,10 +48,9 @@
                         <label for="email">
                             <span class="field-icon">📧</span> Email Address
                         </label>
-                        <InputText id="email" @bind-Value="registerModel.Email"
-                                   class="form-input" placeholder="Enter your email"
-                                   disabled="@isLoading" />
-                        <ValidationMessage For="@(() => registerModel.Email)" class="validation-msg" />
+                        <input id="email" type="email" @bind="registerModel.Email" @bind:event="oninput"
+                               class="form-input" placeholder="Enter your email"
+                               disabled="@isLoading" />
                     </div>
 
                     <button type="button" class="login-btn" @onclick="SendOtp" disabled="@isLoading">
