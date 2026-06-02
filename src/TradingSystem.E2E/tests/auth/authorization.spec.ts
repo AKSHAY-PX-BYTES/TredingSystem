@@ -12,11 +12,19 @@ test.describe('Authorization › Protected routes', () => {
     test(`unauthenticated access to ${route} redirects to login @regression`, async ({ page }) => {
       await page.goto(route, { waitUntil: 'domcontentloaded' });
       await page.locator('.loading-screen').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
-      await page.waitForTimeout(2500);
-      const url = page.url();
-      const onLogin = url.includes('/login');
-      const hasLoginForm = await page.locator('#username').isVisible().catch(() => false);
-      expect(onLogin || hasLoginForm, `${route} should require auth`).toBeTruthy();
+      // Blazor resolves the auth state client-side and then RedirectToLogin runs.
+      // Heavier pages (markets/fno) can take a moment, so poll until the redirect
+      // lands on /login or the login form renders, rather than a single fixed wait.
+      await expect
+        .poll(
+          async () => {
+            const onLogin = page.url().includes('/login');
+            const hasLoginForm = await page.locator('#username').isVisible().catch(() => false);
+            return onLogin || hasLoginForm;
+          },
+          { message: `${route} should require auth`, timeout: 15_000 }
+        )
+        .toBe(true);
     });
   }
 });
