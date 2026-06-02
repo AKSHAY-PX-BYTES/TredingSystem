@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: tradingsystem
+
+scrape_configs:
+  # ---- App metrics (scraped directly from /metrics) ----
+  - job_name: tradingsystem-api
+    metrics_path: /metrics
+    scheme: https
+    static_configs:
+      - targets: ["tredingsystem-api.onrender.com"]
+        labels:
+          service: api
+
+  - job_name: tradingsystem-nse-proxy
+    metrics_path: /metrics
+    scheme: https
+    static_configs:
+      # Replace with your NSE proxy host if different.
+      - targets: ["tradingsystem-nse-proxy.onrender.com"]
+        labels:
+          service: nse-proxy
+
+  # ---- Blackbox HTTP up/down probes for ALL services (incl. frontends) ----
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://tredingsystem-api.onrender.com/health
+          - https://tredingsystem-31vm.onrender.com
+          - https://tradingsystem-nse-proxy.onrender.com/healthz
+        labels:
+          group: tradingsystem
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

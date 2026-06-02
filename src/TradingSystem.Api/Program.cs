@@ -8,6 +8,7 @@ using TradingSystem.Api.BackgroundServices;
 using TradingSystem.Api.Data;
 using TradingSystem.Api.Hubs;
 using TradingSystem.Api.Middleware;
+using TradingSystem.Api.Observability;
 using TradingSystem.Api.Services;
 using TradingSystem.Api.Services.EmailProviders;
 using TradingSystem.Agent;
@@ -195,6 +196,9 @@ builder.Services.AddSingleton<IMarketExchangeService, MarketExchangeService>();
 // Background service for real-time updates
 builder.Services.AddHostedService<MarketDataBroadcaster>();
 builder.Services.AddHostedService<NotificationBroadcaster>();
+
+// Observability: health checks + OpenTelemetry/Prometheus metrics (/health, /metrics)
+builder.Services.AddObservability(builder.Configuration);
 
 // AI Trading Agents (disabled on free-tier to prevent OOM crashes)
 var enableAgents = builder.Configuration.GetValue<bool>("EnableAgents");
@@ -463,6 +467,9 @@ app.UseMiddleware<SubscriptionAccessMiddleware>();
 
 app.MapControllers();
 app.MapHub<TradingHub>("/hubs/trading");
+
+// Health checks (/health, /health/live, /health/ready) + Prometheus (/metrics)
+app.MapObservability();
 
 app.Logger.LogInformation("Trading System API started successfully");
 

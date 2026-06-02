@@ -7,9 +7,52 @@
 // The API calls:  GET /option-chain?symbol=NIFTY  -> returns NSE's raw option-chain JSON.
 
 import express from "express";
+import client from "prom-client";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// ---- Prometheus metrics ----------------------------------------------------
+const registry = new client.Registry();
+registry.setDefaultLabels({ service: "tradingsystem-nse-proxy" });
+client.collectDefaultMetrics({ register: registry }); // process/gc/event-loop
+
+const httpRequests = new client.Counter({
+  name: "nse_proxy_http_requests_total",
+  help: "Total HTTP requests handled by the NSE proxy",
+  labelNames: ["method", "route", "status"],
+  registers: [registry],
+});
+
+const nseFetches = new client.Counter({
+  name: "nse_proxy_upstream_fetch_total",
+  help: "Outcome of upstream NSE option-chain fetches",
+  labelNames: ["symbol", "result"], // result = success | error | cache_hit
+  registers: [registry],
+});
+
+const fetchDuration = new client.Histogram({
+  name: "nse_proxy_upstream_fetch_duration_seconds",
+  help: "Duration of upstream NSE option-chain fetches",
+  labelNames: ["symbol"],
+  buckets: [0.1, 0.25, 0.5, 1, 2, 5, 10],
+  registers: [registry],
+});
+
+const cookieAge = new client.Gauge({
+  name: "nse_proxy_cookie_age_seconds",
+  help: "Age of the cached NSE session cookies in seconds",
+  registers: [registry],
+});
+
+// Count every request once the response finishes.
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    const route = req.route?.path || req.path || "unknown";
+    httpRequests.inc({ method: req.method, route, status: res.statusCode });
+  });
+  next();
+});
 
 // Optional shared secret. If set, callers must send header `x-proxy-key: <PROXY_KEY>`.
 const PROXY_KEY = process.env.PROXY_KEY || "";
@@ -143,6 +186,27 @@ async function fetchOptionChain(symbol) {
 
 app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
+// Alias used by the TradingSystem.Api health check (NseProxyHealthCheck probes /healthz).
+app.get("/healthz", (_req, res) =>
+  res.json({
+    ok: true,
+    service: "tradingsystem-nse-proxy",
+    cookieAgeSeconds: cookieFetchedAt ? Math.round((Date.now() - cookieFetchedAt) / 1000) : null,
+    time: new Date().toISOString(),
+  })
+);
+
+// Prometheus scrape endpoint.
+app.get("/metrics", async (_req, res) => {
+  try {
+    cookieAge.set(cookieFetchedAt ? (Date.now() - cookieFetchedAt) / 1000 : 0);
+    res.set("Content-Type", registry.contentType);
+    res.send(await registry.metrics());
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
 // Diagnostic endpoint: shows whether this host can reach NSE and what it returns.
 app.get("/debug", async (_req, res) => {
   const out = { time: new Date().toISOString() };
@@ -180,18 +244,23 @@ app.get("/option-chain", async (req, res) => {
     // Serve short-lived cache to reduce load / rate-limit risk.
     const cached = respCache.get(symbol);
     if (cached && Date.now() - cached.at < RESP_TTL_MS) {
+      nseFetches.inc({ symbol, result: "cache_hit" });
       res.set("Content-Type", "application/json");
       res.set("X-Proxy-Cache", "HIT");
       return res.send(cached.body);
     }
 
+    const stopTimer = fetchDuration.startTimer({ symbol });
     const body = await fetchOptionChain(symbol);
+    stopTimer();
+    nseFetches.inc({ symbol, result: "success" });
     respCache.set(symbol, { at: Date.now(), body });
 
     res.set("Content-Type", "application/json");
     res.set("X-Proxy-Cache", "MISS");
     return res.send(body);
   } catch (e) {
+    nseFetches.inc({ symbol: String(req.query.symbol || "NIFTY").toUpperCase(), result: "error" });
     console.error("option-chain error:", e.status || "", e.message);
     return res
       .status(e.status && e.status >= 400 && e.status < 600 ? 502 : 500)
