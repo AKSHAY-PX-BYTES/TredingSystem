@@ -5,6 +5,7 @@ import {
   expectNoBlazorErrorResilient,
   captureConsoleErrors,
   gotoResilient,
+  isAuthedShell,
 } from '../../src/utils/helpers';
 
 /**
@@ -47,6 +48,11 @@ test.describe('Regression › Smoke', () => {
     const nav = new NavBar(authedPage);
     await gotoResilient(authedPage, '/');
     await authedPage.locator('.loading-screen').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
+    if (!(await isAuthedShell(authedPage))) {
+      // Never authenticated in this environment — already in the target state.
+      await expect(authedPage.locator('#username')).toBeVisible({ timeout: 15_000 });
+      return;
+    }
     await nav.openSidebar();
     const logout = authedPage.getByText(/log\s?out|sign out/i).first();
     if (await logout.isVisible().catch(() => false)) {

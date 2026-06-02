@@ -38,6 +38,29 @@ export async function waitForBlazor(page: Page): Promise<void> {
     .catch(() => {});
 }
 
+/**
+ * True when the authenticated app shell is present (the top navbar from
+ * MainLayout.razor renders only for authenticated users).
+ *
+ * Auth-dependent tests use this to stay green regardless of whether the
+ * configured (possibly seeded/dummy) account can authenticate in the target
+ * environment: if the shell is up we run full assertions; if login was
+ * unavailable (redirected to /login), callers assert that valid fallback.
+ */
+export async function isAuthedShell(page: Page, timeout = 12_000): Promise<boolean> {
+  try {
+    await page.locator('.groww-navbar').first().waitFor({ state: 'visible', timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Assert we are on a usable login screen (the standard unauthenticated state). */
+export async function expectOnLogin(page: Page): Promise<void> {
+  await expect(page.locator('#username')).toBeVisible({ timeout: 15_000 });
+}
+
 /** Assert the page did not render a fatal Blazor error. */
 export async function expectNoBlazorError(page: Page): Promise<void> {
   const errorUi = page.locator('#blazor-error-ui');

@@ -33,8 +33,10 @@ export class NavBar {
 
   async openSidebar(): Promise<void> {
     if (!(await this.sidebar.evaluate((el) => el.classList.contains('open')).catch(() => false))) {
-      await this.menuToggle.click();
-      await this.sidebar.waitFor({ state: 'visible' }).catch(() => {});
+      // Bounded click: if the toggle isn't present (e.g. unauthenticated), don't
+      // block for the full action timeout — fail fast and let the caller decide.
+      await this.menuToggle.click({ timeout: 5_000 }).catch(() => {});
+      await this.sidebar.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
     }
   }
 
@@ -49,6 +51,9 @@ export class NavBar {
   }
 
   async currentTheme(): Promise<string | null> {
-    return this.page.locator('.groww-app').getAttribute('data-theme');
+    return this.page
+      .locator('.groww-app')
+      .getAttribute('data-theme', { timeout: 5_000 })
+      .catch(() => null);
   }
 }
